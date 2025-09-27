@@ -1,0 +1,4 @@
+﻿open Escenario
+
+
+testEscenario ()
