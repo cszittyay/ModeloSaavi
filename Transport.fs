@@ -10,7 +10,7 @@ let transport (p: TransportParams) : Operation =
     elif stIn.qtyMMBtu < 0.0m<MMBTU> then
       Error "Transport: qtyMMBtu negativa"
     else
-      let fuel  = stIn.qtyMMBtu * p.fuelPct
+      let fuel  = stIn.qtyMMBtu * p.fuelPct / 100.0m
       let qtyOut = max 0.0m<MMBTU> (stIn.qtyMMBtu - fuel)
       let stOut = { stIn with qtyMMBtu = qtyOut; location = p.exit }
       let cUso =

@@ -23,10 +23,10 @@ type GasState =
 
 // Línea de costo/factura que produce cada operación
 type CostItem =
-  { kind     : string          // "GAS", "TRANSPORTE-USO", "TRANSPORTE-RESERVA", "FEE-TRADE", "PENALIZACIÓN", etc.
-    qtyMMBtu : Energy   // sobre qué energía se cobra
-    rate     : decimal<USD/MMBTU>    // tarifa o adder
-    amount   : Money           // importe = qtyMMBtu * rate, o directo
+  { kind     : string               // "GAS", "TRANSPORTE-USO", "TRANSPORTE-RESERVA", "FEE-TRADE", "PENALIZACIÓN", etc.
+    qtyMMBtu : Energy               // sobre qué energía se cobra
+    rate     : decimal<USD/MMBTU>   // tarifa o adder
+    amount   : Money                // importe = qtyMMBtu * rate, o directo
     meta     : Map<string,obj> }
 
 // Resultado de una operación
