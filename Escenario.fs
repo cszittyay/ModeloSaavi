@@ -3,59 +3,56 @@
 open System
 open Unidades
 open Tipos
-
+open Transport
+open Consume
+open Supply
+open Helpers
+open Storage
+open Trade
 
 let testEscenario () =
-    // FX simple (identidad): no convertimos entre monedas en este ejemplo
-    let fx (fromC:Currency) (toC:Currency) =
-        if fromC = toC then 1.0M else
-        // aquí podrías poner tasas, p. ej. USD->MXN
-        if fromC = USD && toC = MXN then 18.0M
-        elif fromC = MXN && toC = USD then 1.0M/18.0M
-        else 1.0M
-
+   
     let day = DateTime(2025,1,15)
     let init : GasState =
-      { qty = 10_000.0<mmbtu>
+      { qtyMMBtu = 10_000.0m<MMBTU>
         owner = "Proveedor-USA"
-        loc   = "WAHA-ENTRY"
-        ts    = Some day
-        cntr  = None }
+        location   = "WAHA-ENTRY"
+        ts    = day
+        contract  = "Contrato GAS"}
 
     // storage config (ejemplo)
     let stConf =
-      { loc            = "AGUA-DULCE"
-        inv            = 50_000.0<mmbtu>
-        invMax         = 200_000.0<mmbtu>
-        injMax         = 20_000.0<mmbtu>
-        wdrMax         = 25_000.0<mmbtu>
-        injEfficiency  = 0.98
-        wdrEfficiency  = 0.97
-        usageRateInj   = Some (money 0.03M USD)
-        usageRateWdr   = Some (money 0.04M USD)
-        demandCharge   = Some (money 500.00M USD)
-        carryAPY       = Some 0.10M } // 10% anual
+      { location      = "AGUA-DULCE"
+        inv            = 50_000.0m<MMBTU>
+        invMax         = 200_000.0m<MMBTU>
+        injMax         = 20_000.0m<MMBTU>
+        wdrMax         = 25_000.0m<MMBTU>
+        injEfficiency  = 0.98m
+        wdrEfficiency  = 0.97m
+        usageRateInj   = 0.03M<USD/MMBTU>        // $/MMBtu inyectado efectivo (por USD)
+        usageRateWdr   = 0.04m<USD/MMBTU>        
+        demandCharge   = Some 500.00M<USD>            // fijo por periodo (si aplica) (por USD)
+        carryAPY       = 0.10M } // 10% anual
 
     let ops =
-      [ supply { seller="Proveedor-USA"; buyer="SaaviMX"; priceFix=Some (money 2.85M USD); contractRef=Some "NAESB-A006F1" }
-        transport { entry="WAHA-ENTRY"; exit="AGUA-DULCE"; shipper="SaaviMX-Trans"; fuelPct=0.02; usageRate=(money 0.15M USD); reservation=Some (money 0.05M USD) }
-        // Inyección a storage (inyectamos 5,000 MMBtu)
-        inject fx { storage=stConf; qtyIn=5_000.0<mmbtu> }
+      [ supply { seller="Proveedor-USA"; buyer="SaaviMX"; priceFix= 2.85M<USD/MMBTU>; contractRef= "NAESB-A006F1" }
+        transport { entry="WAHA-ENTRY"; exit="AGUA-DULCE"; shipper="SaaviMX-Trans"; fuelPct=0.02m; usageRate=0.15M<USD/MMBTU>; reservation=0.05M<USD/MMBTU> }
+        // Inyección a storage (inyectamos 5,000 MMBTU)
+        inject { storage=stConf; qtyIn=5_000.0m<MMBTU> }
         // Trade al cliente
-        trade { seller="SaaviMX"; buyer="Planta-MER"; adder=(money 0.02M USD); contractRef=Some "SBF_044_17" }
-        // Retiro del storage para cubrir consumo (retiramos 1,000 MMBtu)
-        withdraw fx { storage=stConf; qtyOut=1_000.0<mmbtu> }
+        trade { seller="SaaviMX"; buyer="Planta-MER"; adder=0.02M<USD/MMBTU>; contractRef= "SBF_044_17" }
+        // Retiro del storage para cubrir consumo (retiramos 1,000 MMBTU)
+        withdraw { storage=stConf; qtyOut=1_000.0m<MMBTU> }
         // Consumo medido
-        consume { meterLocation="AGUA-DULCE"; measured=9_600.0<mmbtu>; penaltyRate=Some (money 1.00M USD); tolerancePct=0.05 }
+        consume { meterLocation="AGUA-DULCE"; measured=9_600.0m<MMBTU>; penaltyRate=1.00M<USD/MMBTU>; tolerancePct=0.05m }
         // Cargo financiero por 30 días (si corresponde)
-        carryCost fx { storage=stConf; days=30 } ]
+        carryCost { storage=stConf; days=30 } ]
 
     match run ops init with
     | Error e -> printfn "❌ %s" e
     | Ok r ->
-        printfn "✅ Estado final: qty=%f MMBtu owner=%s loc=%s" (float r.state.qty) r.state.owner r.state.loc
+        printfn "✅ Estado final: qty=%f MMBTU owner=%s loc=%s" (decimal r.state.qtyMMBtu) r.state.owner r.state.location
         printfn "Costos:"
         r.costs |> List.iter (fun c ->
-            printfn " - %-22s qty=%A rate=%A amount=%s"
-                c.kind (c.qty |> Option.map float) (c.rate |> Option.map toStringMoney) (toStringMoney c.amount))
+            printfn " - %-22s qty=%A rate=%A amount=%A"  c.kind c.qtyMMBtu  c.rate  c.amount)
         printfn "Notas: %A" r.notes

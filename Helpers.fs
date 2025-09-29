@@ -5,11 +5,13 @@ open System.Data
 open Tipos
 
 // Helpers
-let inline d (x: float) : decimal = decimal x
-let round2 (m: Money) = Math.Round(m, 2)
-/ merge utils
-let mergeMaps (m1: Map<string,obj>) (m2: Map<string,obj>) =
-  Map.fold (fun acc k v -> acc.Add(k,v)) m1 m2
+let inline d (x: decimal) : decimal = decimal x
+//let round2 (m: Money) = Math.Round(m, 2)
+
+// merge utils
+let mergeMaps (m1: Map<string,obj>) (m2: Map<string,obj>) : Map<string,obj> =
+    Map.fold (fun acc k v -> acc.Add(k,v)) m1 m2
+
 
 let merge (r1: OpResult) (r2: OpResult) : OpResult =
   { state = r2.state

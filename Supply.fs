@@ -8,18 +8,15 @@ open Helpers
 
 let supply (p: SupplyParams) : Operation =
   fun stIn ->
-    if stIn.qty <= 0.0<mmbtu> then Error "Supply: qty <= 0"
+    if stIn.qtyMMBtu <= 0.0m<MMBTU> then Error "Supply: qtyMMBtu <= 0"
     else
-      let stOut = { stIn with owner = p.buyer; cntr = p.contractRef }
+      let stOut = { stIn with owner = p.buyer; contract = p.contractRef }
       let cost =
-        match p.priceFix with
-        | None -> []
-        | Some px ->
             // Interpretamos priceFix como $/MMBtu
-            let amount = scaleMoney (decimal (float stIn.qty)) px |> round2
+            let amount = stIn.qtyMMBtu * p.priceFix
             [{ kind="GAS"
-               qty=Some stIn.qty
-               rate=Some px
+               qtyMMBtu = stIn.qtyMMBtu
+               rate= p.priceFix
                amount=amount
                meta= [ "seller", box p.seller ] |> Map.ofList }]
       Ok { state=stOut; costs=cost; notes= [ "supply.seller", box p.seller ] |> Map.ofList }
