@@ -4,10 +4,12 @@ open Tipos
 open Helpers
 open Unidades
 
+
+//Es el consumo del punto de entrega final, donde se mide lo que realmente se entregó
 let consume (p: ConsumeParams) : Operation =
   fun stIn ->
     if stIn.location <> p.meterLocation then
-      Error (sprintf "Consume: estado en %s, se esperaba %s" stIn.location p.meterLocation)
+      Error (sprintf "¨Punto de Consumo: estado en %s, se esperaba %s" stIn.location p.meterLocation)
     else
       let outQ = stIn.qtyMMBtu
       let dmb  = outQ - p.measured

@@ -37,6 +37,8 @@ type OpResult =
 
 // Operación = función pura de estado -> resultado (o error)
 type Operation = GasState -> Result<OpResult,string>
+
+
 // ========================================================
 // 1) SUPPLY / SUMINISTRO (cambio de dueño, sin mover físico)
 // ========================================================

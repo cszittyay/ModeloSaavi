@@ -93,7 +93,7 @@ let testEscenario () =
     | Ok r ->
         // printfn "✅ Estado final: qty=%f MMBTU owner=%s loc=%s" (decimal r.state.qtyMMBtu) r.state.owner r.state.location
         printfn "Costos:"
-        r.costs |> List.sortBy(fun c -> c.kind) |> List.iter (fun c ->
+        r.costs |>  List.iter (fun c ->
             printfn " - %-22s qty=%A rate=%A amount=%A"  c.kind c.qtyMMBtu  c.rate  c.amount)
 
         printfn "\nCosto total: %.2fUSD"  (r.costs |> List.sumBy(fun c -> c.amount)  )

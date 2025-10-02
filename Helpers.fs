@@ -6,7 +6,6 @@ open Tipos
 
 // Helpers
 let inline d (x: decimal) : decimal = decimal x
-//let round2 (m: Money) = Math.Round(m, 2)
 
 // merge utils
 let mergeMaps (m1: Map<string,obj>) (m2: Map<string,obj>) : Map<string,obj> =
@@ -19,7 +18,9 @@ let merge (r1: OpResult) (r2: OpResult) : OpResult =
     notes = mergeMaps r1.notes r2.notes }
 
 
-
+// ejecutar operaciones en secuencia
+// Parte de un estado inicial
+// Devuelve Error si alguna operación falla
 let run (ops: Operation list) (init: GasState) =
   ops |> List.fold (fun acc op ->
           match acc with
