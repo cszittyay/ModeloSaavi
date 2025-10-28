@@ -19,4 +19,4 @@ let supply (p: SupplyParams) : Operation =
                rate= p.priceFix
                amount=amount
                meta= [ "seller", box p.seller;  ] |> Map.ofList }]
-      Ok { state=stOut; costs=cost; notes= [ "supply.seller", box p.seller;"buyer", box p.buyer; "contract", box p.contractRef; "priceFix", box (decimal p.priceFix) ] |> Map.ofList }
+      Ok { state=stOut; costs=cost; notes= [ "supply.seller", box p.seller;"supply.buyer", box p.buyer; "supply.contract", box p.contractRef; "supply.priceFix", box (decimal p.priceFix) ] |> Map.ofList }

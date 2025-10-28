@@ -12,7 +12,7 @@ open Trade
 
 let testEscenario () =
    
-    let day = DateTime(2025,1,15)
+    let day = DateTime(2025,10,)
     let init : GasState =
       { qtyMMBtu = 10_000.0m<MMBTU>
         owner = "JP Morgan"
@@ -88,7 +88,7 @@ let testEscenario () =
         ]
 
 
-    match run ops01 init with
+    match run opsSimpleTrade3 init with
     | Error e -> printfn "❌ %s" e
     | Ok r ->
         // printfn "✅ Estado final: qty=%f MMBTU owner=%s loc=%s" (decimal r.state.qtyMMBtu) r.state.owner r.state.location
