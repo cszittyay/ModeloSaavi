@@ -9,7 +9,7 @@ open Unidades
 let inject  (p: InjectParams) : Operation =
   fun stIn ->
     if stIn.location <> p.storage.location then
-      Error (sprintf "Inject: estado en %s, se esperaba %s" stIn.location p.storage.location)
+      Error (Other (sprintf "Inject: estado en %s, se esperaba %s" (string stIn.location) (string p.storage.location)))
     elif p.qtyIn < 0.0m<MMBTU> then
       Error "Inject: qtyIn < 0"
     elif p.qtyIn > p.storage.injMax then

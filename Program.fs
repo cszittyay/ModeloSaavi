@@ -1,4 +1,4 @@
-﻿open Escenario
+﻿//open Escenario
 
 
-testEscenario ()
+// testEscenario ()

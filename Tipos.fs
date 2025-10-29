@@ -13,12 +13,40 @@ type Party    = string
 type Location = string
 type Contract = string
 
+
+type DomainError =
+  | QuantityNonPositive of where:string
+  | MissingContract of id:string
+  | CapacityExceeded of what:string
+  | InvalidUnits of detail:string
+  | Other of string
+
+
+type CostKind = Gas | Transport | Storage | Tax | Fee
+
+type RateGas = decimal<USD/MMBTU>
+
+type TransactionConfirmation = {
+  tcId        : string
+  gasDay      : System.DateOnly
+  deliveryPt  : Location      // hub/punto de entrega (p.ej. Waha, HSC, etc.)
+  seller      : Party
+  buyer       : Party
+  qtyMMBtu    : Energy        // volumen confirmado
+  price       : RateGas       // $/MMBtu
+  contractRef : Contract
+  meta        : Map<string,obj>
+}
+
+
+
+
 // Estado físico/contractual del gas en un punto de la cadena
 type GasState =
   { qtyMMBtu  : Energy  // cantidad física de gas
     owner     : Party
     location  : Location
-    ts        : DateTime 
+    gasDay    : DateOnly
     contract  : Contract } // p.ej. NAESB/TC, transporte, etc.
 
 // Línea de costo/factura que produce cada operación
@@ -29,14 +57,50 @@ type CostItem =
     amount   : Money                // importe = qtyMMBtu * rate, o directo
     meta     : Map<string,obj> }
 
-// Resultado de una operación
-type OpResult =
-  { state   : GasState
-    costs   : CostItem list
-    notes   : Map<string,obj> }  // detalles (fuel, desbalance, shipper, etc.)
 
-// Operación = función pura de estado -> resultado (o error)
-type Operation = GasState -> Result<OpResult,string>
+// =====================
+// Costos tipados
+// =====================
+
+type CostLine = {
+  kind     : CostKind
+  qtyMMBtu : Energy
+  rate     : RateGas           // $/MMBtu cuando aplica
+  amount   : Money             // rate * qty
+  meta     : Map<string,obj>   // detalles (seller, tcId, etc.)
+}
+
+// =====================
+// Estado entre operaciones
+// =====================
+type State = {
+  qtyMMBtu : Energy
+  owner    : Party
+  contract : Contract
+  location : Location 
+  gasDay   : DateOnly
+  meta     : Map<string,obj>
+}
+
+// Para armar compras múltiples (una por supplier)
+type SupplierLeg = {
+  tc : TransactionConfirmation
+}
+
+
+// =====================
+// Resultado de una operación
+// =====================
+type Transition = {
+  state : State
+  costs : CostLine list
+  notes : Map<string,obj>       // fuel, desbalance, shipper, etc.
+}
+
+
+
+
+type Operation = State -> Result<Transition, DomainError>
 
 
 // ========================================================
@@ -84,29 +148,13 @@ type ConsumeParams =
     tolerancePct  : decimal }
 
 
-// Estado "observable" de un storage (pasado/retornado por quien compone)
-type StorageState =
-  { location            : Location
-    inv            : decimal<MMBTU>        // inventario actual
-    invMax         : decimal<MMBTU>        // capacidad máxima
-    injMax         : decimal<MMBTU>        // tasa máxima de inyección (por periodo)
-    wdrMax         : decimal<MMBTU>        // tasa máxima de retiro (por periodo)
-    injEfficiency  : decimal               // 0.0..1.0
-    wdrEfficiency  : decimal               // 0.0..1.0
-    usageRateInj   : decimal<USD/MMBTU>        // $/MMBtu inyectado efectivo
-    usageRateWdr   : decimal<USD/MMBTU>        // $/MMBtu retirado
-    demandCharge   : Money option        // fijo por periodo (si aplica)
-    carryAPY       : decimal       // costo financiero anual por inventario (%)
-  }
 
-type InjectParams =
-  { storage   : StorageState
-    qtyIn     : decimal<MMBTU> }
-
-type WithdrawParams =
-  { storage   : StorageState
-    qtyOut    : decimal<MMBTU> }     // qtyMMBtu deseada a extraer del storage hacia el pipeline
-
-type CarryParams =
-  { storage   : StorageState
-    days      : int }                       // días del periodo a prorratear
+type DailyBalance = {
+  fecha   : DateOnly
+  hub     : string
+  buy     : Energy
+  sell    : Energy
+  inject  : Energy
+  withdraw: Energy
+  consume : Energy
+}

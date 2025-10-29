@@ -9,7 +9,7 @@ open Unidades
 let consume (p: ConsumeParams) : Operation =
   fun stIn ->
     if stIn.location <> p.meterLocation then
-      Error (sprintf "¨Punto de Consumo: estado en %s, se esperaba %s" stIn.location p.meterLocation)
+      Error (Other (sprintf "¨Punto de Consumo: estado en %s, se esperaba %s" stIn.location p.meterLocation))
     else
       let outQ = stIn.qtyMMBtu
       let dmb  = outQ - p.measured
@@ -21,7 +21,7 @@ let consume (p: ConsumeParams) : Operation =
         | rate when abs dmb > tol ->
             let penalQty = abs dmb - tol
             let amount =  penalQty * rate 
-            Some { kind="PENALTY-IMBALANCE"
+            Some { kind=Fee
                    qtyMMBtu = penalQty
                    rate =  rate
                    amount =  amount

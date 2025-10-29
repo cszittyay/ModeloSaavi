@@ -7,12 +7,12 @@ open Unidades
 
 let trade (p: TradeParams) : Operation =
   fun stIn ->
-    if stIn.qtyMMBtu <= 0.0m<MMBTU> then Error "Trade: qtyMMBtu <= 0"
+    if stIn.qtyMMBtu <= 0.0m<MMBTU> then Error (Other "Trade: qtyMMBtu <= 0")
     else
       let stOut = { stIn with owner = p.buyer; contract = p.contractRef }
       let amount = stIn.qtyMMBtu * p.adder
       let fee =
-        { kind="FEE-TRADE"
+        { kind= Fee
           qtyMMBtu = stIn.qtyMMBtu
           rate= p.adder
           amount = amount

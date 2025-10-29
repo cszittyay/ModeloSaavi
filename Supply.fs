@@ -6,17 +6,83 @@ open Tipos
 open Helpers
 
 
-let supply (p: SupplyParams) : Operation =
+/// Compra simple (un solo supplier) a partir de una TransactionConfirmation
+let supplyFromTc (tc: TransactionConfirmation) : Operation =
   fun stIn ->
-    if stIn.qtyMMBtu <= 0.0m<MMBTU> then Error "Supply: qtyMMBtu <= 0"
+    if tc.qtyMMBtu <= 0.0m<MMBTU> then Error (Other "Supply: qtyMMBtu <= 0")
     else
-      let stOut = { stIn with owner = p.buyer; contract = p.contractRef }
+      // La compra aumenta posición del buyer; si tu State ya trae qty, podés sumar:
+      let stOut =
+        { stIn with
+            owner    = tc.buyer
+            contract = tc.contractRef
+            // si tu State tiene 'qtyMMBtu' como la cantidad del paso, podés usar la qty confirmada:
+            qtyMMBtu = tc.qtyMMBtu
+            // si tu State tiene 'location' (no visto en el recorte), setear a tc.deliveryPt si aplica
+        }
+
       let cost =
-            // Interpretamos priceFix como $/MMBtu
-            let amount = stIn.qtyMMBtu * p.priceFix
-            [{ kind="GAS"
-               qtyMMBtu = stIn.qtyMMBtu
-               rate= p.priceFix
-               amount=amount
-               meta= [ "seller", box p.seller;  ] |> Map.ofList }]
-      Ok { state=stOut; costs=cost; notes= [ "supply.seller", box p.seller;"supply.buyer", box p.buyer; "supply.contract", box p.contractRef; "supply.priceFix", box (decimal p.priceFix) ] |> Map.ofList }
+        let amt = Domain.amount tc.qtyMMBtu tc.price
+        [{ kind   = Gas              // si migraste a DU: CostKind.Gas
+           qtyMMBtu = tc.qtyMMBtu
+           rate  = tc.price            // si usás RateGas: tipar acorde a tu CostLine
+           amount= amt
+           meta  = [ "seller", box tc.seller
+                     "tcId"  , box tc.tcId
+                     "gasDay", box tc.gasDay ] |> Map.ofList }]
+
+      Ok { state=stOut
+           costs=cost
+           notes= [ "op", box "supply"
+                    "deliveryPt", box tc.deliveryPt ] |> Map.ofList }
+
+
+let supplyMany (legs: SupplierLeg list) : Operation =
+  fun stIn ->
+    match Validate.legsConsolidados legs with
+    | Error e ->
+        // mapear el error de validación a string (o a tu DomainError si usás DU)
+        Error (Other (Validate.toString e))
+
+    | Ok (buyer, gasDay, deliveryPt) ->
+        let totalQty = legs |> List.sumBy (fun l -> l.tc.qtyMMBtu)
+        if totalQty <= 0.0m<MMBTU> then
+          Error (Other "SupplyMany: qty total <= 0")
+        else
+          // nuevo estado consolidando la compra multi-supplier
+          let stOut =
+            { stIn with
+                owner    = buyer
+                contract = "MULTI"          // o stIn.contract; o acumular en notes
+                qtyMMBtu = totalQty
+                location = deliveryPt
+                gasDay   = gasDay
+            }
+
+          // costos por cada leg (mantiene trazabilidad por seller/contract/tcId)
+          let costs =
+            legs
+            |> List.map (fun l ->
+                let amt : Money = l.tc.qtyMMBtu * l.tc.price 
+                { kind     = CostKind.Gas
+                  qtyMMBtu = l.tc.qtyMMBtu
+                  rate     = l.tc.price              // RateGas ($/MMBtu) si lo definiste así
+                  amount   = amt
+                  meta     = [ "seller"   , box l.tc.seller
+                               "tcId"     , box l.tc.tcId
+                               "contract" , box l.tc.contractRef ] |> Map.ofList })
+
+          // precio promedio ponderado (opcional en notes)
+          let amtSum : Money = costs |> List.sumBy (fun c -> c.amount)
+          let wavg = amtSum / totalQty
+
+          Ok {
+            state = stOut
+            costs = costs
+            notes = [ "op"        , box "supplyMany"
+                      "buyer"     , box buyer
+                      "gasDay"    , box gasDay
+                      "deliveryPt", box deliveryPt
+                      "wavgPrice" , box (decimal wavg)
+                      "legsCount" , box legs.Length ] |> Map.ofList
+          }

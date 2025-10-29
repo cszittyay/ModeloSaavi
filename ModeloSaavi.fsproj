@@ -10,11 +10,10 @@
     <Compile Include="Tipos.fs" />
     <Compile Include="Helpers.fs" />
     <Compile Include="Trade.fs" />
-    <Compile Include="Storage.fs" />
+    <Compile Include="Balance.fs" />
     <Compile Include="Consume.fs" />
     <Compile Include="Transport.fs" />
     <Compile Include="Supply.fs" />
-    <Compile Include="Escenario.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
