@@ -128,10 +128,14 @@ type TransportParams =
 // 3) TRADE / COMERCIALIZACIÓN (cambia dueño, no cambia qtyMMBtu)
 // ========================================================
 type TradeParams =
-  { seller      : Party
+  { side        : TradeSide
+    seller      : Party
     buyer       : Party
+    qtyMMBtu    : Energy
     adder       : decimal<USD/MMBTU>        // $/MMBtu (fee/adder)
-    contractRef : Contract}
+    contractRef : Contract
+    meta        : Map<string,obj> }
+
 
 // ========================================================
 // 4) CONSUMO (sale del sistema; calcula desbalance vs medido)
