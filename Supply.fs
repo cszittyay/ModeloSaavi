@@ -47,7 +47,7 @@ let supplyMany (legs: SupplierLeg list) : Operation =
     | Ok (buyer, gasDay, deliveryPt) ->
         let totalQty = legs |> List.sumBy (fun l -> l.tc.qtyMMBtu)
         if totalQty <= 0.0m<MMBTU> then
-          Error (Other "SupplyMany: qty total <= 0")
+          Error (QuantityNonPositive "SupplyMany: qty total <= 0")
         else
           // nuevo estado consolidando la compra multi-supplier
           let stOut =
@@ -63,13 +63,14 @@ let supplyMany (legs: SupplierLeg list) : Operation =
           let costs =
             legs
             |> List.map (fun l ->
-                let amt : Money = l.tc.qtyMMBtu * l.tc.price 
+                let amt : Money = l.tc.qtyMMBtu * (l.tc.price + l.tc.adder)
                 { kind     = CostKind.Gas
                   qtyMMBtu = l.tc.qtyMMBtu
                   rate     = l.tc.price              // RateGas ($/MMBtu) si lo definiste así
                   amount   = amt
                   meta     = [ "seller"   , box l.tc.seller
                                "tcId"     , box l.tc.tcId
+                               "adder"    , box l.tc.adder
                                "contract" , box l.tc.contractRef ] |> Map.ofList })
 
           // precio promedio ponderado (opcional en notes)

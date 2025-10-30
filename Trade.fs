@@ -17,7 +17,11 @@ let trade (p: TradeParams) : Operation =
           rate= p.adder
           amount = amount
           meta= [ "seller", box p.seller ] |> Map.ofList }
-      Ok { state=stOut; costs=[fee]; notes= Map.empty }
+      Ok { state=stOut; costs=[fee]; notes= [ "op", box "Trade"
+                                              "seller", box p.seller
+                                              "buyer", box p.buyer
+                                              "adder", box p.adder
+                                              "contractRef", box p.contractRef   ] |> Map.ofList }
 
 
 

@@ -26,16 +26,21 @@ type DomainError =
 
 type CostKind = Gas | Transport | Storage | Tax | Fee
 
+type Cicle = DayAhead | Intraday
+
 type RateGas = decimal<USD/MMBTU>
 
 type TransactionConfirmation = {
   tcId        : string
-  gasDay      : System.DateOnly
-  deliveryPt  : Location      // hub/punto de entrega (p.ej. Waha, HSC, etc.)
+  gasDay      : DateOnly
+  tradingHub  : Location       // Hub que sirve para fijar el precio de referencia o índice
+  cicle       : Cicle 
+  deliveryPt  : Location      // Punto en el que el Suministrador (Productor) entrega el gas
   seller      : Party
   buyer       : Party
   qtyMMBtu    : Energy        // volumen confirmado
   price       : RateGas       // $/MMBtu
+  adder       : decimal<USD/MMBTU>
   contractRef : Contract
   meta        : Map<string,obj>
 }
@@ -44,20 +49,12 @@ type TransactionConfirmation = {
 // 4) trade: compra/venta directa entre contrapartes (signo por rol)
 type TradeSide = | Buy | Sell
 
-// Estado físico/contractual del gas en un punto de la cadena
-type GasState =
-  { qtyMMBtu  : Energy  // cantidad física de gas
-    owner     : Party
-    location  : Location
-    gasDay    : DateOnly
-    contract  : Contract } // p.ej. NAESB/TC, transporte, etc.
-
 
 // =====================
 // Costos tipados
 // =====================
 
-type CostLine = {
+type ItemCost = {
   kind     : CostKind
   qtyMMBtu : Energy
   rate     : RateGas           // $/MMBtu cuando aplica
@@ -88,13 +85,12 @@ type SupplierLeg = {
 // =====================
 type Transition = {
   state : State
-  costs : CostLine list
+  costs : ItemCost list
   notes : Map<string,obj>       // fuel, desbalance, shipper, etc.
 }
 
-
-
-
+// Es una función que toma State y devuelve Result<Transition, Error>
+// es lo que permite encadenar operaciones (composició de funciones)
 type Operation = State -> Result<Transition, DomainError>
 
 
@@ -131,7 +127,6 @@ type TradeParams =
   { side        : TradeSide
     seller      : Party
     buyer       : Party
-    qtyMMBtu    : Energy
     adder       : decimal<USD/MMBTU>        // $/MMBtu (fee/adder)
     contractRef : Contract
     meta        : Map<string,obj> }

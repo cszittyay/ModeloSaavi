@@ -4,16 +4,23 @@ open Tipos
 open Unidades
 open Helpers
 
+/// Operación de transporte de gas
+
+
+
 
 let transport (p: TransportParams) : Operation =
   fun stIn ->
     // Validaciones de dominio
     if String.IsNullOrWhiteSpace p.shipper then
       Error (MissingContract "shipper")
+
     elif stIn.location <> p.entry then
       Error (Other (sprintf "State@%s, esperado entry %s" stIn.location p.entry))
+
     elif stIn.qtyMMBtu <= 0.0m<MMBTU> then
       Error (QuantityNonPositive "transport.qtyMMBtu")
+
     elif p.fuelPct < 0m || p.fuelPct >= 1m then
       Error (InvalidUnits "transport.fuelPct debe estar en [0,1)")
     else
@@ -29,7 +36,7 @@ let transport (p: TransportParams) : Operation =
       // Para materializar a USD respetando unidades, multiplicamos por 1<MMBTU>.
       let reservationAmount : Money = 1.0m<MMBTU> * p.reservation
 
-      let costUsage : CostLine =
+      let costUsage : ItemCost =
         { kind     = CostKind.Transport
           qtyMMBtu = qtyOut
           rate     = p.usageRate
@@ -41,7 +48,7 @@ let transport (p: TransportParams) : Operation =
               "exit",       box p.exit ]
             |> Map.ofList }
 
-      let costReservation : CostLine =
+      let costReservation : ItemCost =
         { kind     = CostKind.Transport
           qtyMMBtu = 1.0m<MMBTU>            // basis sintético para obtener USD
           rate     = p.reservation

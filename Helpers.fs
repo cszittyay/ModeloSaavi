@@ -5,45 +5,50 @@ open System.Data
 open Tipos
 open Unidades
 
-// Helpers
-let inline d (x: decimal) : decimal = decimal x
-
-// merge utils
-let mergeMaps (m1: Map<string,obj>) (m2: Map<string,obj>) : Map<string,obj> =
-    Map.fold (fun acc k v -> acc.Add(k,v)) m1 m2
-
-
-let merge (r1: Transition) (r2: Transition) : Transition =
-  { state = r2.state
-    costs = r1.costs @ r2.costs
-    notes = mergeMaps r1.notes r2.notes }
-
-
-// ejecutar operaciones en secuencia
-// Parte de un estado inicial
-// Devuelve Error si alguna operación falla
-let run (ops: Operation list) (init:State) =
-  ops |> List.fold (fun acc op ->
-          match acc with
-          | Error _ as e -> e
-          | Ok r ->
-            match op r.state with
-            | Error e -> Error e
-            | Ok r2 -> Ok (merge r r2))
-        (Ok { state=init; costs=[]; notes=Map.empty })
-
 
 // === Helpers sugeridos
 module Money =
   let inline amount (qty: Energy) (rate: RateGas) : Money =    qty * rate 
 
 
+module DomainError =
+
+  let msg = function
+    | QuantityNonPositive w -> $"Cantidad no positiva en {w}"
+    | MissingContract id    -> $"Falta contrato {id}"
+    | CapacityExceeded w    -> $"Capacidad excedida: {w}"
+    | InvalidUnits d        -> $"Unidades inválidas: {d}"
+    | Other s               -> s
+
+
+module DomainErrorHelpers =
+    open Tipos  // donde está definido type DomainError
+
+    let describe (err: DomainError) : string =
+        match err with
+        | QuantityNonPositive where_ ->
+            sprintf "[QuantityNonPositive] %s → cantidad <= 0" where_
+        | MissingContract id ->
+            sprintf "[MissingContract] Faltante: %s" id
+        | CapacityExceeded what ->
+            sprintf "[CapacityExceeded] Capacidad excedida en %s" what
+        | InvalidUnits detail ->
+            sprintf "[InvalidUnits] %s" detail
+        | Other msg ->
+            sprintf "[Other] %s" msg
+
+
 module Cost =
-  let gas (qty: Energy) (rate: RateGas) meta : CostLine =
+  let gas (qty: Energy) (rate: RateGas) meta : ItemCost =
     { kind=Gas; qtyMMBtu=qty; rate=rate; amount=Money.amount qty rate; meta=meta }
-  let transport (qty: Energy) (rate: RateGas) meta : CostLine =
+  let transport (qty: Energy) (rate: RateGas) meta : ItemCost =
     { kind=Transport; qtyMMBtu=qty; rate=rate; amount=Money.amount qty rate; meta=meta }
 
+
+module Display =
+    let moneyStr (m: Money) = (decimal m).ToString("0.#####")
+    let rateStr  (r: RateGas) = (decimal r).ToString("0.#####")
+    let qtyStr   (q: Energy) = (decimal q).ToString("0.#####")
 
 module Domain =
   let inline amount (qty: Energy) (rate: RateGas) : Money =   qty * rate
@@ -140,11 +145,3 @@ module Meta =
                applyOp op qty acc
              ) zero)
 
-module DomainError =
-
-  let msg = function
-    | QuantityNonPositive w -> $"Cantidad no positiva en {w}"
-    | MissingContract id    -> $"Falta contrato {id}"
-    | CapacityExceeded w    -> $"Capacidad excedida: {w}"
-    | InvalidUnits d        -> $"Unidades inválidas: {d}"
-    | Other s               -> s
