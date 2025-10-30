@@ -1,48 +1,51 @@
 ﻿module Escenario
 
 open System
-open Unidades
-open Tipos
-open Transport
-open Consume
-open Supply
-open Helpers
-open Trade
+open Unidades           // Energy, RateGas, Money (decimal<...>)
+open Tipos              // State, Transition, DomainError, SupplierLeg, TransactionConfirmation, CostKind, etc.
+open Supply             // supplyMany : SupplierLeg list -> Operation
+open Transport          // transport  : RateGas -> string -> string -> string -> Operation
+open Kleisli            // runAll     : Operation list -> Plan (State -> Result<Transition list, _>)
 
-   
-let escenarioDosSuppliers () =
-  // Datos comunes
-  let gasDay     = DateOnly(2025,10,22)
+/// Helpers de impresión (opcionales)
+let private printMoney (m: Money) = (decimal m).ToString("0.#####")
+let private printRate (r: RateGas) = (decimal r).ToString("0.#####")
+let private printQty  (q: Energy) = (decimal q).ToString("0.#####")
+
+/// Construye un escenario: compra consolidada (2 suppliers) + transporte único
+let escenarioSupplyManyMasTransport () =
+  // Datos comunes del día y hub
+  let gasDay     = DateOnly(2025, 10, 22)
   let deliveryPt = "Waha"
   let buyer      = "INDUSTRIA_X"
 
-  // Supplier 1
+  // TC 1
   let tc1 : TransactionConfirmation =
     { tcId        = "TC-001"
       gasDay      = gasDay
       deliveryPt  = deliveryPt
       seller      = "SUPPLIER_A"
       buyer       = buyer
-      qtyMMBtu    = 8_000.0m<MMBTU>
+      qtyMMBtu    = 8000.0m<MMBTU>
       price       = 3.10m<USD/MMBTU>
       contractRef = "C-A-2025"
       meta        = Map.empty }
 
-  // Supplier 2
+  // TC 2
   let tc2 : TransactionConfirmation =
     { tcId        = "TC-002"
       gasDay      = gasDay
       deliveryPt  = deliveryPt
       seller      = "SUPPLIER_B"
       buyer       = buyer
-      qtyMMBtu    = 5_000.0m<MMBTU>
+      qtyMMBtu    = 5000.0m<MMBTU>
       price       = 3.35m<USD/MMBTU>
       contractRef = "C-B-2025"
       meta        = Map.empty }
 
   let legs : SupplierLeg list = [ { tc = tc1 }; { tc = tc2 } ]
 
-  // Estado inicial "vacío" (ajustá contract/meta si lo necesitás)
+  // Estado inicial
   let st0 : State =
     { qtyMMBtu = 0.0m<MMBTU>
       owner    = buyer
@@ -51,59 +54,47 @@ let escenarioDosSuppliers () =
       gasDay   = gasDay
       meta     = Map.empty }
 
-  // 1) Consolidar compra multi-supplier
-  let rSupplyMany = (supplyMany legs) st0
+  // Pipeline: supplyMany -> transport
+  let rate : RateGas = 0.08m<USD/MMBTU>
+  let ops : Operation list =
+    [ supplyMany legs
+      transport rate deliveryPt "CityGate_X" "SHIPPER_Y" ]
 
-  // 2) Transportar el total consolidado (un único transporte)
-  let rAll =
-    result {
-      let! tSupply = rSupplyMany
-      // rate de transporte de ejemplo: 0.08 $/MMBtu
-      let! tTransp = transportOne 0.08m<USD/MMBTU> deliveryPt "CityGate_X" "SHIPPER_Y" tSupply.state
-      return [ tSupply; tTransp ]
-    }
-
-  // 3) Balance diario + chequeo
-  match rAll with
+  // Ejecutar y acumular transiciones
+  match runAll ops st0 with
   | Error e ->
-      printfn "ERROR escenario: %s" e
+      printfn "ERROR en escenario: %A" e
+
   | Ok transitions ->
-      // Construir balances por (fecha, hub)
-      let balances = fromTransitions transitions
-      balances |> List.iter (fun b ->
-        // tolerancia 0.001 MMBtu
-        match check 0.001m<MMBTU> b with
-        | Ok () ->
-            printfn "OK balance %s/%s  buy=%M sell=%M inject=%M withdraw=%M consume=%M"
-              (b.fecha.ToString "yyyy-MM-dd") b.hub (decimal b.buy) (decimal b.sell)
-              (decimal b.inject) (decimal b.withdraw) (decimal b.consume)
-        | Error msg ->
-            printfn "DESBALANCE: %s" msg)
+      printfn "Transiciones ejecutadas: %d" (List.length transitions)
+      transitions
+      |> List.iteri (fun i t ->
+          let s = t.state
+          printfn "#%d op=%A qty=%s MMBtu owner=%s loc=%s contract=%s"
+            (i+1)
+            (t.notes |> Map.tryFind "op" |> Option.defaultValue (box ""))
+            (printQty s.qtyMMBtu) s.owner s.location s.contract
 
-      // Mostrar totales y precio ponderado guardado en notes
-      let tSupply = transitions.[0]
-      let totalQty = tSupply.state.qtyMMBtu
-      let wavg =
-        match Meta.get<decimal> "wavgPrice" tSupply.notes with
-        | Some w -> w
-        | None   -> 0M
-      printfn "Compra consolidada: qty=%M MMBtu; wavg=%M $/MMBtu" (decimal totalQty) wavg
+          // listar costos de la transición
+          if not (List.isEmpty t.costs) then
+            t.costs
+            |> List.iter (fun c ->
+                printfn "   cost kind=%A qty=%s rate=%s USD/MMBTU amount=%s USD"
+                  c.kind (printQty c.qtyMMBtu) (printRate c.rate) (printMoney c.amount))
+          else
+            printfn "   cost: (sin costos)")
 
-// Ejecutar el escenario de prueba
-escenarioDosSuppliers ()
+      // Agregados útiles (ejemplo: costo total de transporte)
+      let totalTransportUSD : Money =
+        transitions
+        |> List.collect (fun t -> t.costs)
+        |> List.filter   (fun c -> c.kind = CostKind.Transport)
+        |> List.sumBy    (fun c -> c.amount)
 
+      let finalState = (List.last transitions).state
+      printfn "TOTAL transporte = %s USD" (printMoney totalTransportUSD)
+      printfn "Estado final: qty=%s MMBtu loc=%s contract=%s"
+        (printQty finalState.qtyMMBtu) finalState.location finalState.contract
 
-    //match run opsSimpleTrade3 init with
-    //| Error e -> printfn "❌ %s" e
-    //| Ok r ->
-    //    // printfn "✅ Estado final: qty=%f MMBTU owner=%s loc=%s" (decimal r.state.qtyMMBtu) r.state.owner r.state.location
-    //    printfn "Costos:"
-    //    r.costs |>  List.iter (fun c ->
-    //        printfn " - %-22s qty=%A rate=%A amount=%A"  c.kind c.qtyMMBtu  c.rate  c.amount)
-
-    //    printfn "\nCosto total: %.2fUSD"  (r.costs |> List.sumBy(fun c -> c.amount)  )
-
-    //    printfn "Notas:" 
-    //    r.notes |> Map.toList |> List.iter (fun (k,v) -> printfn " - %-22s %A" k v) 
-        
-
+// Ejecutar el escenario
+escenarioSupplyManyMasTransport ()

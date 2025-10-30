@@ -22,6 +22,8 @@ type DomainError =
   | Other of string
 
 
+
+
 type CostKind = Gas | Transport | Storage | Tax | Fee
 
 type RateGas = decimal<USD/MMBTU>
@@ -39,7 +41,8 @@ type TransactionConfirmation = {
 }
 
 
-
+// 4) trade: compra/venta directa entre contrapartes (signo por rol)
+type TradeSide = | Buy | Sell
 
 // Estado físico/contractual del gas en un punto de la cadena
 type GasState =
@@ -48,14 +51,6 @@ type GasState =
     location  : Location
     gasDay    : DateOnly
     contract  : Contract } // p.ej. NAESB/TC, transporte, etc.
-
-// Línea de costo/factura que produce cada operación
-type CostItem =
-  { kind     : string               // "GAS", "TRANSPORTE-USO", "TRANSPORTE-RESERVA", "FEE-TRADE", "PENALIZACIÓN", etc.
-    qtyMMBtu : Energy               // sobre qué energía se cobra
-    rate     : decimal<USD/MMBTU>   // tarifa o adder
-    amount   : Money                // importe = qtyMMBtu * rate, o directo
-    meta     : Map<string,obj> }
 
 
 // =====================
