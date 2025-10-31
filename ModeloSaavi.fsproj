@@ -11,6 +11,7 @@
     <Compile Include="Helpers.fs" />
     <Compile Include="Kleisli.fs" />
     <Compile Include="Trade.fs" />
+    <Compile Include="Sleeve.fs" />
     <Compile Include="Balance.fs" />
     <Compile Include="Consume.fs" />
     <Compile Include="Transport.fs" />

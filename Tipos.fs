@@ -24,7 +24,7 @@ type DomainError =
 
 
 
-type CostKind = Gas | Transport | Storage | Tax | Fee
+type CostKind = Gas | Transport | Storage | Tax | Fee | Sleeve
 
 type Cicle = DayAhead | Intraday
 
@@ -131,6 +131,13 @@ type TradeParams =
     contractRef : Contract
     meta        : Map<string,obj> }
 
+
+type SleeveParams =
+  { seller      : Party
+    buyer       : Party
+    adder       : decimal<USD/MMBTU>        // $/MMBtu (fee/adder)
+    contractRef : Contract
+    meta        : Map<string,obj> }
 
 // ========================================================
 // 4) CONSUMO (sale del sistema; calcula desbalance vs medido)
