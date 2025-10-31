@@ -38,12 +38,6 @@ module DomainErrorHelpers =
             sprintf "[Other] %s" msg
 
 
-module Cost =
-  let gas (qty: Energy) (rate: RateGas) meta : ItemCost =
-    { kind=Gas; qtyMMBtu=qty; rate=rate; amount=Money.amount qty rate; meta=meta }
-  let transport (qty: Energy) (rate: RateGas) meta : ItemCost =
-    { kind=Transport; qtyMMBtu=qty; rate=rate; amount=Money.amount qty rate; meta=meta }
-
 
 module Display =
     let moneyStr (m: Money) = (decimal m).ToString("0.#####")

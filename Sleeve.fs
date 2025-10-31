@@ -16,12 +16,14 @@ let sleeve (p: SleeveParams) : Operation =
         { kind= Sleeve
           qtyMMBtu = stIn.qtyMMBtu
           rate= p.adder
+          provider = p.provider
           amount = amount
           meta= [ "seller", box p.seller 
                   "adder", box p.adder
                   "amount", box (decimal amount)
                   ] |> Map.ofList }
       Ok { state=stOut; costs=[fee]; notes= [ "op", box "Sleeve"
+                                              "provider", box p.provider        
                                               "seller", box p.seller
                                               "buyer", box p.buyer
                                               "adder", box p.adder

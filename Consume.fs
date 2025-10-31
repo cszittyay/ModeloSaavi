@@ -34,6 +34,7 @@ let consume (p: ConsumeParams) : Operation =
           {
             kind     = CostKind.Fee
             qtyMMBtu = excedente
+            provider = p.provider
             rate     = p.penaltyRate
             amount   = amount
             meta     =

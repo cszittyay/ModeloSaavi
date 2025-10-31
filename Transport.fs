@@ -38,6 +38,7 @@ let transport (p: TransportParams) : Operation =
 
       let costUsage : ItemCost =
         { kind     = CostKind.Transport
+          provider = p.provider
           qtyMMBtu = qtyOut
           rate     = p.usageRate
           amount   = usageAmount
@@ -49,7 +50,8 @@ let transport (p: TransportParams) : Operation =
             |> Map.ofList }
 
       let costReservation : ItemCost =
-        { kind     = CostKind.Transport
+        { provider = p.provider
+          kind     = CostKind.Transport
           qtyMMBtu = 1.0m<MMBTU>            // basis sintético para obtener USD
           rate     = p.reservation
           amount   = reservationAmount

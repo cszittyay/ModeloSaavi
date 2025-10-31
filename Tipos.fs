@@ -56,6 +56,7 @@ type TradeSide = | Buy | Sell
 
 type ItemCost = {
   kind     : CostKind
+  provider : Party             // quien factura (cuando aplica)
   qtyMMBtu : Energy
   rate     : RateGas           // $/MMBtu cuando aplica
   amount   : Money             // rate * qty
@@ -111,7 +112,8 @@ type SupplyParams =
 // 2) TRANSPORTE (mueve físico, no cambia dueño)
 // ========================================================
 type TransportParams =
-  { entry       : Location
+  { provider    : Party
+    entry       : Location
     exit        : Location
     shipper     : Party
     fuelPct     : decimal
@@ -133,7 +135,8 @@ type TradeParams =
 
 
 type SleeveParams =
-  { seller      : Party
+  { provider    : Party
+    seller      : Party
     buyer       : Party
     adder       : decimal<USD/MMBTU>        // $/MMBtu (fee/adder)
     contractRef : Contract
@@ -143,7 +146,8 @@ type SleeveParams =
 // 4) CONSUMO (sale del sistema; calcula desbalance vs medido)
 // ========================================================
 type ConsumeParams =
-  { meterLocation : Location
+  { provider      : Party
+    meterLocation : Location
     measured      : decimal<MMBTU>
     penaltyRate   : decimal<USD/MMBTU>
     tolerancePct  : decimal }

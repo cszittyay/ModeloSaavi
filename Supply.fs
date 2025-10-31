@@ -27,6 +27,7 @@ let supplyFromTc (tc: TransactionConfirmation) : Operation =
            qtyMMBtu = tc.qtyMMBtu
            rate  = tc.price            // si usás RateGas: tipar acorde a tu CostLine
            amount= amt
+           provider = tc.seller
            meta  = [ "seller", box tc.seller
                      "tcId"  , box tc.tcId
                      "gasDay", box tc.gasDay ] |> Map.ofList }]
@@ -34,6 +35,8 @@ let supplyFromTc (tc: TransactionConfirmation) : Operation =
       Ok { state=stOut
            costs=cost
            notes= [ "op", box "supply"
+                    "seller", box tc.seller
+                    "buyer", box tc.buyer   
                     "deliveryPt", box tc.deliveryPt ] |> Map.ofList }
 
 
@@ -64,7 +67,8 @@ let supplyMany (legs: SupplierLeg list) : Operation =
             legs
             |> List.map (fun l ->
                 let amt : Money = l.tc.qtyMMBtu * (l.tc.price + l.tc.adder)
-                { kind     = CostKind.Gas
+                { provider = l.tc.seller
+                  kind     = CostKind.Gas
                   qtyMMBtu = l.tc.qtyMMBtu
                   rate     = l.tc.price              // RateGas ($/MMBtu) si lo definiste así
                   amount   = amt

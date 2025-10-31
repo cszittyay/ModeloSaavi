@@ -63,8 +63,8 @@ let run ops st0 =
         else
           t.costs |> List.iter (fun c ->
             setCol ConsoleColor.Yellow
-            printfn "   cost kind=%A qty=%s rate=%s USD/MMBTU amount=%s USD"
-              c.kind (Display.qtyStr c.qtyMMBtu) (Display.rateStr c.rate) (Display.moneyStr c.amount))
+            printfn "   provider=%s      cost kind=%A      qty=%s     rate=%s USD/MMBTU     amount=%s USD"
+              c.provider c.kind (Display.qtyStr c.qtyMMBtu) (Display.rateStr c.rate) (Display.moneyStr c.amount))
         setCol ConsoleColor.Green
         printfn "Notas: %A\n" t.notes
         )
@@ -87,10 +87,17 @@ let run ops st0 =
         |> List.sumBy    (fun c -> c.amount)
 
 
+      let totalSleeveUSD : Money =
+        transitions
+        |> List.collect (fun t -> t.costs)
+        |> List.filter   (fun c -> c.kind = CostKind.Sleeve)
+        |> List.sumBy    (fun c -> c.amount)
+
+
       let sF = (List.last transitions).state
       setCol ConsoleColor.White
-      printfn "\nTotal Gas = %s USD | TOTAL Transport = %s USD | TOTAL Fees(Trade) = %s USD"
-            (Display.moneyStr totalGasUSD) (Display.moneyStr totalTransportUSD) (Display.moneyStr totalFeesUSD)
+      printfn "\nTotal Gas = %s USD | TOTAL Transport = %s USD | TOTAL Fees(Trade) = %s USD | TOTAL Sleeve = %s USD"
+            (Display.moneyStr totalGasUSD) (Display.moneyStr totalTransportUSD) (Display.moneyStr totalFeesUSD) (Display.moneyStr totalSleeveUSD)
 
       printfn "\nEstado final: qty=%s MMBtu loc=%s contract=%s"
         (Display.qtyStr sF.qtyMMBtu) sF.location sF.contract
@@ -146,8 +153,9 @@ let escenarioSupplyManyMasTransport_1 () =
   // Pipeline: supplyMany -> transport
   let rate : RateGas = 0.08m<USD/MMBTU>
 
-
-  let tp = { entry = entryPt 
+  // Transport
+  let tp = { provider = "TC Energy"
+             entry = entryPt 
              exit = deliveryPt 
              shipper = buyer 
              fuelPct = 0.01m 
@@ -212,7 +220,8 @@ let escenario_Supply_Transport_Trade ()=
   // Delivery Location:	336408	OGILBY DEL
 
   let pA005F1 : TransportParams =
-    { entry       = entryPtA005F1
+    { provider = "TC Energy"
+      entry       = entryPtA005F1
       exit        = exitPtA005F1
       shipper     = "EAX"
       fuelPct     = 0.007m                 // 0,7% fuel
@@ -228,7 +237,8 @@ let escenario_Supply_Transport_Trade ()=
   // Fuel: 0.1751%
 
   let pM005F1 : TransportParams =
-    { entry       = exitPtA005F1
+    { provider = "Gasoducto Aguprieta"
+      entry       = exitPtA005F1
       exit        = "Planta_EAX"
       shipper     = "EAX"
       fuelPct     = 0.001751m                // 0.1751% fuel
@@ -237,7 +247,8 @@ let escenario_Supply_Transport_Trade ()=
 
   // Trade con adder 0.5 USD/MMBTU
   let pTradeSES : TradeParams =
-    { side         = TradeSide.Sell
+    { 
+      side         = TradeSide.Sell
       seller       = "Suppliers USA"
       buyer        = "SES"
       adder        = 0.50m<USD/MMBTU>
@@ -254,7 +265,8 @@ let escenario_Supply_Transport_Trade ()=
 
   // parametros de Consumo (planta)
   let pConsume = 
-    { meterLocation       = "Planta_EAX"
+    { provider = "Savi Energía"
+      meterLocation       = "Planta_EAX"
       measured           = 13000.0m<MMBTU>
       tolerancePct       = 5.0m
       penaltyRate        = 0.10m<USD/MMBTU>
@@ -344,7 +356,8 @@ let escenario_supply_Transport_Sleeve () =
   // Delivery Location:	336408	OGILBY DEL
 
   let pA005F1 : TransportParams =
-    { entry       = entryPtA005F1
+    { provider = "TC Energy"
+      entry       = entryPtA005F1
       exit        = exitPtA005F1
       shipper     = "EAX"
       fuelPct     = 0.007m                 // 0,7% fuel
@@ -360,7 +373,8 @@ let escenario_supply_Transport_Sleeve () =
   // Fuel: 0.1751%
 
   let pM005F1 : TransportParams =
-    { entry       = exitPtA005F1
+    { provider = "Gasoducto Aguprieta"
+      entry       = exitPtA005F1
       exit        = "Planta_La_Estrella"
       shipper     = "EAX"
       fuelPct     = 0.001751m                // 0.1751% fuel
@@ -371,6 +385,7 @@ let escenario_supply_Transport_Sleeve () =
   // Sleeve
   let pSleeve : SleeveParams =
     {
+      provider = "Trafigura"
       seller = "SES"
       buyer = "SE"
       adder = 0.05m<USD/MMBTU>
@@ -396,7 +411,8 @@ let escenario_supply_Transport_Sleeve () =
 
   // parametros de Consumo (planta)
   let pConsume = 
-    { meterLocation       = "Planta_La_Estrella"
+    { provider            = "Savi Energía"
+      meterLocation       = "Planta_La_Estrella"
       measured           = 15300.0m<MMBTU>
       tolerancePct       = 5.0m
       penaltyRate        = 0.10m<USD/MMBTU>

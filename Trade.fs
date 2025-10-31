@@ -13,6 +13,7 @@ let trade (p: TradeParams) : Operation =
       let amount = stIn.qtyMMBtu * p.adder
       let fee =
         { kind= Fee
+          provider = Party "S/D"
           qtyMMBtu = stIn.qtyMMBtu
           rate= p.adder
           amount = amount
