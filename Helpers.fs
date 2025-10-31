@@ -40,9 +40,9 @@ module DomainErrorHelpers =
 
 
 module Display =
-    let moneyStr (m: Money) = (decimal m).ToString("0.#####")
-    let rateStr  (r: RateGas) = (decimal r).ToString("0.#####")
-    let qtyStr   (q: Energy) = (decimal q).ToString("0.#####")
+    let moneyStr (m: Money) = (decimal m).ToString("0.##")
+    let rateStr  (r: RateGas) = (decimal r).ToString("0.##")
+    let qtyStr   (q: Energy) = (decimal q).ToString("0.##")
 
 module Domain =
   let inline amount (qty: Energy) (rate: RateGas) : Money =   qty * rate

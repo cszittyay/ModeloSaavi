@@ -72,8 +72,9 @@ let supplyMany (legs: SupplierLeg list) : Operation =
                   qtyMMBtu = l.tc.qtyMMBtu
                   rate     = l.tc.price              // RateGas ($/MMBtu) si lo definiste así
                   amount   = amt
-                  meta     = [ "seller"   , box l.tc.seller
-                               "tcId"     , box l.tc.tcId
+                  meta     = [ "tcId"     , box l.tc.tcId
+                               "cycle"   , box l.tc.cicle
+                               "tradingHub",box l.tc.tradingHub
                                "adder"    , box l.tc.adder
                                "contract" , box l.tc.contractRef ] |> Map.ofList })
 
@@ -88,6 +89,6 @@ let supplyMany (legs: SupplierLeg list) : Operation =
                       "buyer"     , box buyer
                       "gasDay"    , box gasDay
                       "deliveryPt", box deliveryPt
-                      "wavgPrice" , box (decimal wavg)
+                      "wavgPrice:[USD/MMBTU]" , box (Math.Round(decimal wavg, 2))
                       "legsCount" , box legs.Length ] |> Map.ofList
           }

@@ -53,10 +53,10 @@ let consume (p: ConsumeParams) : Operation =
       // Notas para trazabilidad
       let notes =
         [ "op"                 , box "consume"
-          "consume.measured"   , box (decimal p.measured)
-          "consume.out"        , box (decimal outQ)
-          "consume.desbalance" , box (decimal dmb)
-          "consume.tolerance[]"  , box (decimal tol) ]
+          "consume.measured"   , box (round(decimal p.measured))
+          "consume.out"        , box (round(decimal outQ))
+          "consume.desbalance" , box (round (decimal dmb))
+          "consume.tolerance[]"  , box (round  (decimal tol)) ]
         |> Map.ofList
 
       Ok { state = stOut

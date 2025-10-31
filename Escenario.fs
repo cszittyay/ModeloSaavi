@@ -61,12 +61,16 @@ let run ops st0 =
 
         if List.isEmpty t.costs then printfn "   cost: (sin costos)"
         else
-          t.costs |> List.iter (fun c ->
+            t.costs |> List.iter (fun c ->
             setCol ConsoleColor.Yellow
-            printfn "   provider=%s      cost kind=%A      qty=%s     rate=%s USD/MMBTU     amount=%s USD"
-              c.provider c.kind (Display.qtyStr c.qtyMMBtu) (Display.rateStr c.rate) (Display.moneyStr c.amount))
-        setCol ConsoleColor.Green
-        printfn "Notas: %A\n" t.notes
+            printfn "   provider = %s      cost kind = %A      qty = %s     rate = %s USD/MMBTU     amount = %s USD"
+              c.provider c.kind (Display.qtyStr c.qtyMMBtu) (Display.rateStr c.rate) (Display.moneyStr c.amount)
+            setCol ConsoleColor.Green
+            printfn "\n Meta %A\n" c.meta)
+            setCol ConsoleColor.White
+            printfn "Notas: %A\n" t.notes
+            setCol ConsoleColor.Cyan        
+        
         )
       let totalTransportUSD : Money =
         transitions
@@ -175,6 +179,7 @@ let escenarioSupplyManyMasTransport_1 () =
 
 let escenario_Supply_Transport_Trade ()=
   // Base
+  let contratRef = "CR-2025-01"
   let gasRxPt = "EHRENBERG"
   let entryPtA005F1 = gasRxPt
   let exitPtA005F1 = "OGILBY"
@@ -183,33 +188,47 @@ let escenario_Supply_Transport_Trade ()=
   // Dos TCs
   let tc1 : TransactionConfirmation =
     { tcId        = "TC-001"; 
+      gasDay = gasDay 
+      tradingHub  = Mainline
+      cicle = DayAhead
+      deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
+      seller      = "JP Morgan" 
+      buyer = buyer
+      qtyMMBtu    = 21645.0m<MMBTU>
+      price = 2.37m<USD/MMBTU>
+      adder       = 0.029m<USD/MMBTU>
+      contractRef = contratRef 
+      meta = Map.empty }
+
+  let tc2 : TransactionConfirmation =
+    { tcId        = "TC-001"; 
       gasDay = gasDay; 
       tradingHub  = Mainline
       cicle = DayAhead;
       deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
-      seller      = "JP Morgan"; 
+      seller      = "JP Morgan" 
       buyer = buyer
-      qtyMMBtu    = 8000.0m<MMBTU>; 
-      price = 3.10m<USD/MMBTU>
-      adder       = 0.029m<USD/MMBTU>
-      contractRef = "C-A-2025"; 
+      qtyMMBtu  = 43355.0m<MMBTU> 
+      price     = 0.775m<USD/MMBTU>
+      adder     = 0.0m<USD/MMBTU>
+      contractRef = contratRef 
       meta = Map.empty }
 
-  let tc2 : TransactionConfirmation =
+  let tc3 : TransactionConfirmation =
     { tcId        = "TC-002"; 
       gasDay = gasDay; 
-      cicle = DayAhead;
+      cicle = Intraday;
       tradingHub  = Mainline
       deliveryPt = gasRxPt
-      seller      = "Exxon"; 
+      seller      = "JP Morgan";
       buyer = buyer
-      qtyMMBtu    = 5000.0m<MMBTU>; 
+      qtyMMBtu    = 4372.0m<MMBTU> 
       price = 3.35m<USD/MMBTU>
-      adder       = 0.029m<USD/MMBTU>
-      contractRef = "C-B-2025"; 
+      adder       = 0.005m<USD/MMBTU>
+      contractRef = contratRef 
       meta = Map.empty }
 
-  let legs : SupplierLeg list = [ { tc = tc1 }; { tc = tc2 } ]
+  let legs : SupplierLeg list = [ { tc = tc1 }; { tc = tc2 }; { tc = tc3 } ]
 
   
 
