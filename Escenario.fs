@@ -56,17 +56,17 @@ let run ops st0 =
         let s = t.state
         let opName = t.notes |> Map.tryFind "op" |> Option.map string |> Option.defaultValue ""
         setCol ConsoleColor.White
-        printfn "\n#%d op=%s qty=%s MMBtu loc=%s contract=%s"
+        printfn "\n#%d op = %s    qty = %s MMBtu     loc = %s      contract = %s"
           (i+1) opName (Display.qtyStr s.qtyMMBtu) s.location s.contract
 
         if List.isEmpty t.costs then printfn "   cost: (sin costos)"
         else
             t.costs |> List.iter (fun c ->
             setCol ConsoleColor.Yellow
-            printfn "   provider = %s      cost kind = %A      qty = %s     rate = %s USD/MMBTU     amount = %s USD"
+            printfn "   provider = %s      cost kind = %A      qty = %s MMBTU   rate = %s USD/MMBTU     amount = %s USD"
               c.provider c.kind (Display.qtyStr c.qtyMMBtu) (Display.rateStr c.rate) (Display.moneyStr c.amount)
             setCol ConsoleColor.Green
-            printfn "\n Meta %A\n" c.meta)
+            printfn "   Meta data %A\n" c.meta)
             setCol ConsoleColor.White
             printfn "Notas: %A\n" t.notes
             setCol ConsoleColor.Cyan        
@@ -185,7 +185,7 @@ let escenario_Supply_Transport_Trade ()=
   let exitPtA005F1 = "OGILBY"
   let buyer      = "SES"
 
-  // Dos TCs
+  // Cuatro TCs
   let tc1 : TransactionConfirmation =
     { tcId        = "TC-001"; 
       gasDay = gasDay 
@@ -228,7 +228,24 @@ let escenario_Supply_Transport_Trade ()=
       contractRef = contratRef 
       meta = Map.empty }
 
-  let legs : SupplierLeg list = [ { tc = tc1 }; { tc = tc2 }; { tc = tc3 } ]
+
+  
+  let tc4: TransactionConfirmation =
+    { tcId        = "TC-002"; 
+      gasDay = gasDay; 
+      cicle = Intraday;
+      tradingHub  = Mainline
+      deliveryPt = gasRxPt
+      seller      = "Mercuria";
+      buyer = buyer
+      qtyMMBtu    = 18000.0m<MMBTU> 
+      price = 2.575m<USD/MMBTU>
+      adder       = 0.005m<USD/MMBTU>
+      contractRef = contratRef 
+      meta = Map.empty }
+
+
+  let legs : SupplierLeg list = [ { tc = tc1 }; { tc = tc2 }; { tc = tc3 } ; { tc = tc4 } ]
 
   
 
@@ -256,7 +273,7 @@ let escenario_Supply_Transport_Trade ()=
   // Fuel: 0.1751%
 
   let pM005F1 : TransportParams =
-    { provider = "Gasoducto Aguprieta"
+    { provider = "Gasoducto Aguaprieta"
       entry       = exitPtA005F1
       exit        = "Planta_EAX"
       shipper     = "EAX"
@@ -270,11 +287,19 @@ let escenario_Supply_Transport_Trade ()=
       side         = TradeSide.Sell
       seller       = "Suppliers USA"
       buyer        = "SES"
-      adder        = 0.50m<USD/MMBTU>
+      adder        = 0.0m<USD/MMBTU>
       contractRef  = "MARKET_Z"
       meta         = Map.empty }
 
   let pTradeSE : TradeParams =
+    { side         = TradeSide.Sell
+      seller       = "SES"
+      buyer        = "SE"
+      adder        = 0.20m<USD/MMBTU>
+      contractRef  = "MARKET_Z"
+      meta         = Map.empty }
+
+  let pTradeSE_EAX : TradeParams =
     { side         = TradeSide.Sell
       seller       = "SE"
       buyer        = "EAX"
@@ -282,11 +307,12 @@ let escenario_Supply_Transport_Trade ()=
       contractRef  = "MARKET_Z"
       meta         = Map.empty }
 
+
   // parametros de Consumo (planta)
   let pConsume = 
     { provider = "Savi Energía"
       meterLocation       = "Planta_EAX"
-      measured           = 13000.0m<MMBTU>
+      measured           = 85000.0m<MMBTU>
       tolerancePct       = 5.0m
       penaltyRate        = 0.10m<USD/MMBTU>
       }
@@ -304,7 +330,7 @@ let escenario_Supply_Transport_Trade ()=
   //      (Display.qtyStr tFinal.state.qtyMMBtu) tFinal.state.location tFinal.state.contract
 
   // Si querés también la traza completa (balances/costos):
-  let ops : Operation list = [ supplyMany legs ;trade pTradeSES ;transport pA005F1  ;trade pTradeSE ;transport pM005F1  ;consume pConsume]
+  let ops : Operation list = [ supplyMany legs ;trade pTradeSES ;transport pA005F1  ;trade pTradeSE ;transport pM005F1; trade pTradeSE_EAX ;consume pConsume]
   run ops st0
 
 
@@ -411,6 +437,8 @@ let escenario_supply_Transport_Sleeve () =
       meta = Map.empty
       contractRef = contractRef
     }
+
+
   // Trade con adder 0.5 USD/MMBTU
   let pTradeSES : TradeParams =
     { side         = TradeSide.Sell

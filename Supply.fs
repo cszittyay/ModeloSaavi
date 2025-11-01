@@ -72,11 +72,9 @@ let supplyMany (legs: SupplierLeg list) : Operation =
                   qtyMMBtu = l.tc.qtyMMBtu
                   rate     = l.tc.price              // RateGas ($/MMBtu) si lo definiste así
                   amount   = amt
-                  meta     = [ "tcId"     , box l.tc.tcId
-                               "cycle"   , box l.tc.cicle
+                  meta     = [ "cycle"   , box l.tc.cicle
                                "tradingHub",box l.tc.tradingHub
-                               "adder"    , box l.tc.adder
-                               "contract" , box l.tc.contractRef ] |> Map.ofList })
+                               "adder"    , box l.tc.adder ] |> Map.ofList })
 
           // precio promedio ponderado (opcional en notes)
           let amtSum : Money = costs |> List.sumBy (fun c -> c.amount)
