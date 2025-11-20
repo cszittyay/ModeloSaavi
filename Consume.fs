@@ -32,7 +32,7 @@ let consume (p: ConsumeParams) : Operation =
           let excedente : Energy = abs dmb - tol
           let amount : Money = excedente * p.penaltyRate   // (MMBTU * USD/MMBTU) = USD
           {
-            kind     = CostKind.Fee
+            kind     = CostKind.Nulo
             qtyMMBtu = excedente
             provider = p.provider
             rate     = p.penaltyRate

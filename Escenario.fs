@@ -469,7 +469,13 @@ let escenario_supply_Transport_Sleeve () =
 
 
   // Si querés también la traza completa (balances/costos):
-  let ops : Operation list = [ supplyMany legs ;trade pTradeSES ;transport pA005F1 ; sleeve pSleeve ;transport pM005F1; trade pTradeSE  ;consume pConsume]
+  let ops : Operation list = [ supplyMany legs ;
+                               trade pTradeSES ;
+                               transport pA005F1 ; 
+                               sleeve pSleeve ;
+                               transport pM005F1; 
+                               trade pTradeSE  ;
+                               consume pConsume]
   run ops st0
 
 

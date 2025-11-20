@@ -24,7 +24,7 @@ type DomainError =
 
 
 
-type CostKind = Gas | Transport | Storage | Tax | Fee | Sleeve
+type CostKind = Gas | Transport | Storage | Tax | Fee | Sleeve | Nulo
 
 type Cicle = DayAhead | Intraday
 
