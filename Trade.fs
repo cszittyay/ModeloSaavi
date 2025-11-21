@@ -5,6 +5,8 @@ open Helpers
 open Unidades
 
 
+
+/// Compra simple (un solo supplier) a partir de una TransactionConfirmation
 let trade (p: TradeParams) : Operation =
   fun stIn ->
     if stIn.energy <= 0.0m<MMBTU> then Error (Other "Trade: qEnergia <= 0")

@@ -7,86 +7,76 @@ open Helpers
 
 
 /// Compra simple (un solo supplier) a partir de una TransactionConfirmation
-let supplyFromTc (tc: TransactionConfirmation) : Operation =
+let supply (sp: SupplyParams) : Operation =
   fun stIn ->
-    if tc.qEnergia <= 0.0m<MMBTU> then Error (Other "Supply: qEnergia <= 0")
-    else
       // La compra aumenta posición del buyer; si tu State ya trae qty, podés sumar:
       let stOut =
         { stIn with
-            owner    = tc.buyer
-            contract = tc.contractRef
-            // si tu State tiene 'qEnergia' como la cantidad del paso, podés usar la qty confirmada:
-            energy = tc.qEnergia
-            // si tu State tiene 'location' (no visto en el recorte), setear a tc.deliveryPt si aplica
-        }
+            owner    = sp.buyer
+            contract = sp.contractRef
+            energy   = sp.qEnergia
+            location = sp.deliveryPt }
 
+      let amt = Domain.amount sp.qEnergia sp.price
       let cost =
-        let amt = Domain.amount tc.qEnergia tc.price
-        [{ kind   = Gas              // si migraste a DU: CostKind.Gas
-           qEnergia = tc.qEnergia
-           rate  = tc.price            // si usás RateGas: tipar acorde a tu CostLine
-           amount= amt
-           provider = tc.seller
-           meta  = [ "seller", box tc.seller
-                     "tcId"  , box tc.tcId
-                     "gasDay", box tc.gasDay ] |> Map.ofList }]
+        [{ kind     = CostKind.Gas
+           qEnergia = sp.qEnergia
+           rate     = sp.price
+           amount   = amt
+           provider = sp.seller
+           meta     = [ "seller", box sp.seller
+                        "tcId"  , box sp.tcId
+                        "gasDay", box sp.gasDay ] |> Map.ofList }]
 
-      Ok { state=stOut
-           costs=cost
-           notes= [ "op", box "supply"
-                    "seller", box tc.seller
-                    "buyer", box tc.buyer   
-                    "deliveryPt", box tc.deliveryPt ] |> Map.ofList }
+      Ok { state = stOut
+           costs = cost
+           notes = [ "op", box "supply"
+                     "seller", box sp.seller
+                     "buyer", box sp.buyer
+                     "deliveryPt", box sp.deliveryPt ] |> Map.ofList }
 
 
-let supplyMany (legs: SupplierLeg list) : Operation =
+/// Compra multi-supplier, consolidando en una sola Operation
+let supplyMany (sps: SupplyParams list) : Operation =
   fun stIn ->
-    match Validate.legsConsolidados legs with
-    | Error e ->
-        // mapear el error de validación a string (o a tu DomainError si usás DU)
-        Error (Other (Validate.toString e))
-
+    match Validate.legsConsolidados sps with
+    | Error e -> Error (Other (Validate.toString e))
     | Ok (buyer, gasDay, deliveryPt) ->
-        let totalQty = legs |> List.sumBy (fun l -> l.tc.qEnergia)
-        if totalQty <= 0.0m<MMBTU> then
-          Error (QuantityNonPositive "SupplyMany: qty total <= 0")
-        else
-          // nuevo estado consolidando la compra multi-supplier
-          let stOut =
-            { stIn with
-                owner    = buyer
-                contract = "MULTI"          // o stIn.contract; o acumular en notes
-                energy = totalQty
-                location = deliveryPt
-                gasDay   = gasDay
-            }
+      let totalQty = sps |> List.sumBy (fun sp -> sp.qEnergia)
+      if totalQty <= 0.0m<MMBTU> then Error (QuantityNonPositive "SupplyMany: qty total <= 0")
+      else
+        // nuevo estado consolidando la compra multi-supplier
+        let stOut =
+          { stIn with
+              owner    = buyer
+              contract = "MULTI"
+              energy   = totalQty
+              location = deliveryPt
+              gasDay   = gasDay }
 
-          // costos por cada leg (mantiene trazabilidad por seller/contract/tcId)
-          let costs =
-            legs
-            |> List.map (fun l ->
-                let amt : Money = l.tc.qEnergia * (l.tc.price + l.tc.adder)
-                { provider = l.tc.seller
-                  kind     = CostKind.Gas
-                  qEnergia = l.tc.qEnergia
-                  rate     = l.tc.price              // RateGas ($/MMBtu) si lo definiste así
-                  amount   = amt
-                  meta     = [ "cycle"   , box l.tc.temporalidad
-                               "tradingHub",box l.tc.tradingHub
-                               "adder"    , box l.tc.adder ] |> Map.ofList })
+        // costos por cada leg (mantiene trazabilidad por seller/contract/tcId)
+        let costs =
+          sps
+          |> List.map (fun sp ->
+              let amt : Money = sp.qEnergia * (sp.price + sp.adder)
+              { provider = sp.seller
+                kind     = CostKind.Gas
+                qEnergia = sp.qEnergia
+                rate     = sp.price
+                amount   = amt
+                meta     = [ "cycle"     , box sp.temporalidad
+                             "tradingHub", box sp.tradingHub
+                             "adder"    , box sp.adder ] |> Map.ofList })
 
-          // precio promedio ponderado (opcional en notes)
-          let amtSum : Money = costs |> List.sumBy (fun c -> c.amount)
-          let wavg = amtSum / totalQty
+        // precio promedio ponderado (opcional en notes)
+        let amtSum : Money = costs |> List.sumBy (fun c -> c.amount)
+        let wavg = if totalQty > 0.0m<MMBTU> then amtSum / totalQty else 0.0m<USD/MMBTU>
 
-          Ok {
-            state = stOut
-            costs = costs
-            notes = [ "op"        , box "supplyMany"
-                      "buyer"     , box buyer
-                      "gasDay"    , box gasDay
-                      "deliveryPt", box deliveryPt
-                      "wavgPrice:[USD/MMBTU]" , box (Math.Round(decimal wavg, 2))
-                      "legsCount" , box legs.Length ] |> Map.ofList
-          }
+        Ok { state = stOut
+             costs = costs
+             notes = [ "op"        , box "supplyMany"
+                       "buyer"     , box buyer
+                       "gasDay"    , box gasDay
+                       "deliveryPt", box deliveryPt
+                       "wavgPrice:[USD/MMBTU]" , box (Math.Round(decimal wavg, 2))
+                       "legsCount" , box sps.Length ] |> Map.ofList }

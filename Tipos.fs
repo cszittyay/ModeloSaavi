@@ -34,7 +34,7 @@ type TradeSide = | Buy | Sell
 
 type RateGas = decimal<USD/MMBTU>
 
-type TransactionConfirmation = {
+type SupplyParams = {
   tcId        : string
   gasDay      : DateOnly
   tradingHub  : Location       // Hub que sirve para fijar el precio de referencia o índice
@@ -76,12 +76,6 @@ type State = {
   meta     : Map<string,obj>
 }
 
-// Para armar compras múltiples (una por supplier)
-type SupplierLeg = {
-  tc : TransactionConfirmation
-}
-
-
 // =====================
 // Resultado de una operación
 // =====================
@@ -94,17 +88,6 @@ type Transition = {
 // Es una función que toma State y devuelve Result<Transition, Error>
 // es lo que permite encadenar operaciones (composició de funciones)
 type Operation = State -> Result<Transition, DomainError>
-
-
-// ========================================================
-// 1) SUPPLY / SUMINISTRO (cambio de dueño, sin mover físico)
-// ========================================================
-
-type SupplyParams =
-  { seller      : Party
-    buyer       : Party
-    priceFix    : decimal<USD/MMBTU>   // precio del gas ($/MMBtu) o monto fijo (ver meta)
-    contractRef : Contract }
 
 
 
@@ -133,6 +116,20 @@ type TradeParams =
     adder       : decimal<USD/MMBTU>        // $/MMBtu (fee/adder)
     contractRef : Contract
     meta        : Map<string,obj> }
+
+
+// para el caso de multiple trade legs dentro de un supply
+type SupplyTradeLegParams =
+  { supply : SupplyParams
+    trade  : TradeParams }
+
+
+type MultiSupplyTradeParams =
+  { legs       : SupplyTradeLegParams list
+    entryPoint : Location      // punto físico de inyección al sistema de transporte
+    gasDay     : DateOnly }
+
+
 
 
 type SleeveParams =

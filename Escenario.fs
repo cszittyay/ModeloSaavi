@@ -2,7 +2,7 @@
 
 open System
 open Unidades           // Energy, RateGas, Money (decimal<...>)
-open Tipos              // State, Transition, DomainError, SupplierLeg, TransactionConfirmation, CostKind, etc.
+open Tipos              // State, Transition, DomainError, SupplierLeg, SupplyParams, CostKind, etc.
 open Supply             // supplyMany : SupplierLeg list -> Operation
 open Transport          // transport  : RateGas -> string -> string -> string -> Operation
 open Consume            // consume    : decimal<MMBTU> -> decimal<USD/MMBTU> -> Operation
@@ -114,7 +114,7 @@ let escenarioSupplyManyMasTransport_1 () =
 
 
   // TC 1
-  let tc1 : TransactionConfirmation =
+  let sp1 : SupplyParams =
     { tcId        = "TC-001"
       gasDay      = gasDay
       temporalidad = DayAhead
@@ -129,7 +129,7 @@ let escenarioSupplyManyMasTransport_1 () =
       meta        = Map.empty }
 
   // TC 2
-  let tc2 : TransactionConfirmation =
+  let sp2 : SupplyParams =
     { tcId        = "TC-002"
       gasDay      = gasDay
       tradingHub  = Mainline
@@ -143,7 +143,8 @@ let escenarioSupplyManyMasTransport_1 () =
       contractRef = "C-B-2025"
       meta        = Map.empty }
 
-  let legs : SupplierLeg list = [ { tc = tc1 }; { tc = tc2 } ]
+
+  let sps = [ sp1; sp2 ]
 
   // Estado inicial
   let st0 : State =
@@ -169,7 +170,7 @@ let escenarioSupplyManyMasTransport_1 () =
   let tr : Operation = transport tp
 
   let ops : Operation list =
-    [ supplyMany legs
+    [ supplyMany sps
       transport tp]
 
 
@@ -186,8 +187,8 @@ let escenario_Supply_Transport_Trade ()=
   let buyer      = "SES"
 
   // Cuatro TCs
-  let tc1 : TransactionConfirmation =
-    { tcId        = "TC-001"; 
+  let sp1 : SupplyParams =
+    { tcId        = "sp-001"; 
       gasDay = gasDay 
       tradingHub  = Mainline
       temporalidad = DayAhead
@@ -200,8 +201,8 @@ let escenario_Supply_Transport_Trade ()=
       contractRef = contratRef 
       meta = Map.empty }
 
-  let tc2 : TransactionConfirmation =
-    { tcId        = "TC-001"; 
+  let sp2 : SupplyParams =
+    { tcId        = "sp-001"; 
       gasDay = gasDay; 
       tradingHub  = Mainline
       temporalidad = DayAhead;
@@ -214,8 +215,8 @@ let escenario_Supply_Transport_Trade ()=
       contractRef = contratRef 
       meta = Map.empty }
 
-  let tc3 : TransactionConfirmation =
-    { tcId        = "TC-002"; 
+  let sp3 : SupplyParams =
+    { tcId        = "sp-002"; 
       gasDay = gasDay; 
       temporalidad = Intraday;
       tradingHub  = Mainline
@@ -229,8 +230,8 @@ let escenario_Supply_Transport_Trade ()=
       meta = Map.empty }
 
   
-  let tc4: TransactionConfirmation =
-    { tcId        = "TC-002"; 
+  let sp4: SupplyParams =
+    { tcId        = "sp-002"; 
       gasDay = gasDay; 
       temporalidad = Intraday;
       tradingHub  = Mainline
@@ -244,7 +245,7 @@ let escenario_Supply_Transport_Trade ()=
       meta = Map.empty }
 
 
-  let legs : SupplierLeg list = [ { tc = tc1 }; { tc = tc2 }; { tc = tc3 } ; { tc = tc4 } ]
+  let sps = [ sp1; sp2; sp3; sp4 ]
 
   
 
@@ -318,7 +319,7 @@ let escenario_Supply_Transport_Trade ()=
 
 
   // Composición Kleisli (último estado)
-  let pipeline : Operation =  supplyMany legs >=> trade pTradeSES  >=> transport pA005F1   >=> trade pTradeSE  >=> transport pM005F1   >=> consume pConsume
+  let pipeline : Operation =  supplyMany sps >=> trade pTradeSES  >=> transport pA005F1   >=> trade pTradeSE  >=> transport pM005F1   >=> consume pConsume
 
   match pipeline st0 with
   | Error e ->
@@ -327,16 +328,8 @@ let escenario_Supply_Transport_Trade ()=
       printfn "OK pipeline. Ultimo estado: qty=%s MMBtu loc=%s contract=%s"
         (Display.qtyStr tFinal.state.energy) tFinal.state.location tFinal.state.contract
 
-  // Si querés también la traza completa (balances/costos):
-  // let ops : Operation list = [ supplyMany legs ;trade pTradeSES ;transport pA005F1  ;trade pTradeSE ;transport pM005F1; trade pTradeSE_EAX ;consume pConsume]
-  // run ops st0
-
-
-
-
-// Operación que incluye Sleeve con Trafigura
 let escenario_supply_Transport_Sleeve () =
-// Base
+  // Base
   let gasRxPt = "EHRENBERG"
   let entryPtA005F1 = gasRxPt
   let exitPtA005F1 = "OGILBY"
@@ -344,7 +337,7 @@ let escenario_supply_Transport_Sleeve () =
   let contractRef = "Sleeve-Trafigura"
 
   // Dos TCs
-  let tc1 : TransactionConfirmation =
+  let tc1 : SupplyParams =
     { tcId        = "TC-001"; 
       gasDay = gasDay; 
       tradingHub  = Mainline
@@ -358,7 +351,7 @@ let escenario_supply_Transport_Sleeve () =
       contractRef = contractRef;
       meta = Map.empty }
 
-  let tc2 : TransactionConfirmation =
+  let tc2 : SupplyParams =
     { tcId        = "TC-004"; 
       gasDay = gasDay; 
       tradingHub  = Mainline
@@ -374,7 +367,7 @@ let escenario_supply_Transport_Sleeve () =
 
 
 
-  let tc3 : TransactionConfirmation =
+  let tc3 : SupplyParams =
     { tcId        = "TC-002"; 
       gasDay = gasDay; 
       temporalidad = DayAhead;
@@ -388,7 +381,7 @@ let escenario_supply_Transport_Sleeve () =
       contractRef = contractRef; 
       meta = Map.empty }
 
-  let legs : SupplierLeg list = [ { tc = tc1 }; { tc = tc2 }; {tc = tc3} ]
+  let tcs = [ tc1; tc2; tc3 ]
 
   
 
@@ -467,7 +460,7 @@ let escenario_supply_Transport_Sleeve () =
 
 
   // Si querés también la traza completa (balances/costos):
-  let ops : Operation list = [ supplyMany legs ;
+  let ops : Operation list = [ supplyMany tcs ;
                                trade pTradeSES ;
                                transport pA005F1 ; 
                                sleeve pSleeve ;

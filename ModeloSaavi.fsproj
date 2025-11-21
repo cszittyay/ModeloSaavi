@@ -16,6 +16,7 @@
     <Compile Include="Consume.fs" />
     <Compile Include="Transport.fs" />
     <Compile Include="Supply.fs" />
+    <Compile Include="SupplyTrade.fs" />
     <Compile Include="Escenario.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

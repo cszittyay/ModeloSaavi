@@ -35,11 +35,11 @@ module Display =
 
 module Domain =
   let inline amount (qty: Energy) (rate: RateGas) : Money =   qty * rate
-  let weightedAvgRate (legs: SupplierLeg list) : RateGas =
-    let qty = legs |> List.sumBy (fun l -> l.tc.qEnergia)
+  let weightedAvgRate (sps: SupplyParams list)  : RateGas =
+    let qty = sps |> List.sumBy (fun sp -> sp.qEnergia)
     if qty = 0.0m<MMBTU> then 0.0m<USD/MMBTU>
     else
-      let amt = legs |> List.sumBy (fun l -> amount l.tc.qEnergia l.tc.price)
+      let amt = sps |> List.sumBy (fun sp -> amount sp.qEnergia sp.price)
       (amt / qty)
 
 module Validate =
@@ -49,27 +49,29 @@ module Validate =
     | GasDayMismatch
     | DeliveryPtMismatch
     | NonPositiveQty of Party
+  
   let toString = function
     | EmptyLegs -> "No hay suppliers/legs para consolidar."
     | BuyerMismatch (e,f) -> $"Buyer inconsistente. Esperado={e} encontrado={f}"
     | GasDayMismatch -> "GasDay inconsistente entre legs."
     | DeliveryPtMismatch -> "DeliveryPoint inconsistente entre legs."
     | NonPositiveQty p -> $"Cantidad no positiva en leg del seller={p}"
-  let legsConsolidados (legs: SupplierLeg list) =
-    match legs with
+  
+  let legsConsolidados (sps: SupplyParams list) =
+    match sps with
     | [] -> Error EmptyLegs
     | x::xs ->
-      let b = x.tc.buyer
-      let d = x.tc.gasDay
-      let p = x.tc.deliveryPt
-      let okBuyer    = xs |> List.forall (fun l -> l.tc.buyer     = b)
-      let okGasDay   = xs |> List.forall (fun l -> l.tc.gasDay    = d)
-      let okDelivPt  = xs |> List.forall (fun l -> l.tc.deliveryPt = p)
-      let okQty      = x::xs |> List.forall (fun l -> l.tc.qEnergia > 0.0m<MMBTU>)
-      if not okBuyer   then Error (BuyerMismatch (b, xs |> List.tryPick (fun l -> Some l.tc.buyer) |> Option.defaultValue "<desconocido>"))
+      let b = x.buyer
+      let d = x.gasDay
+      let p = x.deliveryPt
+      let okBuyer    = xs |> List.forall (fun sp -> sp.buyer     = b)
+      let okGasDay   = xs |> List.forall (fun sp -> sp.gasDay    = d)
+      let okDelivPt  = xs |> List.forall (fun sp -> sp.deliveryPt = p)
+      let okQty      = x::xs |> List.forall (fun sp -> sp.qEnergia > 0.0m<MMBTU>)
+      if not okBuyer   then Error (BuyerMismatch (b, xs |> List.tryPick (fun sp -> Some sp.buyer) |> Option.defaultValue "<desconocido>"))
       elif not okGasDay then Error GasDayMismatch
       elif not okDelivPt then Error DeliveryPtMismatch
-      elif not okQty    then Error (NonPositiveQty (x.tc.seller))
+      elif not okQty    then Error (NonPositiveQty (x.seller))
       else Ok (b,d,p)
 
 module Meta =
@@ -118,4 +120,7 @@ let fromTransitions (ts: Transition list) : DailyBalance list =
          let op  = Meta.tryGet<string> "op" t.notes
          applyOp op qty acc
        ) zero)
+
+
+
 

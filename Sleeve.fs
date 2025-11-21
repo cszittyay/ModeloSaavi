@@ -14,9 +14,9 @@ let sleeve (p: SleeveParams) : Operation =
       let amount = stIn.energy * p.adder
       let fee =
         { kind= Sleeve
+          provider = p.provider
           qEnergia = stIn.energy
           rate= p.adder
-          provider = p.provider
           amount = amount
           meta= [ "seller", box p.seller 
                   "adder", box p.adder
