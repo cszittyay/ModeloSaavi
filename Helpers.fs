@@ -36,10 +36,10 @@ module Display =
 module Domain =
   let inline amount (qty: Energy) (rate: RateGas) : Money =   qty * rate
   let weightedAvgRate (legs: SupplierLeg list) : RateGas =
-    let qty = legs |> List.sumBy (fun l -> l.tc.qtyMMBtu)
+    let qty = legs |> List.sumBy (fun l -> l.tc.qEnergia)
     if qty = 0.0m<MMBTU> then 0.0m<USD/MMBTU>
     else
-      let amt = legs |> List.sumBy (fun l -> amount l.tc.qtyMMBtu l.tc.price)
+      let amt = legs |> List.sumBy (fun l -> amount l.tc.qEnergia l.tc.price)
       (amt / qty)
 
 module Validate =
@@ -65,7 +65,7 @@ module Validate =
       let okBuyer    = xs |> List.forall (fun l -> l.tc.buyer     = b)
       let okGasDay   = xs |> List.forall (fun l -> l.tc.gasDay    = d)
       let okDelivPt  = xs |> List.forall (fun l -> l.tc.deliveryPt = p)
-      let okQty      = x::xs |> List.forall (fun l -> l.tc.qtyMMBtu > 0.0m<MMBTU>)
+      let okQty      = x::xs |> List.forall (fun l -> l.tc.qEnergia > 0.0m<MMBTU>)
       if not okBuyer   then Error (BuyerMismatch (b, xs |> List.tryPick (fun l -> Some l.tc.buyer) |> Option.defaultValue "<desconocido>"))
       elif not okGasDay then Error GasDayMismatch
       elif not okDelivPt then Error DeliveryPtMismatch
@@ -114,7 +114,7 @@ let fromTransitions (ts: Transition list) : DailyBalance list =
         consume = 0.0m<MMBTU> }
     group
     |> List.fold (fun (acc: DailyBalance) (t: Transition) ->
-         let qty = t.state.qtyMMBtu
+         let qty = t.state.energy
          let op  = Meta.tryGet<string> "op" t.notes
          applyOp op qty acc
        ) zero)

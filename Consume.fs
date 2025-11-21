@@ -21,7 +21,7 @@ let consume (p: ConsumeParams) : Operation =
       Error (InvalidUnits (sprintf "Consume.consume: tolerancePct=%M < 0" p.tolerancePct))
     else
       // Cantidad "a la salida" del sistema (lo que se va a consumir)
-      let outQ : Energy = stIn.qtyMMBtu
+      let outQ : Energy = stIn.energy
       // Desbalance respecto a lo medido: positivo => sobredespacho; negativo => subdespacho
       let dmb  : Energy = outQ - p.measured
       // Tolerancia absoluta (Energy) a partir del % sobre outQ
@@ -33,7 +33,7 @@ let consume (p: ConsumeParams) : Operation =
           let amount : Money = excedente * p.penaltyRate   // (MMBTU * USD/MMBTU) = USD
           {
             kind     = CostKind.Nulo
-            qtyMMBtu = excedente
+            qEnergia = excedente
             provider = p.provider
             rate     = p.penaltyRate
             amount   = amount
@@ -48,7 +48,7 @@ let consume (p: ConsumeParams) : Operation =
       
 
       // El consumo deja qty = 0 en el estado
-      let stOut : State = { stIn with qtyMMBtu = p.measured }
+      let stOut : State = { stIn with energy = p.measured }
 
       // Notas para trazabilidad
       let notes =

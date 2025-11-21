@@ -6,9 +6,6 @@ open Helpers
 
 /// Operación de transporte de gas
 
-
-
-
 let transport (p: TransportParams) : Operation =
   fun stIn ->
     // Validaciones de dominio
@@ -18,14 +15,14 @@ let transport (p: TransportParams) : Operation =
     elif stIn.location <> p.entry then
       Error (Other (sprintf "State@%s, esperado entry %s" stIn.location p.entry))
 
-    elif stIn.qtyMMBtu <= 0.0m<MMBTU> then
-      Error (QuantityNonPositive "transport.qtyMMBtu")
+    elif stIn.energy <= 0.0m<MMBTU> then
+      Error (QuantityNonPositive "transport.qEnergia")
 
     elif p.fuelPct < 0m || p.fuelPct >= 1m then
       Error (InvalidUnits "transport.fuelPct debe estar en [0,1)")
     else
       // Cálculos: shrink por fuel y costo de uso
-      let qtyIn  : Energy = stIn.qtyMMBtu
+      let qtyIn  : Energy = stIn.energy
       let fuel   : Energy = qtyIn * p.fuelPct
       let qtyOut : Energy = qtyIn - fuel
 
@@ -39,7 +36,7 @@ let transport (p: TransportParams) : Operation =
       let costUsage : ItemCost =
         { kind     = CostKind.Transport
           provider = p.provider
-          qtyMMBtu = qtyOut
+          qEnergia = qtyOut
           rate     = p.usageRate
           amount   = usageAmount
           meta     =
@@ -52,7 +49,7 @@ let transport (p: TransportParams) : Operation =
       let costReservation : ItemCost =
         { provider = p.provider
           kind     = CostKind.Transport
-          qtyMMBtu = 1.0m<MMBTU>            // basis sintético para obtener USD
+          qEnergia = 1.0m<MMBTU>            // basis sintético para obtener USD
           rate     = p.reservation
           amount   = reservationAmount
           meta     =
@@ -82,7 +79,7 @@ let transport (p: TransportParams) : Operation =
 
       let stOut : State =
         { stIn with
-            qtyMMBtu = qtyOut
+            energy = qtyOut
             location = p.exit
             contract = if String.IsNullOrWhiteSpace stIn.contract then p.shipper else stIn.contract
             meta     =

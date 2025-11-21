@@ -7,14 +7,14 @@ open Unidades
 
 let trade (p: TradeParams) : Operation =
   fun stIn ->
-    if stIn.qtyMMBtu <= 0.0m<MMBTU> then Error (Other "Trade: qtyMMBtu <= 0")
+    if stIn.energy <= 0.0m<MMBTU> then Error (Other "Trade: qEnergia <= 0")
     else
       let stOut = { stIn with owner = p.buyer; contract = p.contractRef }
-      let amount = stIn.qtyMMBtu * p.adder
+      let amount = stIn.energy * p.adder
       let fee =
         { kind= Fee
           provider = Party "S/D"
-          qtyMMBtu = stIn.qtyMMBtu
+          qEnergia = stIn.energy
           rate= p.adder
           amount = amount
           meta= [ "seller", box p.seller ] |> Map.ofList }

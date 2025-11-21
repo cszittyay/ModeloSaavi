@@ -26,7 +26,11 @@ type DomainError =
 
 type CostKind = Gas | Transport | Storage | Tax | Fee | Sleeve | Nulo
 
-type Cicle = DayAhead | Intraday
+type Temporalidad = DayAhead | Intraday
+
+// 4) trade: compra/venta directa entre contrapartes (signo por rol)
+type TradeSide = | Buy | Sell
+
 
 type RateGas = decimal<USD/MMBTU>
 
@@ -34,20 +38,17 @@ type TransactionConfirmation = {
   tcId        : string
   gasDay      : DateOnly
   tradingHub  : Location       // Hub que sirve para fijar el precio de referencia o índice
-  cicle       : Cicle 
+  temporalidad: Temporalidad 
   deliveryPt  : Location      // Punto en el que el Suministrador (Productor) entrega el gas
   seller      : Party
   buyer       : Party
-  qtyMMBtu    : Energy        // volumen confirmado
+  qEnergia    : Energy        // volumen confirmado
   price       : RateGas       // $/MMBtu
   adder       : decimal<USD/MMBTU>
   contractRef : Contract
   meta        : Map<string,obj>
 }
 
-
-// 4) trade: compra/venta directa entre contrapartes (signo por rol)
-type TradeSide = | Buy | Sell
 
 
 // =====================
@@ -57,7 +58,7 @@ type TradeSide = | Buy | Sell
 type ItemCost = {
   kind     : CostKind
   provider : Party             // quien factura (cuando aplica)
-  qtyMMBtu : Energy
+  qEnergia : Energy
   rate     : RateGas           // $/MMBtu cuando aplica
   amount   : Money             // rate * qty
   meta     : Map<string,obj>   // detalles (seller, tcId, etc.)
@@ -67,7 +68,7 @@ type ItemCost = {
 // Estado entre operaciones
 // =====================
 type State = {
-  qtyMMBtu : Energy
+  energy   : Energy
   owner    : Party
   contract : Contract
   location : Location 
@@ -118,12 +119,12 @@ type TransportParams =
     shipper     : Party
     fuelPct     : decimal
     usageRate   : decimal<USD/MMBTU>       // $/MMBtu sobre salida
-    reservation : decimal<USD/MMBTU>           // monto fijo (ej. diario o mensual), fuera del qtyMMBtu
+    reservation : decimal<USD/MMBTU>           // monto fijo (ej. diario o mensual), fuera del qEnergia
   }
 
 
 // ========================================================
-// 3) TRADE / COMERCIALIZACIÓN (cambia dueño, no cambia qtyMMBtu)
+// 3) TRADE / COMERCIALIZACIÓN (cambia dueño, no cambia qEnergia)
 // ========================================================
 type TradeParams =
   { side        : TradeSide

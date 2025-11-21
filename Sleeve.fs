@@ -8,13 +8,13 @@ open Unidades
 
 let sleeve (p: SleeveParams) : Operation =
   fun stIn ->
-    if stIn.qtyMMBtu <= 0.0m<MMBTU> then Error (Other "Trade: qtyMMBtu <= 0")
+    if stIn.energy <= 0.0m<MMBTU> then Error (Other "Trade: qEnergia <= 0")
     else
       let stOut = { stIn with owner = p.buyer; contract = p.contractRef }
-      let amount = stIn.qtyMMBtu * p.adder
+      let amount = stIn.energy * p.adder
       let fee =
         { kind= Sleeve
-          qtyMMBtu = stIn.qtyMMBtu
+          qEnergia = stIn.energy
           rate= p.adder
           provider = p.provider
           amount = amount

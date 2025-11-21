@@ -35,7 +35,7 @@ let buyer      = "INDUSTRIA_X"  // Datos comunes del día y hub
 
 // Estado inicial
 let st0 : State =
-    {   qtyMMBtu = 0.0m<MMBTU>
+    {   energy = 0.0m<MMBTU>
         owner    = buyer
         contract = "INIT"
         location = "deliveryPt"
@@ -57,14 +57,14 @@ let run ops st0 =
         let opName = t.notes |> Map.tryFind "op" |> Option.map string |> Option.defaultValue ""
         setCol ConsoleColor.White
         printfn "\n#%d op = %s    qty = %s MMBtu     loc = %s      contract = %s"
-          (i+1) opName (Display.qtyStr s.qtyMMBtu) s.location s.contract
+          (i+1) opName (Display.qtyStr s.energy) s.location s.contract
 
         if List.isEmpty t.costs then printfn "   cost: (sin costos)"
         else
             t.costs |> List.iter (fun c ->
             setCol ConsoleColor.Yellow
             printfn "   provider = %s      cost kind = %A      qty = %s MMBTU   rate = %s USD/MMBTU     amount = %s USD"
-              c.provider c.kind (Display.qtyStr c.qtyMMBtu) (Display.rateStr c.rate) (Display.moneyStr c.amount)
+              c.provider c.kind (Display.qtyStr c.qEnergia) (Display.rateStr c.rate) (Display.moneyStr c.amount)
             setCol ConsoleColor.Green
             printfn "   Meta data %A\n" c.meta)
             setCol ConsoleColor.White
@@ -104,7 +104,7 @@ let run ops st0 =
             (Display.moneyStr totalGasUSD) (Display.moneyStr totalTransportUSD) (Display.moneyStr totalFeesUSD) (Display.moneyStr totalSleeveUSD)
 
       printfn "\nEstado final: qty=%s MMBtu loc=%s contract=%s"
-        (Display.qtyStr sF.qtyMMBtu) sF.location sF.contract
+        (Display.qtyStr sF.energy) sF.location sF.contract
 
 
 
@@ -117,12 +117,12 @@ let escenarioSupplyManyMasTransport_1 () =
   let tc1 : TransactionConfirmation =
     { tcId        = "TC-001"
       gasDay      = gasDay
-      cicle = DayAhead
+      temporalidad = DayAhead
       tradingHub  = Mainline
       deliveryPt  = deliveryPt
       seller      = "SUPPLIER_A"
       buyer       = buyer
-      qtyMMBtu    = 8000.0m<MMBTU>
+      qEnergia    = 8000.0m<MMBTU>
       price       = 3.10m<USD/MMBTU>
       adder       = 0.05m<USD/MMBTU>
       contractRef = "C-A-2025"
@@ -133,11 +133,11 @@ let escenarioSupplyManyMasTransport_1 () =
     { tcId        = "TC-002"
       gasDay      = gasDay
       tradingHub  = Mainline
-      cicle       = Intraday
+      temporalidad       = Intraday
       deliveryPt  = deliveryPt
       seller      = "SUPPLIER_B"
       buyer       = buyer
-      qtyMMBtu    = 5000.0m<MMBTU>
+      qEnergia    = 5000.0m<MMBTU>
       price       = 3.35m<USD/MMBTU>
       adder       = 0.029m<USD/MMBTU>
       contractRef = "C-B-2025"
@@ -147,7 +147,7 @@ let escenarioSupplyManyMasTransport_1 () =
 
   // Estado inicial
   let st0 : State =
-    { qtyMMBtu = 0.0m<MMBTU>
+    { energy = 0.0m<MMBTU>
       owner    = buyer
       contract = "INIT"
       location = entryPt
@@ -190,11 +190,11 @@ let escenario_Supply_Transport_Trade ()=
     { tcId        = "TC-001"; 
       gasDay = gasDay 
       tradingHub  = Mainline
-      cicle = DayAhead
+      temporalidad = DayAhead
       deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
       seller      = "JP Morgan" 
       buyer = buyer
-      qtyMMBtu    = 21645.0m<MMBTU>
+      qEnergia    = 21645.0m<MMBTU>
       price = 2.37m<USD/MMBTU>
       adder       = 0.029m<USD/MMBTU>
       contractRef = contratRef 
@@ -204,11 +204,11 @@ let escenario_Supply_Transport_Trade ()=
     { tcId        = "TC-001"; 
       gasDay = gasDay; 
       tradingHub  = Mainline
-      cicle = DayAhead;
+      temporalidad = DayAhead;
       deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
       seller      = "JP Morgan" 
       buyer = buyer
-      qtyMMBtu  = 43355.0m<MMBTU> 
+      qEnergia  = 43355.0m<MMBTU> 
       price     = 0.775m<USD/MMBTU>
       adder     = 0.0m<USD/MMBTU>
       contractRef = contratRef 
@@ -217,28 +217,27 @@ let escenario_Supply_Transport_Trade ()=
   let tc3 : TransactionConfirmation =
     { tcId        = "TC-002"; 
       gasDay = gasDay; 
-      cicle = Intraday;
+      temporalidad = Intraday;
       tradingHub  = Mainline
       deliveryPt = gasRxPt
       seller      = "JP Morgan";
       buyer = buyer
-      qtyMMBtu    = 4372.0m<MMBTU> 
+      qEnergia    = 4372.0m<MMBTU> 
       price = 3.35m<USD/MMBTU>
       adder       = 0.005m<USD/MMBTU>
       contractRef = contratRef 
       meta = Map.empty }
 
-
   
   let tc4: TransactionConfirmation =
     { tcId        = "TC-002"; 
       gasDay = gasDay; 
-      cicle = Intraday;
+      temporalidad = Intraday;
       tradingHub  = Mainline
       deliveryPt = gasRxPt
       seller      = "Mercuria";
       buyer = buyer
-      qtyMMBtu    = 18000.0m<MMBTU> 
+      qEnergia    = 18000.0m<MMBTU> 
       price = 2.575m<USD/MMBTU>
       adder       = 0.005m<USD/MMBTU>
       contractRef = contratRef 
@@ -307,7 +306,6 @@ let escenario_Supply_Transport_Trade ()=
       contractRef  = "MARKET_Z"
       meta         = Map.empty }
 
-
   // parametros de Consumo (planta)
   let pConsume = 
     { provider = "Savi Energía"
@@ -320,18 +318,18 @@ let escenario_Supply_Transport_Trade ()=
 
 
   // Composición Kleisli (último estado)
-  //let pipeline : Operation =  supplyMany legs >=> trade pTrade  >=> transport pA005F1   >=> trade pTrade  >=> transport pM005F1   >=> consume pConsume
+  let pipeline : Operation =  supplyMany legs >=> trade pTradeSES  >=> transport pA005F1   >=> trade pTradeSE  >=> transport pM005F1   >=> consume pConsume
 
-  //match pipeline st0 with
-  //| Error e ->
-  //    printfn "ERROR pipeline: %A" e
-  //| Ok tFinal ->
-  //    printfn "OK pipeline. Ultimo estado: qty=%s MMBtu loc=%s contract=%s"
-  //      (Display.qtyStr tFinal.state.qtyMMBtu) tFinal.state.location tFinal.state.contract
+  match pipeline st0 with
+  | Error e ->
+      printfn "ERROR pipeline: %A" e
+  | Ok tFinal ->
+      printfn "OK pipeline. Ultimo estado: qty=%s MMBtu loc=%s contract=%s"
+        (Display.qtyStr tFinal.state.energy) tFinal.state.location tFinal.state.contract
 
   // Si querés también la traza completa (balances/costos):
-  let ops : Operation list = [ supplyMany legs ;trade pTradeSES ;transport pA005F1  ;trade pTradeSE ;transport pM005F1; trade pTradeSE_EAX ;consume pConsume]
-  run ops st0
+  // let ops : Operation list = [ supplyMany legs ;trade pTradeSES ;transport pA005F1  ;trade pTradeSE ;transport pM005F1; trade pTradeSE_EAX ;consume pConsume]
+  // run ops st0
 
 
 
@@ -350,11 +348,11 @@ let escenario_supply_Transport_Sleeve () =
     { tcId        = "TC-001"; 
       gasDay = gasDay; 
       tradingHub  = Mainline
-      cicle = DayAhead;
+      temporalidad = DayAhead;
       deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
       seller      = "Koch"; 
       buyer = buyer
-      qtyMMBtu    = 5300.0m<MMBTU>; 
+      qEnergia    = 5300.0m<MMBTU>; 
       price = 2.95m<USD/MMBTU>
       adder       = 0.029m<USD/MMBTU>
       contractRef = contractRef;
@@ -364,11 +362,11 @@ let escenario_supply_Transport_Sleeve () =
     { tcId        = "TC-004"; 
       gasDay = gasDay; 
       tradingHub  = Mainline
-      cicle = DayAhead;
+      temporalidad = DayAhead;
       deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
       seller      = "J.Aron";
       buyer = buyer
-      qtyMMBtu    = 26.0m<MMBTU>; 
+      qEnergia    = 26.0m<MMBTU>; 
       price = 2.95m<USD/MMBTU>
       adder       = 0.029m<USD/MMBTU>
       contractRef = contractRef;
@@ -379,12 +377,12 @@ let escenario_supply_Transport_Sleeve () =
   let tc3 : TransactionConfirmation =
     { tcId        = "TC-002"; 
       gasDay = gasDay; 
-      cicle = DayAhead;
+      temporalidad = DayAhead;
       tradingHub  = Mainline
       deliveryPt = gasRxPt
       seller      = "J.Aron"; 
       buyer = buyer
-      qtyMMBtu    = 10000.0m<MMBTU>; 
+      qEnergia    = 10000.0m<MMBTU>; 
       price = 2.575m<USD/MMBTU>
       adder       = 0.02m<USD/MMBTU>
       contractRef = contractRef; 
