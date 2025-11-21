@@ -68,7 +68,7 @@ let transport (p: TransportParams) : Operation =
         [ "op",          box "transport"
           "fuelPct",     box (Math.Round(decimal p.fuelPct * 100.0m, 3))
           "qty.in",      box (Math.Round(decimal qtyIn, 2))
-          "qty.fuel",    box (Math.Round(decimal (fuel * 100.0m),2))
+          "qty.fuel",    box (Math.Round(decimal fuel, 2))
           "qty.out",     box (Math.Round(decimal qtyOut,2))
           "usageRate",   box (Math.Round(decimal p.usageRate, 3))
           "reservation", box (decimal p.reservation)

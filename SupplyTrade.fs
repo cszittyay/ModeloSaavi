@@ -8,7 +8,8 @@ open Trade
 open Helpers
 
 
-
+// Constructor de SupplyTradeLegParams
+// toma los parámetros de Supply y Trade y ejecuta los dos en orden
 let private runSupplyTradeLeg (p: SupplyTradeLegParams) : Operation =
   let supplyOp = supply p.supply
   let tradeOp  = trade  p.trade

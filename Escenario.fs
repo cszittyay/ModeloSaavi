@@ -10,7 +10,7 @@ open Trade              // trade      : TradeParams -> Operation
 open Sleeve             // sleeve     : TradeParams -> Operation
 open Kleisli            // runAll     : Operation list -> Plan (State -> Result<Transition list, _>)
 open Helpers
-
+open SupplyTrade
 
 /// Helpers de impresión (opcionales)
 let private printMoney (m: Money) = (decimal m).ToString("0.#####")
@@ -336,8 +336,8 @@ let escenario_supply_Transport_Sleeve () =
   let buyer      = "SES"
   let contractRef = "Sleeve-Trafigura"
 
-  // Dos TCs
-  let tc1 : SupplyParams =
+  // Dos sps
+  let sp1 : SupplyParams =
     { tcId        = "TC-001"; 
       gasDay = gasDay; 
       tradingHub  = Mainline
@@ -351,7 +351,7 @@ let escenario_supply_Transport_Sleeve () =
       contractRef = contractRef;
       meta = Map.empty }
 
-  let tc2 : SupplyParams =
+  let sp2 : SupplyParams =
     { tcId        = "TC-004"; 
       gasDay = gasDay; 
       tradingHub  = Mainline
@@ -367,8 +367,8 @@ let escenario_supply_Transport_Sleeve () =
 
 
 
-  let tc3 : SupplyParams =
-    { tcId        = "TC-002"; 
+  let sp3 : SupplyParams =
+    { tcId        = "TC-002";
       gasDay = gasDay; 
       temporalidad = DayAhead;
       tradingHub  = Mainline
@@ -381,7 +381,7 @@ let escenario_supply_Transport_Sleeve () =
       contractRef = contractRef; 
       meta = Map.empty }
 
-  let tcs = [ tc1; tc2; tc3 ]
+  let sps = [ sp1; sp2; sp3 ]
 
   
 
@@ -459,8 +459,11 @@ let escenario_supply_Transport_Sleeve () =
 
 
 
+
+
+
   // Si querés también la traza completa (balances/costos):
-  let ops : Operation list = [ supplyMany tcs ;
+  let ops : Operation list = [ supplyMany sps ;
                                trade pTradeSES ;
                                transport pA005F1 ; 
                                sleeve pSleeve ;
@@ -470,3 +473,111 @@ let escenario_supply_Transport_Sleeve () =
   run ops st0
 
 
+  // Caso de MultiSupplyTrade + transporte + consumo
+let escenarioSupplyTradeTransporteConsumo () =
+      let gasRxPt = "EHRENBERG"
+      let entryPtA005F1 = gasRxPt
+      let exitPtA005F1 = "OGILBY"
+      let buyer      = "SES"
+      let contractRef = "Sleeve-Trafigura"
+
+      let sp1 : SupplyParams =
+        { tcId        = "TC-001"; 
+          gasDay = gasDay; 
+          tradingHub  = Mainline
+          temporalidad = DayAhead;
+          deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
+          seller      = "Koch"; 
+          buyer = buyer
+          qEnergia    = 5300.0m<MMBTU>; 
+          price = 2.95m<USD/MMBTU>
+          adder       = 0.029m<USD/MMBTU>
+          contractRef = contractRef;
+          meta = Map.empty }
+
+
+      let pTradeSES2 : TradeParams =
+        { side         = TradeSide.Sell
+          seller       = "Suppliers USA"
+          buyer        = "SES"
+          adder        = 0.60m<USD/MMBTU>
+          contractRef  = "MARKET_Z"
+          meta         = Map.empty }
+
+
+
+      let sp2 : SupplyParams =
+        { tcId        = "TC-002"; 
+          gasDay = gasDay; 
+          tradingHub  = Mainline
+          temporalidad = DayAhead;
+          deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
+          seller      = "JP Morgan";
+          buyer = buyer
+          qEnergia    = 4700.0m<MMBTU>; 
+          price = 3.95m<USD/MMBTU>
+          adder       = 0.029m<USD/MMBTU>
+          contractRef = contractRef;
+          meta = Map.empty }
+
+
+      let pTradeSES : TradeParams =
+        { side         = TradeSide.Sell
+          seller       = "Suppliers USA"
+          buyer        = "SES"
+          adder        = 0.50m<USD/MMBTU>
+          contractRef  = "MARKET_Z"
+          meta         = Map.empty }
+      
+      let supplyTradeParams1 = { supply = sp1; trade = pTradeSES}
+      let supplyTradeParams2 = { supply = sp2; trade = pTradeSES2}
+
+
+
+      let multiSupplyTradeParams = { legs = [supplyTradeParams1; supplyTradeParams2]; entryPoint = gasRxPt; gasDay = gasDay}
+
+      let pTradeSE : TradeParams =
+        { side         = TradeSide.Sell
+          seller       = "Suppliers USA"
+          buyer        = "SES"
+          adder        = 0.50m<USD/MMBTU>
+          contractRef  = "MARKET_Z"
+          meta         = Map.empty }
+
+      
+      // parametros de Consumo (planta)
+      let pConsume = 
+        { provider            = "Savi Energía"
+          meterLocation       = "Planta_La_Estrella"
+          measured           = 15300.0m<MMBTU>
+          tolerancePct       = 5.0m
+          penaltyRate        = 0.10m<USD/MMBTU>
+          }
+
+      let pA005F1 : TransportParams =
+        { provider = "TC Energy"
+          entry       = entryPtA005F1
+          exit        = exitPtA005F1
+          shipper     = "EAX"
+          fuelPct     = 0.007m                 // 0,7% fuel
+          usageRate   = 0.08m<USD/MMBTU>
+          reservation = 0.50m<USD/MMBTU> }    // ej.: fijo
+
+
+      let pM005F1 : TransportParams =
+        { provider = "Gasoducto Aguprieta"
+          entry       = exitPtA005F1
+          exit        = "Planta_La_Estrella"
+          shipper     = "EAX"
+          fuelPct     = 0.001751m                // 0.1751% fuel
+          usageRate   = 0.08m<USD/MMBTU>
+          reservation = 0.50m<USD/MMBTU> }    // ej.: fijo
+
+      
+      let ops : Operation list = [
+                               multiSupplyTrade multiSupplyTradeParams ;
+                               transport pA005F1 ; 
+                               transport pM005F1; 
+                               trade pTradeSE  ;
+                               consume pConsume]
+      run ops st0
