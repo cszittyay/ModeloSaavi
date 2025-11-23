@@ -3,14 +3,14 @@
 open System
 open Unidades           // Energy, RateGas, Money (decimal<...>)
 open Tipos              // State, Transition, DomainError, SupplierLeg, SupplyParams, CostKind, etc.
-open Supply             // supplyMany : SupplierLeg list -> Operation
-open Transport          // transport  : RateGas -> string -> string -> string -> Operation
-open Consume            // consume    : decimal<MMBTU> -> decimal<USD/MMBTU> -> Operation
-open Trade              // trade      : TradeParams -> Operation
-open Sleeve             // sleeve     : TradeParams -> Operation
 open Kleisli            // runAll     : Operation list -> Plan (State -> Result<Transition list, _>)
 open Helpers
-open SupplyTrade
+open DefinedOperations
+open DefinedOperations.Consume
+open DefinedOperations.Supply
+open DefinedOperations.Trade
+open DefinedOperations.Transport
+open DefinedOperations.Sleeve
 
 /// Helpers de impresión (opcionales)
 let private printMoney (m: Money) = (decimal m).ToString("0.#####")
@@ -419,16 +419,28 @@ let escenario_supply_Transport_Sleeve () =
 
 
   // Sleeve
-  let pSleeve : SleeveParams =
+  let pSleeveExport : SleeveParams =
     {
       provider = "Trafigura"
       seller = "SES"
       buyer = "SE"
+      sleeveSide = SleeveSide.Export
       adder = 0.05m<USD/MMBTU>
       meta = Map.empty
       contractRef = contractRef
     }
 
+
+  let pSleeveImport : SleeveParams =
+    {
+      provider = "Trafigura"
+      seller = "SES"
+      buyer = "SE"
+      sleeveSide = SleeveSide.Import
+      adder = 0.07m<USD/MMBTU>
+      meta = Map.empty
+      contractRef = contractRef
+    }
 
   // Trade con adder 0.5 USD/MMBTU
   let pTradeSES : TradeParams =
@@ -466,7 +478,8 @@ let escenario_supply_Transport_Sleeve () =
   let ops : Operation list = [ supplyMany sps ;
                                trade pTradeSES ;
                                transport pA005F1 ; 
-                               sleeve pSleeve ;
+                               sleeve pSleeveExport ;
+                               sleeve pSleeveImport ;
                                transport pM005F1; 
                                trade pTradeSE  ;
                                consume pConsume]
@@ -575,7 +588,7 @@ let escenarioSupplyTradeTransporteConsumo () =
 
       
       let ops : Operation list = [
-                               multiSupplyTrade multiSupplyTradeParams ;
+                               SupplyTrade.multiSupplyTrade multiSupplyTradeParams ;
                                transport pA005F1 ; 
                                transport pM005F1; 
                                trade pTradeSE  ;

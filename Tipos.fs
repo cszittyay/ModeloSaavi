@@ -32,6 +32,9 @@ type Temporalidad = DayAhead | Intraday
 type TradeSide = | Buy | Sell
 
 
+type SleeveSide = |Export | Import
+
+
 type RateGas = decimal<USD/MMBTU>
 
 type SupplyParams = {
@@ -136,6 +139,7 @@ type SleeveParams =
   { provider    : Party
     seller      : Party
     buyer       : Party
+    sleeveSide  : SleeveSide
     adder       : decimal<USD/MMBTU>        // $/MMBtu (fee/adder)
     contractRef : Contract
     meta        : Map<string,obj> }
