@@ -1,8 +1,13 @@
 ﻿module Tipos
 
 open System
-open Unidades
 
+
+// ===== Unidades (Units of Measure) =====
+[<Measure>] type MMBTU
+[<Measure>] type GJ
+[<Measure>] type USD
+[<Measure>] type MXN
 
 // ===== Tipos base =====
 type Energy = decimal<MMBTU>      // MMBtu (puedes cambiar por GJ y agregar conversión)
@@ -26,7 +31,9 @@ type DomainError =
 
 type CostKind = Gas | Transport | Storage | Tax | Fee | Sleeve | Nulo
 
-type Temporalidad = DayAhead | Intraday
+type Temporalidad = DayAhead | Intraday | Monthly
+
+type TradingHub = Mainline | Waha | Permian | SanJuan | SoCal
 
 // 4) trade: compra/venta directa entre contrapartes (signo por rol)
 type TradeSide = | Buy | Sell
@@ -37,21 +44,23 @@ type SleeveSide = |Export | Import
 
 type RateGas = decimal<USD/MMBTU>
 
-type SupplyParams = {
-  tcId        : string
-  gasDay      : DateOnly
-  tradingHub  : Location       // Hub que sirve para fijar el precio de referencia o índice
-  temporalidad: Temporalidad 
-  deliveryPt  : Location      // Punto en el que el Suministrador (Productor) entrega el gas
-  seller      : Party
-  buyer       : Party
-  qEnergia    : Energy        // volumen confirmado
-  price       : RateGas       // $/MMBtu
-  adder       : decimal<USD/MMBTU>
-  contractRef : Contract
-  meta        : Map<string,obj>
-}
+type GasDay = DateOnly
 
+
+
+type SupplyParams =
+  { tcId        : string
+    gasDay      : GasDay
+    tradingHub  : TradingHub
+    temporalidad: Temporalidad
+    deliveryPt  : Location
+    seller      : string
+    buyer       : string
+    qEnergia    : decimal<MMBTU>
+    price       : decimal<USD/MMBTU>
+    adder       : decimal<USD/MMBTU>
+    contractRef : string
+    meta        : Map<string,obj> }
 
 
 // =====================
@@ -122,15 +131,14 @@ type TradeParams =
 
 
 // para el caso de multiple trade legs dentro de un supply
-type SupplyTradeLegParams =
+type SupplyTradeParams =
   { supply : SupplyParams
     trade  : TradeParams }
 
 
 type MultiSupplyTradeParams =
-  { legs       : SupplyTradeLegParams list
-    entryPoint : Location      // punto físico de inyección al sistema de transporte
-    gasDay     : DateOnly }
+  { legs       : SupplyTradeParams list
+  }
 
 
 
@@ -165,3 +173,14 @@ type DailyBalance = {
   withdraw: Energy
   consume : Energy
 }
+
+
+module Unidades =
+
+    // conversión: 1 MMBtu ≈ 1.055056 GJ
+    [<Literal>]
+    let gj_per_mmbtu = 1.055056m
+
+    let inline toGJ (e: decimal<MMBTU>) : decimal<GJ> =   (decimal e) * gj_per_mmbtu |> LanguagePrimitives.DecimalWithMeasure<GJ>
+
+    let inline toMMBtu (e: decimal<GJ>) : decimal<MMBTU> =  (decimal e) / gj_per_mmbtu |> LanguagePrimitives.DecimalWithMeasure<MMBTU>

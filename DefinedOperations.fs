@@ -197,7 +197,7 @@ module SupplyTrade =
     open Trade
     // Constructor de SupplyTradeLegParams
     // toma los parámetros de Supply y Trade y ejecuta los dos en orden
-    let private runSupplyTradeLeg (p: SupplyTradeLegParams) : Operation =
+    let private runSupplyTradeLeg (p: SupplyTradeParams) : Operation =
       let supplyOp = supply p.supply
       let tradeOp  = trade  p.trade
 
@@ -223,14 +223,12 @@ module SupplyTrade =
         // Estado base común a todos los legs en el punto de entrada
         let baseState =
           { stIn with
-              energy   = 0.0m<MMBTU>
-              location = p.entryPoint
-              gasDay   = p.gasDay }
+              energy   = 0.0m<MMBTU>}
 
         // fold sobre las patas Supply+Trade
         let folder
             (acc: Result<State * ItemCost list * Map<string,obj>, DomainError>)
-            (legParams: SupplyTradeLegParams) =
+            (legParams: SupplyTradeParams) =
 
           acc
           |> Result.bind (fun (aggState, aggCosts, aggNotes) ->

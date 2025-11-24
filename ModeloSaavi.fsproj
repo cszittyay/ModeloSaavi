@@ -6,18 +6,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Unidades.fs" />
     <Compile Include="Tipos.fs" />
     <Compile Include="Helpers.fs" />
-    <Compile Include="Kleisli.fs" />
     <Compile Include="DefinedOperations.fs" />
+    <Compile Include="Kleisli.fs" />
+    <Compile Include="LegosOps.fs" />
+    <Compile Include="FlowBuilderExcel.fs" />
     <Compile Include="Escenario.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="ClosedXML" Version="0.102.0" />
-    <PackageReference Include="FsExcel" Version="0.0.49" />
+    <PackageReference Include="ExcelProvider" Version="3.0.0" />
   </ItemGroup>
 
 </Project>

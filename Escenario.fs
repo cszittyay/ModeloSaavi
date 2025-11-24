@@ -1,7 +1,6 @@
 ﻿module Escenario
 
 open System
-open Unidades           // Energy, RateGas, Money (decimal<...>)
 open Tipos              // State, Transition, DomainError, SupplierLeg, SupplyParams, CostKind, etc.
 open Kleisli            // runAll     : Operation list -> Plan (State -> Result<Transition list, _>)
 open Helpers
@@ -118,7 +117,7 @@ let escenarioSupplyManyMasTransport_1 () =
     { tcId        = "TC-001"
       gasDay      = gasDay
       temporalidad = DayAhead
-      tradingHub  = Mainline
+      tradingHub  = TradingHub.Mainline
       deliveryPt  = deliveryPt
       seller      = "SUPPLIER_A"
       buyer       = buyer
@@ -132,7 +131,7 @@ let escenarioSupplyManyMasTransport_1 () =
   let sp2 : SupplyParams =
     { tcId        = "TC-002"
       gasDay      = gasDay
-      tradingHub  = Mainline
+      tradingHub  = TradingHub.Mainline
       temporalidad       = Intraday
       deliveryPt  = deliveryPt
       seller      = "SUPPLIER_B"
@@ -190,7 +189,7 @@ let escenario_Supply_Transport_Trade ()=
   let sp1 : SupplyParams =
     { tcId        = "sp-001"; 
       gasDay = gasDay 
-      tradingHub  = Mainline
+      tradingHub  = TradingHub.Mainline
       temporalidad = DayAhead
       deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
       seller      = "JP Morgan" 
@@ -204,7 +203,7 @@ let escenario_Supply_Transport_Trade ()=
   let sp2 : SupplyParams =
     { tcId        = "sp-001"; 
       gasDay = gasDay; 
-      tradingHub  = Mainline
+      tradingHub  = TradingHub.Mainline
       temporalidad = DayAhead;
       deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
       seller      = "JP Morgan" 
@@ -219,7 +218,7 @@ let escenario_Supply_Transport_Trade ()=
     { tcId        = "sp-002"; 
       gasDay = gasDay; 
       temporalidad = Intraday;
-      tradingHub  = Mainline
+      tradingHub  = TradingHub.Mainline
       deliveryPt = gasRxPt
       seller      = "JP Morgan";
       buyer = buyer
@@ -234,7 +233,7 @@ let escenario_Supply_Transport_Trade ()=
     { tcId        = "sp-002"; 
       gasDay = gasDay; 
       temporalidad = Intraday;
-      tradingHub  = Mainline
+      tradingHub  = TradingHub.Mainline
       deliveryPt = gasRxPt
       seller      = "Mercuria";
       buyer = buyer
@@ -340,7 +339,7 @@ let escenario_supply_Transport_Sleeve () =
   let sp1 : SupplyParams =
     { tcId        = "TC-001"; 
       gasDay = gasDay; 
-      tradingHub  = Mainline
+      tradingHub  = TradingHub.Mainline
       temporalidad = DayAhead;
       deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
       seller      = "Koch"; 
@@ -354,7 +353,7 @@ let escenario_supply_Transport_Sleeve () =
   let sp2 : SupplyParams =
     { tcId        = "TC-004"; 
       gasDay = gasDay; 
-      tradingHub  = Mainline
+      tradingHub  = TradingHub.Mainline
       temporalidad = DayAhead;
       deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
       seller      = "J.Aron";
@@ -371,7 +370,7 @@ let escenario_supply_Transport_Sleeve () =
     { tcId        = "TC-002";
       gasDay = gasDay; 
       temporalidad = DayAhead;
-      tradingHub  = Mainline
+      tradingHub  = TradingHub.Mainline
       deliveryPt = gasRxPt
       seller      = "J.Aron"; 
       buyer = buyer
@@ -497,7 +496,7 @@ let escenarioSupplyTradeTransporteConsumo () =
       let sp1 : SupplyParams =
         { tcId        = "TC-001"; 
           gasDay = gasDay; 
-          tradingHub  = Mainline
+          tradingHub  = TradingHub.Mainline
           temporalidad = DayAhead;
           deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
           seller      = "Koch"; 
@@ -522,7 +521,7 @@ let escenarioSupplyTradeTransporteConsumo () =
       let sp2 : SupplyParams =
         { tcId        = "TC-002"; 
           gasDay = gasDay; 
-          tradingHub  = Mainline
+          tradingHub  = TradingHub.Mainline
           temporalidad = DayAhead;
           deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
           seller      = "JP Morgan";
@@ -547,7 +546,7 @@ let escenarioSupplyTradeTransporteConsumo () =
 
 
 
-      let multiSupplyTradeParams = { legs = [supplyTradeParams1; supplyTradeParams2]; entryPoint = gasRxPt; gasDay = gasDay}
+      let multiSupplyTradeParams = { legs = [supplyTradeParams1; supplyTradeParams2]}
 
       let pTradeSE : TradeParams =
         { side         = TradeSide.Sell
