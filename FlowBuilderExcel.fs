@@ -152,7 +152,6 @@ let buildBlocksFromExcel (path:string) : Block list =
     let supplyTrade   = supplyTradeFromRow supplyTrade
 
     flowSheet.Data
-    |> Seq.skip 1
     |> Seq.filter (fun row -> row.Ref <> null && row.Ref <> "")
     |> Seq.sortBy (fun row -> row.Order)
     |> Seq.map (fun row ->

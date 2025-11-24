@@ -37,7 +37,7 @@ let st0 : State =
     {   energy = 0.0m<MMBTU>
         owner    = buyer
         contract = "INIT"
-        location = "deliveryPt"
+        location = "EHRENBERG"
         gasDay   = gasDay
         meta     = Map.empty }
 
