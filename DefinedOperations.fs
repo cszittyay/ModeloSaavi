@@ -23,19 +23,19 @@ module Consume =
           Error (InvalidUnits (sprintf "Consume.consume: tolerancePct=%M < 0" p.tolerancePct))
         else
           // Cantidad "a la salida" del sistema (lo que se va a consumir)
-          let outQ : Energy = stIn.energy
-          // Desbalance respecto a lo medido: positivo => sobredespacho; negativo => subdespacho
-          let dmb  : Energy = outQ - p.measured
-          // Tolerancia absoluta (Energy) a partir del % sobre outQ
-          let tol  : Energy = abs outQ * (p.tolerancePct / 100.0m)
-
-          // Penalidad solo si |dmb| > tol
-          let penalty : ItemCost  =
-              let excedente : Energy = abs dmb - tol
-              let amount : Money = excedente * p.penaltyRate   // (MMBTU * USD/MMBTU) = USD
-              {
+            let outQ : Energy = stIn.energy
+              // Desbalance respecto a lo medido: positivo => sobredespacho; negativo => subdespacho
+            let dmb  : Energy = outQ - p.measured
+              // Tolerancia absoluta (Energy) a partir del % sobre outQ
+            let tol  : Energy = abs outQ * (p.tolerancePct / 100.0m)
+            let desvio = if abs dmb > tol then abs dmb - tol else 0.0m<MMBTU>
+            let amount : Money = desvio * p.penaltyRate   // (MMBTU * USD/MMBTU) = USD
+            
+            let penalty : ItemCost  =
+              // Penalidad solo si |dmb| > tol
+                {
                 kind     = CostKind.Nulo
-                qEnergia = excedente
+                qEnergia = desvio
                 provider = p.provider
                 rate     = p.penaltyRate
                 amount   = amount
@@ -50,21 +50,20 @@ module Consume =
       
 
           // El consumo deja qty = 0 en el estado
-          let stOut : State = { stIn with energy = p.measured }
+            let stOut : State = { stIn with energy = p.measured }
 
           // Notas para trazabilidad
-          let notes =
-            [ "op"                 , box "consume"
-              "consume.measured"   , box (round(decimal p.measured))
-              "consume.out"        , box (round(decimal outQ))
-              "consume.desbalance" , box (round (decimal dmb))
-              "consume.tolerance[]"  , box (round  (decimal tol)) ]
-            |> Map.ofList
+            let notes =
+                [ "op"                 , box "consume"
+                  "consume.measured"   , box (round(decimal p.measured))
+                  "consume.out"        , box (round(decimal outQ))
+                  "consume.desbalance" , box (round (decimal dmb))
+                  "consume.tolerance[]"  , box (round  (decimal tol)) ]
+                |> Map.ofList
 
-          Ok { state = stOut
-               costs = penalty :: []
-               notes = notes }
-
+            Ok { state = stOut
+                 costs = penalty :: []
+                 notes = notes }
 
 module Supply =
     /// Compra simple (un solo supplier) a partir de una TransactionConfirmation
