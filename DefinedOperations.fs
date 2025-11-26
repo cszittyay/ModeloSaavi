@@ -157,10 +157,13 @@ module Sleeve =
               rate= p.adder
               amount = amount
               meta= [ "seller", box p.seller 
-                      "adder", box p.adder
+                      "adder", box (decimal p.adder)
+                      "index" , box (decimal p.index)
+                      "price"  , box (decimal p.price)
                       "amount", box (decimal amount)
                       ] |> Map.ofList }
           Ok { state=stOut; costs=[fee]; notes= [ "op", box "Sleeve"
+                                                  "location", box p.location
                                                   "provider", box p.provider        
                                                   "seller", box p.seller
                                                   "Seeve Side", box p.sleeveSide
@@ -185,6 +188,7 @@ module Trade =
               amount = amount
               meta= [ "seller", box p.seller ] |> Map.ofList }
           Ok { state=stOut; costs=[fee]; notes= [ "op", box "Trade"
+                                                  "location", box p.location        
                                                   "seller", box p.seller
                                                   "buyer", box p.buyer
                                                   "adder", box p.adder
@@ -230,6 +234,7 @@ module Transport =
               amount   = usageAmount
               meta     =
                 [ "component",  box "usage"
+                  "pipeline",   box p.pipeline
                   "shipper",    box p.shipper
                   "entry",      box p.entry
                   "exit",       box p.exit ]

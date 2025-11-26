@@ -112,6 +112,7 @@ let buildSleeves planta central (sheet: SleeveSheet) : Map<string, SleeveParams>
             {   provider    = row.Provider
                 seller      = row.Seller
                 buyer       = row.Buyer
+                location    = row.Location
                 sleeveSide  = if row.SleevSide = "Exporte" then SleeveSide.Export else SleeveSide.Import
                 index       = index                                        
                 adder       = xadder

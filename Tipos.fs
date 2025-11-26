@@ -172,6 +172,7 @@ type SleeveParams =
   { provider    : Party
     seller      : Party
     buyer       : Party
+    location    : Location
     sleeveSide  : SleeveSide
     index       : EnergyPrice
     adder       : EnergyPrice
