@@ -13,7 +13,7 @@ open DefinedOperations.Sleeve
 
 /// Helpers de impresión (opcionales)
 let private printMoney (m: Money) = (decimal m).ToString("0.#####")
-let private printRate (r: RateGas) = (decimal r).ToString("0.#####")
+let private printRate (r: EnergyPrice) = (decimal r).ToString("0.#####")
 let private printQty  (q: Energy) = (decimal q).ToString("0.#####")
 
 // Los trading hubs
@@ -121,6 +121,7 @@ let escenarioSupplyManyMasTransport_1 () =
       seller      = "SUPPLIER_A"
       buyer       = buyer
       qEnergia    = 8000.0m<MMBTU>
+      index       = 2.01m<USD/MMBTU>
       price       = 3.10m<USD/MMBTU>
       adder       = 0.05m<USD/MMBTU>
       contractRef = "C-A-2025"
@@ -137,6 +138,7 @@ let escenarioSupplyManyMasTransport_1 () =
       buyer       = buyer
       qEnergia    = 5000.0m<MMBTU>
       price       = 3.35m<USD/MMBTU>
+      index       = 2.01m<USD/MMBTU>
       adder       = 0.029m<USD/MMBTU>
       contractRef = "C-B-2025"
       meta        = Map.empty }
@@ -154,11 +156,12 @@ let escenarioSupplyManyMasTransport_1 () =
       meta     = Map.empty }
 
   // Pipeline: supplyMany -> transport
-  let rate : RateGas = 0.08m<USD/MMBTU>
+  let rate : EnergyPrice = 0.08m<USD/MMBTU>
 
   // Transport
   let tp: TransportParams = { 
              provider = Party "TC Energy"
+             pipeline = "NBP"
              entry = entryPt
              exit = Location "OGILBY DEL"
              shipper = buyer 
@@ -199,6 +202,8 @@ let escenario_Supply_Transport_Trade ()=
       buyer = buyer
       qEnergia    = 21645.0m<MMBTU>
       price = 2.37m<USD/MMBTU>
+      index       = 2.01m<USD/MMBTU>
+      
       adder       = 0.029m<USD/MMBTU>
       contractRef = contratRef 
       meta = Map.empty }
@@ -213,6 +218,7 @@ let escenario_Supply_Transport_Trade ()=
       buyer = buyer
       qEnergia  = 43355.0m<MMBTU> 
       price     = 0.775m<USD/MMBTU>
+      index       = 2.01m<USD/MMBTU>
       adder     = 0.0m<USD/MMBTU>
       contractRef = contratRef 
       meta = Map.empty }
@@ -227,6 +233,7 @@ let escenario_Supply_Transport_Trade ()=
       buyer = buyer
       qEnergia    = 4372.0m<MMBTU> 
       price = 3.35m<USD/MMBTU>
+      index       = 2.01m<USD/MMBTU>
       adder       = 0.005m<USD/MMBTU>
       contractRef = contratRef 
       meta = Map.empty }
@@ -242,6 +249,7 @@ let escenario_Supply_Transport_Trade ()=
       buyer = buyer
       qEnergia    = 18000.0m<MMBTU> 
       price = 2.575m<USD/MMBTU>
+      index       = 2.01m<USD/MMBTU>
       adder       = 0.005m<USD/MMBTU>
       contractRef = contratRef 
       meta = Map.empty }
@@ -259,6 +267,7 @@ let escenario_Supply_Transport_Trade ()=
 
   let pA005F1 : TransportParams =
     { provider = "TC Energy"
+      pipeline = "NBP"
       entry       = entryPtA005F1
       exit        = exitPtA005F1
       fuelMode    = FuelMode.RxBase
@@ -279,7 +288,8 @@ let escenario_Supply_Transport_Trade ()=
   // Fuel: 0.1751%
 
   let pM005F1 : TransportParams =
-    { provider = "Gasoducto Aguaprieta"
+    { provider    = "Gasoducto Aguaprieta"
+      pipeline    = "GRO"
       entry       = exitPtA005F1
       exit        = "Planta_EAX"
       shipper     = "EAX"
@@ -295,6 +305,7 @@ let escenario_Supply_Transport_Trade ()=
   let pTradeSES : TradeParams =
     { 
       side         = TradeSide.Sell
+      location     = "Ehrenberg"
       seller       = "Suppliers USA"
       buyer        = "SES"
       adder        = 0.0m<USD/MMBTU>
@@ -303,6 +314,7 @@ let escenario_Supply_Transport_Trade ()=
 
   let pTradeSE : TradeParams =
     { side         = TradeSide.Sell
+      location     = "Ogilby"
       seller       = "SES"
       buyer        = "SE"
       adder        = 0.20m<USD/MMBTU>
@@ -311,6 +323,7 @@ let escenario_Supply_Transport_Trade ()=
 
   let pTradeSE_EAX : TradeParams =
     { side         = TradeSide.Sell
+      location     = "EAX"
       seller       = "SE"
       buyer        = "EAX"
       adder        = 0.20m<USD/MMBTU>
@@ -357,6 +370,7 @@ let escenario_supply_Transport_Sleeve () =
       buyer = buyer
       qEnergia    = 5300.0m<MMBTU>; 
       price = 2.95m<USD/MMBTU>
+      index       = 2.01m<USD/MMBTU>
       adder       = 0.029m<USD/MMBTU>
       contractRef = contractRef;
       meta = Map.empty }
@@ -371,6 +385,8 @@ let escenario_supply_Transport_Sleeve () =
       buyer = buyer
       qEnergia    = 26.0m<MMBTU>; 
       price = 2.95m<USD/MMBTU>
+      index       = 2.01m<USD/MMBTU>
+
       adder       = 0.029m<USD/MMBTU>
       contractRef = contractRef;
       meta = Map.empty }
@@ -387,6 +403,7 @@ let escenario_supply_Transport_Sleeve () =
       buyer = buyer
       qEnergia    = 10000.0m<MMBTU>; 
       price = 2.575m<USD/MMBTU>
+      index       = 2.01m<USD/MMBTU>
       adder       = 0.02m<USD/MMBTU>
       contractRef = contractRef; 
       meta = Map.empty }
@@ -403,6 +420,7 @@ let escenario_supply_Transport_Sleeve () =
 
   let pA005F1 : TransportParams =
     { provider = "TC Energy"
+      pipeline    = "NBP"
       entry       = entryPtA005F1
       exit        = exitPtA005F1
       shipper     = "EAX"
@@ -424,6 +442,7 @@ let escenario_supply_Transport_Sleeve () =
 
   let pM005F1 : TransportParams =
     { provider = "Gasoducto Aguaprieta"
+      pipeline    = "GRO"
       entry       = exitPtA005F1
       exit        = "Planta_La_Estrella"
       shipper     = "EAX"
@@ -443,7 +462,9 @@ let escenario_supply_Transport_Sleeve () =
       seller = "SES"
       buyer = "SE"
       sleeveSide = SleeveSide.Export
-      adder = 0.05m<USD/MMBTU>
+      price = 2.575m<USD/MMBTU>
+      index       = 2.01m<USD/MMBTU>
+      adder       = 0.02m<USD/MMBTU>
       meta = Map.empty
       contractRef = contractRef
     }
@@ -455,14 +476,18 @@ let escenario_supply_Transport_Sleeve () =
       seller = "SES"
       buyer = "SE"
       sleeveSide = SleeveSide.Import
-      adder = 0.07m<USD/MMBTU>
+      price = 2.575m<USD/MMBTU>
+      index       = 2.01m<USD/MMBTU>
+      adder       = 0.02m<USD/MMBTU>
       meta = Map.empty
       contractRef = contractRef
     }
 
   // Trade con adder 0.5 USD/MMBTU
   let pTradeSES : TradeParams =
-    { side         = TradeSide.Sell
+    { 
+      location     = "Ehrenberg"
+      side         = TradeSide.Sell
       seller       = "Suppliers USA"
       buyer        = "SES"
       adder        = 0.50m<USD/MMBTU>
@@ -471,6 +496,7 @@ let escenario_supply_Transport_Sleeve () =
 
   let pTradeSE : TradeParams =
     { side         = TradeSide.Sell
+      location     = "EAX"
       seller       = "SE"
       buyer        = "EAX"
       adder        = 0.20m<USD/MMBTU>

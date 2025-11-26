@@ -8,7 +8,7 @@ open Unidades
 
 // === Helpers sugeridos
 module Money =
-  let inline amount (qty: Energy) (rate: RateGas) : Money =    qty * rate 
+  let inline amount (qty: Energy) (rate: EnergyPrice) : Money =    qty * rate 
 
 module DomainError =
   let msg = function
@@ -30,12 +30,12 @@ module DomainErrorHelpers =
 
 module Display =
   let moneyStr (m: Money) = (decimal m).ToString("0.##")
-  let rateStr  (r: RateGas) = (decimal r).ToString("0.##")
+  let rateStr  (r: EnergyPrice) = (decimal r).ToString("0.##")
   let qtyStr   (q: Energy) = (decimal q).ToString("0.##")
 
 module Domain =
-  let inline amount (qty: Energy) (rate: RateGas) : Money =   qty * rate
-  let weightedAvgRate (sps: SupplyParams list)  : RateGas =
+  let inline amount (qty: Energy) (rate: EnergyPrice) : Money =   qty * rate
+  let weightedAvgRate (sps: SupplyParams list)  : EnergyPrice =
     let qty = sps |> List.sumBy (fun sp -> sp.qEnergia)
     if qty = 0.0m<MMBTU> then 0.0m<USD/MMBTU>
     else

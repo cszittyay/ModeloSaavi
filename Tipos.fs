@@ -13,10 +13,15 @@ open System
 type Energy = decimal<MMBTU>      // MMBtu (puedes cambiar por GJ y agregar conversión)
 type Money  = decimal<USD>      // USD (o MXN si prefieres)
 
+// ===== Tipos derivados =====
+type EnergyPrice = decimal<USD/MMBTU>   // $/MMBtu
+
 // Identificadores “de negocio”
 type Party    = string
 type Location = string
 type Contract = string
+type Pipeline = string
+type Formula  = string
 
 
 type DomainError =
@@ -38,10 +43,20 @@ type TradeSide = | Buy | Sell
 
 type SleeveSide = |Export | Import
 
-type RateGas = decimal<USD/MMBTU>
+type RateGas = EnergyPrice
 
 type GasDay = DateOnly
 
+
+
+// una Formula de precio: función de un string -> EnergyPrice
+type PriceFormula =  Formula -> EnergyPrice
+type IndexPrice = {
+                  platts : EnergyPrice
+                  adder  : EnergyPrice
+                  }
+// El valor del Index se obtiene Platts y el DiaGas
+type PriceSource = | IndexPrice | Formula
 
 type SupplyParams =
   { tcId        : string
@@ -52,8 +67,9 @@ type SupplyParams =
     seller      : string
     buyer       : string
     qEnergia    : decimal<MMBTU>
-    price       : decimal<USD/MMBTU>
-    adder       : decimal<USD/MMBTU>
+    index       : EnergyPrice
+    adder       : EnergyPrice
+    price       : EnergyPrice
     contractRef : string
     meta        : Map<string,obj> }
 
@@ -66,7 +82,7 @@ type ItemCost = {
   kind     : CostKind
   provider : Party             // quien factura (cuando aplica)
   qEnergia : Energy
-  rate     : RateGas           // $/MMBtu cuando aplica
+  rate     : EnergyPrice           // $/MMBtu cuando aplica
   amount   : Money             // rate * qty
   meta     : Map<string,obj>   // detalles (seller, tcId, etc.)
 }
@@ -75,11 +91,12 @@ type ItemCost = {
 // Estado entre operaciones
 // =====================
 type State = {
+  gasDay   : DateOnly
   energy   : Energy
   owner    : Party
   contract : Contract
   location : Location 
-  gasDay   : DateOnly
+ 
   meta     : Map<string,obj>
 }
 
@@ -109,16 +126,18 @@ type Operation = State -> Result<Transition, DomainError>
 type FuelMode = |RxBase | ExBase
 
 
+
 type TransportParams =
   { provider    : Party
+    pipeline    : Pipeline                  // Gasoducto
     entry       : Location
     exit        : Location
     shipper     : Party
     fuelMode    : FuelMode  
     fuelPct     : decimal
-    usageRate   : decimal<USD/MMBTU>       // $/MMBtu sobre salida
-    reservation : decimal<USD/MMBTU>       // monto fijo (ej. diario o mensual), fuera del qEnergia
-    acaRate     : decimal<USD/MMBTU>       // $/MMBtu es un Adder que se cobra en USA
+    usageRate   : EnergyPrice       // $/MMBtu sobre salida
+    reservation : EnergyPrice       // monto fijo (ej. diario o mensual), fuera del qEnergia
+    acaRate     : EnergyPrice       // $/MMBtu es un Adder que se cobra en USA
     meta        : Map<string,obj>
   }
 
@@ -130,7 +149,8 @@ type TradeParams =
   { side        : TradeSide
     seller      : Party
     buyer       : Party
-    adder       : decimal<USD/MMBTU>        // $/MMBtu (fee/adder)
+    location    : Location
+    adder       : EnergyPrice        // $/MMBtu (fee/adder)
     contractRef : Contract
     meta        : Map<string,obj> }
 
@@ -153,7 +173,9 @@ type SleeveParams =
     seller      : Party
     buyer       : Party
     sleeveSide  : SleeveSide
-    adder       : decimal<USD/MMBTU>        // $/MMBtu (fee/adder)
+    index       : EnergyPrice
+    adder       : EnergyPrice
+    price       : EnergyPrice
     contractRef : Contract
     meta        : Map<string,obj> }
 
@@ -164,7 +186,7 @@ type ConsumeParams =
   { provider      : Party
     meterLocation : Location
     measured      : decimal<MMBTU>
-    penaltyRate   : decimal<USD/MMBTU>
+    penaltyRate   : EnergyPrice
     tolerancePct  : decimal }
 
 

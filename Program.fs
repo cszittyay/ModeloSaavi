@@ -11,7 +11,12 @@ open LegosOps
 
 // escenarioSupplyTradeTransporteConsumo()
 
-let blocks = buildBlocksFromExcel(excelPath) "BAJIO.LT" "EAVIII"
+let planta = "LR"
+let central = "EAX"
+printfn "Planta: %s Central-> %s" planta central
+
+
+let blocks = buildBlocksFromExcel(excelPath) planta central
 
 
 let ops = compile blocks

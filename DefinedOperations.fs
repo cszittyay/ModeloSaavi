@@ -245,6 +245,7 @@ module Transport =
                 [ "component",  box "reservation"
                   "basis",      box "reservation_fixed"
                   "shipper",    box p.shipper
+                  "ACA",        box p.acaRate
                   "entry",      box p.entry
                   "exit",       box p.exit ]
                 |> Map.ofList }
