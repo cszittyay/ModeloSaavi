@@ -13,7 +13,7 @@ printfn "\n\n======================================================\n\n"
 // escenarioSupplyTradeTransporteConsumo()
 
 
-let blocks = buildBlocksFromExcel(@"EscenarioSample.xlsx")
+let blocks = buildBlocksFromExcel(@"EscenarioSample.xlsx") "LR" "EAX"
 
 
 let ops = compile blocks

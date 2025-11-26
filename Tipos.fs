@@ -27,25 +27,20 @@ type DomainError =
   | Other of string
 
 
-
-
 type CostKind = Gas | Transport | Storage | Tax | Fee | Sleeve | Nulo
 
 type Temporalidad = DayAhead | Intraday | Monthly
 
-type TradingHub = Mainline | Waha | Permian | SanJuan | SoCal
+type TradingHub = Mainline | Waha | Permian | SanJuan | SoCal | HSC
 
 // 4) trade: compra/venta directa entre contrapartes (signo por rol)
 type TradeSide = | Buy | Sell
 
-
 type SleeveSide = |Export | Import
-
 
 type RateGas = decimal<USD/MMBTU>
 
 type GasDay = DateOnly
-
 
 
 type SupplyParams =
@@ -107,14 +102,24 @@ type Operation = State -> Result<Transition, DomainError>
 // ========================================================
 // 2) TRANSPORTE (mueve físico, no cambia dueño)
 // ========================================================
+
+// Modo de cálculo de fuel  
+// RxBase: se calcula sobre la qEnergia recibida, 
+// ExBase: se calcula sobre la qEnergia entregada
+type FuelMode = |RxBase | ExBase
+
+
 type TransportParams =
   { provider    : Party
     entry       : Location
     exit        : Location
     shipper     : Party
+    fuelMode    : FuelMode  
     fuelPct     : decimal
     usageRate   : decimal<USD/MMBTU>       // $/MMBtu sobre salida
-    reservation : decimal<USD/MMBTU>           // monto fijo (ej. diario o mensual), fuera del qEnergia
+    reservation : decimal<USD/MMBTU>       // monto fijo (ej. diario o mensual), fuera del qEnergia
+    acaRate     : decimal<USD/MMBTU>       // $/MMBtu es un Adder que se cobra en USA
+    meta        : Map<string,obj>
   }
 
 

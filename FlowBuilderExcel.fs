@@ -6,13 +6,16 @@ open FSharp.Interop.Excel
 open Tipos
 open LegosOps
 
-type FlowSheet         = ExcelFile< @"EscenarioSample.xlsx", "Flow", HasHeaders=true >
-type SupplySheet       = ExcelFile< @"EscenarioSample.xlsx", "Supply", HasHeaders=true >
-type SupplyTradeSheet  = ExcelFile< @"EscenarioSample.xlsx", "SupplyTrade", HasHeaders=true >
-type TradeSheet        = ExcelFile< @"EscenarioSample.xlsx", "Trade", HasHeaders=true >
-type TransportSheet    = ExcelFile< @"EscenarioSample.xlsx", "Transport", HasHeaders=true >
-type SleeveSheet       = ExcelFile< @"EscenarioSample.xlsx", "Sleeve", HasHeaders=true >
-type ConsumeSheet      = ExcelFile< @"EscenarioSample.xlsx", "Consume", HasHeaders=true  >
+[<Literal>]
+let excelPath = @"C:\Users\cszit\source\repos\f#\Saavi\ComposeModel\ModeloSaavi\EscenarioSample.xlsx"
+
+type FlowSheet         = ExcelFile<excelPath, "Flow", HasHeaders=true >
+type SupplySheet       = ExcelFile<excelPath, "Supply", HasHeaders=true >
+type SupplyTradeSheet  = ExcelFile<excelPath, "SupplyTrade", HasHeaders=true >
+type TradeSheet        = ExcelFile<excelPath, "Trade", HasHeaders=true >
+type TransportSheet    = ExcelFile<excelPath, "Transport", HasHeaders=true >
+type SleeveSheet       = ExcelFile<excelPath, "Sleeve", HasHeaders=true >
+type ConsumeSheet      = ExcelFile<excelPath, "Consume", HasHeaders=true >
 
 
 
@@ -32,6 +35,7 @@ let parseGasDay (s:string) : GasDay =
 let parseTradingHub = function
     | "Mainline" -> TradingHub.Mainline
     | "Waha"     -> TradingHub.Waha
+    | "HSC"      -> TradingHub.HSC
     | x          -> failwithf "TradingHub desconocido: %s" x
 
 let parseTemporalidad = function
@@ -41,9 +45,10 @@ let parseTemporalidad = function
     | x          -> failwithf "Temporalidad desconocida: %s" x
 
 
-let buildSupplies (sheet: SupplySheet) : Map<string, SupplyParams> =
+
+let buildSupplies planta central (sheet: SupplySheet)  : SupplyParams list =
     sheet.Data
-    |> Seq.filter (fun row -> row.Name <> null && row.Name <> "")
+    |> Seq.filter (fun row -> row.Planta = planta && row.Central = central && row.Name <> null && row.Name <> "")
     |> Seq.map (fun row ->
         let sp : SupplyParams =
           { tcId        = row.TcId
@@ -58,8 +63,9 @@ let buildSupplies (sheet: SupplySheet) : Map<string, SupplyParams> =
             adder       = decimal row.AdderUSDMMBTU * 1.0m<USD/MMBTU>
             contractRef = row.ContractRef
             meta        = Map.empty }
-        row.Name, sp)
-    |> Map.ofSeq
+        sp)
+        |> Seq.toList
+
 
 
 let buildTrades (sheet: TradeSheet) : Map<string, TradeParams> =
@@ -102,10 +108,13 @@ let buildTransports (sheet: TransportSheet) : Map<string, TransportParams> =
           { provider   = row.Provider
             entry      = row.Entry
             exit       = row.Exit
+            acaRate    = decimal row.AcaRate * 1.0m<USD/MMBTU>
             shipper    = row.Shipper
+            fuelMode   = if row.FuelMode = "RxBase" then FuelMode.RxBase else FuelMode.ExBase
             fuelPct    = decimal row.FuelPct
             usageRate  = decimal row.UsageRateUSDMMBTU * 1.0m<USD/MMBTU>
-            reservation= decimal row.ReservationUSDMMBTU * 1.0m<USD/MMBTU> }
+            reservation= decimal row.ReservationUSDMMBTU * 1.0m<USD/MMBTU> 
+            meta       = Map.empty }
         row.Name, tp)
     |> Map.ofSeq
 
@@ -160,11 +169,14 @@ let supplyTradeFromRow (sheet: SupplyTradeSheet) : MultiSupplyTradeParams  =
                )
      { legs = multiSupplyTrade |> Seq.toList}
 
-let buildBlocksFromExcel (path:string) : Block list =
+
+
+
+let buildBlocksFromExcel (path:string) planta central : Block list =
     let flowSheet, supplySheet, supplyTrade, tradeSheet, transportSheet, sbyteSheet, consumeSheet =
         loadSheets path
 
-    let supplies   = buildSupplies supplySheet
+    let supplies   = buildSupplies planta central supplySheet
     let trades     = buildTrades tradeSheet
     let transports = buildTransports transportSheet
     let consumes   = buildConsumes consumeSheet
@@ -172,17 +184,14 @@ let buildBlocksFromExcel (path:string) : Block list =
     let sleeves     = buildSleeves sbyteSheet
 
     flowSheet.Data
-    |> Seq.filter (fun row -> row.Ref <> null && row.Ref <> "")
+    |> Seq.filter (fun row -> row.Planta = planta && row.Central = central && row.Kind <> null )
     |> Seq.sortBy (fun row -> row.Order)
     |> Seq.map (fun row ->
         match row.Kind with
+      
         | "Supply" ->
-            let sp = supplies |> Map.find row.Ref
-            Supply sp
-
-        | "MultiSupplyTrade" ->
-            let spt = supplyTrade 
-            MultiSupplyTrade spt
+            SupplyMany supplies
+               
         
         | "Trade" -> 
             let tp = trades |> Map.find row.Ref

@@ -28,16 +28,15 @@ let WAHA = Location "Waha FDt Com"
 
   // Datos comunes del día y hub
 let gasDay     = DateOnly(2025, 10, 22)
-let deliveryPt = Location "Elhemberg"
-let entryPt    = Location "Elhemberg"
-let buyer      = "INDUSTRIA_X"  // Datos comunes del día y hub
+let entryPt = Location "Ehremberg"
+let buyer      = "EAX"  // Datos comunes del día y hub
 
 // Estado inicial
 let st0 : State =
     {   energy = 0.0m<MMBTU>
         owner    = buyer
         contract = "INIT"
-        location = "EHRENBERG"
+        location = entryPt
         gasDay   = gasDay
         meta     = Map.empty }
 
@@ -118,7 +117,7 @@ let escenarioSupplyManyMasTransport_1 () =
       gasDay      = gasDay
       temporalidad = DayAhead
       tradingHub  = TradingHub.Mainline
-      deliveryPt  = deliveryPt
+      deliveryPt  = Location "OGILBY DEL"
       seller      = "SUPPLIER_A"
       buyer       = buyer
       qEnergia    = 8000.0m<MMBTU>
@@ -133,7 +132,7 @@ let escenarioSupplyManyMasTransport_1 () =
       gasDay      = gasDay
       tradingHub  = TradingHub.Mainline
       temporalidad       = Intraday
-      deliveryPt  = deliveryPt
+      deliveryPt  = Location "OGILBY DEL"
       seller      = "SUPPLIER_B"
       buyer       = buyer
       qEnergia    = 5000.0m<MMBTU>
@@ -158,13 +157,17 @@ let escenarioSupplyManyMasTransport_1 () =
   let rate : RateGas = 0.08m<USD/MMBTU>
 
   // Transport
-  let tp = { provider = "TC Energy"
-             entry = entryPt 
-             exit = deliveryPt 
+  let tp: TransportParams = { 
+             provider = Party "TC Energy"
+             entry = entryPt
+             exit = Location "OGILBY DEL"
              shipper = buyer 
+             fuelMode = FuelMode.RxBase
              fuelPct = 0.01m 
-             usageRate = rate 
-             reservation = 0.2m<USD/MMBTU> }
+             usageRate =  0.08m<USD/MMBTU>
+             reservation = 0.2m<USD/MMBTU>
+             acaRate = 0.0014m<USD/MMBTU>
+             meta = Map.empty }
   
   let tr : Operation = transport tp
 
@@ -258,10 +261,14 @@ let escenario_Supply_Transport_Trade ()=
     { provider = "TC Energy"
       entry       = entryPtA005F1
       exit        = exitPtA005F1
+      fuelMode    = FuelMode.RxBase
       shipper     = "EAX"
       fuelPct     = 0.007m                 // 0,7% fuel
       usageRate   = 0.08m<USD/MMBTU>
-      reservation = 0.50m<USD/MMBTU> }    // ej.: fijo
+      reservation = 0.50m<USD/MMBTU> 
+      acaRate     = 0.0014m<USD/MMBTU>
+      meta        = Map.empty
+      }    // ej.: fijo
 
 
   // TransportParams 
@@ -276,9 +283,13 @@ let escenario_Supply_Transport_Trade ()=
       entry       = exitPtA005F1
       exit        = "Planta_EAX"
       shipper     = "EAX"
+      fuelMode    = FuelMode.ExBase
       fuelPct     = 0.001751m                // 0.1751% fuel
       usageRate   = 0.08m<USD/MMBTU>
-      reservation = 0.50m<USD/MMBTU> }    // ej.: fijo
+      reservation = 0.50m<USD/MMBTU> 
+      acaRate     = 0.0m<USD/MMBTU>
+      meta        = Map.empty
+      }    // ej.: fijo
 
   // Trade con adder 0.5 USD/MMBTU
   let pTradeSES : TradeParams =
@@ -395,9 +406,13 @@ let escenario_supply_Transport_Sleeve () =
       entry       = entryPtA005F1
       exit        = exitPtA005F1
       shipper     = "EAX"
+      fuelMode    = FuelMode.RxBase
       fuelPct     = 0.007m                 // 0,7% fuel
       usageRate   = 0.08m<USD/MMBTU>
-      reservation = 0.50m<USD/MMBTU> }    // ej.: fijo
+      reservation = 0.50m<USD/MMBTU> 
+      acaRate     = 0.0014m<USD/MMBTU>
+      meta        = Map.empty
+      }    // ej.: fijo
 
 
   // TransportParams 
@@ -408,13 +423,17 @@ let escenario_supply_Transport_Sleeve () =
   // Fuel: 0.1751%
 
   let pM005F1 : TransportParams =
-    { provider = "Gasoducto Aguprieta"
+    { provider = "Gasoducto Aguaprieta"
       entry       = exitPtA005F1
       exit        = "Planta_La_Estrella"
       shipper     = "EAX"
+      fuelMode    = FuelMode.ExBase
       fuelPct     = 0.001751m                // 0.1751% fuel
       usageRate   = 0.08m<USD/MMBTU>
-      reservation = 0.50m<USD/MMBTU> }    // ej.: fijo
+      reservation = 0.50m<USD/MMBTU> 
+      acaRate     = 0.0m<USD/MMBTU>
+      meta        = Map.empty
+      }    // ej.: fijo
 
 
   // Sleeve
@@ -485,111 +504,3 @@ let escenario_supply_Transport_Sleeve () =
   run ops st0
 
 
-  // Caso de MultiSupplyTrade + transporte + consumo
-let escenarioSupplyTradeTransporteConsumo () =
-      let gasRxPt = "EHRENBERG"
-      let entryPtA005F1 = gasRxPt
-      let exitPtA005F1 = "OGILBY"
-      let buyer      = "SES"
-      let contractRef = "Sleeve-Trafigura"
-
-      let sp1 : SupplyParams =
-        { tcId        = "TC-001"; 
-          gasDay = gasDay; 
-          tradingHub  = TradingHub.Mainline
-          temporalidad = DayAhead;
-          deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
-          seller      = "Koch"; 
-          buyer = buyer
-          qEnergia    = 5300.0m<MMBTU>; 
-          price = 2.95m<USD/MMBTU>
-          adder       = 0.029m<USD/MMBTU>
-          contractRef = contractRef;
-          meta = Map.empty }
-
-
-      let pTradeSES2 : TradeParams =
-        { side         = TradeSide.Sell
-          seller       = "Suppliers USA"
-          buyer        = "SES"
-          adder        = 0.60m<USD/MMBTU>
-          contractRef  = "MARKET_Z"
-          meta         = Map.empty }
-
-
-
-      let sp2 : SupplyParams =
-        { tcId        = "TC-002"; 
-          gasDay = gasDay; 
-          tradingHub  = TradingHub.Mainline
-          temporalidad = DayAhead;
-          deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
-          seller      = "JP Morgan";
-          buyer = buyer
-          qEnergia    = 4700.0m<MMBTU>; 
-          price = 3.95m<USD/MMBTU>
-          adder       = 0.029m<USD/MMBTU>
-          contractRef = contractRef;
-          meta = Map.empty }
-
-
-      let pTradeSES : TradeParams =
-        { side         = TradeSide.Sell
-          seller       = "Suppliers USA"
-          buyer        = "SES"
-          adder        = 0.50m<USD/MMBTU>
-          contractRef  = "MARKET_Z"
-          meta         = Map.empty }
-      
-      let supplyTradeParams1 = { supply = sp1; trade = pTradeSES}
-      let supplyTradeParams2 = { supply = sp2; trade = pTradeSES2}
-
-
-
-      let multiSupplyTradeParams = { legs = [supplyTradeParams1; supplyTradeParams2]}
-
-      let pTradeSE : TradeParams =
-        { side         = TradeSide.Sell
-          seller       = "Suppliers USA"
-          buyer        = "SES"
-          adder        = 0.50m<USD/MMBTU>
-          contractRef  = "MARKET_Z"
-          meta         = Map.empty }
-
-      
-      // parametros de Consumo (planta)
-      let pConsume = 
-        { provider            = "Savi Energía"
-          meterLocation       = "Planta_La_Estrella"
-          measured           = 15300.0m<MMBTU>
-          tolerancePct       = 5.0m
-          penaltyRate        = 0.10m<USD/MMBTU>
-          }
-
-      let pA005F1 : TransportParams =
-        { provider = "TC Energy"
-          entry       = entryPtA005F1
-          exit        = exitPtA005F1
-          shipper     = "EAX"
-          fuelPct     = 0.007m                 // 0,7% fuel
-          usageRate   = 0.08m<USD/MMBTU>
-          reservation = 0.50m<USD/MMBTU> }    // ej.: fijo
-
-
-      let pM005F1 : TransportParams =
-        { provider = "Gasoducto Aguprieta"
-          entry       = exitPtA005F1
-          exit        = "Planta_La_Estrella"
-          shipper     = "EAX"
-          fuelPct     = 0.001751m                // 0.1751% fuel
-          usageRate   = 0.08m<USD/MMBTU>
-          reservation = 0.50m<USD/MMBTU> }    // ej.: fijo
-
-      
-      let ops : Operation list = [
-                               SupplyTrade.multiSupplyTrade multiSupplyTradeParams ;
-                               transport pA005F1 ; 
-                               transport pM005F1; 
-                               trade pTradeSE  ;
-                               consume pConsume]
-      run ops st0
