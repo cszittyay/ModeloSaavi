@@ -31,7 +31,7 @@ type CostKind = Gas | Transport | Storage | Tax | Fee | Sleeve | Nulo
 
 type Temporalidad = DayAhead | Intraday | Monthly
 
-type TradingHub = Mainline | Waha | Permian | SanJuan | SoCal | HSC
+type TradingHub = Mainline | Waha | Permian | SanJuan | SoCal | HSC | AguaDulce
 
 // 4) trade: compra/venta directa entre contrapartes (signo por rol)
 type TradeSide = | Buy | Sell

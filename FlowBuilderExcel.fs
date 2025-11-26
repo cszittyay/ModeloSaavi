@@ -36,6 +36,7 @@ let parseTradingHub = function
     | "Mainline" -> TradingHub.Mainline
     | "Waha"     -> TradingHub.Waha
     | "HSC"      -> TradingHub.HSC
+    | "AguaDulce"-> TradingHub.AguaDulce
     | x          -> failwithf "TradingHub desconocido: %s" x
 
 let parseTemporalidad = function
@@ -68,9 +69,9 @@ let buildSupplies planta central (sheet: SupplySheet)  : SupplyParams list =
 
 
 
-let buildTrades (sheet: TradeSheet) : Map<string, TradeParams> =
+let buildTrades planta central (sheet: TradeSheet) : Map<string, TradeParams> =
     sheet.Data
-    |> Seq.filter (fun row -> row.Name <> null && row.Name <> "")
+    |> Seq.filter (fun row -> row.Planta = planta && row.Central = central && row.Name <> null && row.Name <> "")
     |> Seq.map (fun row ->
         let tp : TradeParams =
           { side        = if row.Side = "Sell" then TradeSide.Sell else TradeSide.Buy
@@ -83,9 +84,9 @@ let buildTrades (sheet: TradeSheet) : Map<string, TradeParams> =
     |> Map.ofSeq
 
 
-let buildSleeves (sheet: SleeveSheet) : Map<string, SleeveParams> =
+let buildSleeves planta central (sheet: SleeveSheet) : Map<string, SleeveParams> =
     sheet.Data
-    |> Seq.filter (fun row -> row.Name <> null && row.Name <> "")
+    |> Seq.filter (fun row -> row.Planta = planta && row.Central = central &&   row.Name <> null && row.Name <> "")
     |> Seq.map (fun row ->
         let sl : SleeveParams =
             {   provider    = row.Provider
@@ -100,9 +101,9 @@ let buildSleeves (sheet: SleeveSheet) : Map<string, SleeveParams> =
 
 
 
-let buildTransports (sheet: TransportSheet) : Map<string, TransportParams> =
+let buildTransports planta central (sheet: TransportSheet) : Map<string, TransportParams> =
     sheet.Data
-    |> Seq.filter (fun row -> row.Name <> null && row.Name <> "")
+    |> Seq.filter (fun row -> row.Planta = planta && row.Central = central && row.Name <> null && row.Name <> "")
     |> Seq.map (fun row ->
         let tp : TransportParams =
           { provider   = row.Provider
@@ -119,9 +120,9 @@ let buildTransports (sheet: TransportSheet) : Map<string, TransportParams> =
     |> Map.ofSeq
 
 
-let buildConsumes (sheet: ConsumeSheet) : Map<string, ConsumeParams> =
+let buildConsumes planta central (sheet: ConsumeSheet) : Map<string, ConsumeParams> =
     sheet.Data
-    |> Seq.filter (fun row -> row.Name <> null && row.Name <> "")
+    |> Seq.filter (fun row -> row.Planta = planta && row.Central = central && row.Name <> null && row.Name <> "")
     |> Seq.map (fun row ->
         let cp : ConsumeParams =
           { provider      = row.Provider
@@ -135,40 +136,6 @@ let buildConsumes (sheet: ConsumeSheet) : Map<string, ConsumeParams> =
 
 
 
-let supplyTradeFromRow (sheet: SupplyTradeSheet) : MultiSupplyTradeParams  =
-     let multiSupplyTrade =
-         sheet.Data
-         |> Seq.filter (fun row -> row.SupContractRef <> null && row.SupContractRef <> "")
-         |> Seq.map (fun row ->
-                let sp : SupplyParams =
-                                        {
-                                            tcId        = row.Name
-                                            gasDay      = DateOnly.FromDateTime (row.GasDay)
-                                            tradingHub  = parseTradingHub row.TradingHub
-                                            temporalidad= parseTemporalidad row.Temporalidad
-                                            deliveryPt  = row.DeliveryPt
-                                            seller      = row.TradeSeller       // usamos TradeSeller como seller físico
-                                            buyer       = row.TradeBuyer        // usamos TradeBuyer como buyer físico
-                                            qEnergia    = decimal row.QtyMMBTU * 1.0m<MMBTU>
-                                            price       = decimal row.PriceUSDMMBTU * 1.0m<USD/MMBTU>
-                                            adder       = decimal row.AdderUSDMMBTU * 1.0m<USD/MMBTU>
-                                            contractRef = row.SupContractRef
-                                            meta        = Map.empty
-                                        }
-      
-                let tp : TradeParams =
-                                    {
-                                        side        = if row.TradeSide = "Sell" then TradeSide.Sell else TradeSide.Buy
-                                        seller      = row.TradeSeller
-                                        buyer       = row.TradeBuyer
-                                        adder       = decimal row.AdderUSDMMBTU * 1.0m<USD/MMBTU>
-                                        contractRef = row.TradeContractRef
-                                        meta        = Map.empty
-                                    }
-                {supply = sp; trade = tp}
-               )
-     { legs = multiSupplyTrade |> Seq.toList}
-
 
 
 
@@ -177,11 +144,10 @@ let buildBlocksFromExcel (path:string) planta central : Block list =
         loadSheets path
 
     let supplies   = buildSupplies planta central supplySheet
-    let trades     = buildTrades tradeSheet
-    let transports = buildTransports transportSheet
-    let consumes   = buildConsumes consumeSheet
-    let supplyTrade = supplyTradeFromRow supplyTrade
-    let sleeves     = buildSleeves sbyteSheet
+    let trades     = buildTrades planta central tradeSheet
+    let transports = buildTransports planta central transportSheet
+    let consumes   = buildConsumes planta central consumeSheet
+    let sleeves     = buildSleeves planta central sbyteSheet
 
     flowSheet.Data
     |> Seq.filter (fun row -> row.Planta = planta && row.Central = central && row.Kind <> null )
@@ -196,7 +162,7 @@ let buildBlocksFromExcel (path:string) planta central : Block list =
         | "Trade" -> 
             let tp = trades |> Map.find row.Ref
             Trade tp
-
+            
         | "Transport" ->
             let tp = transports |> Map.find row.Ref
             Transport tp

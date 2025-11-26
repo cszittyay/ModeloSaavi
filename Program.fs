@@ -7,13 +7,11 @@ open LegosOps
 
 
 //escenario_Supply_Transport_Trade ()
-printfn "\n\n======================================================\n\n"
 // escenario_supply_Transport_Sleeve ()
 
 // escenarioSupplyTradeTransporteConsumo()
 
-
-let blocks = buildBlocksFromExcel(@"EscenarioSample.xlsx") "LR" "EAX"
+let blocks = buildBlocksFromExcel(excelPath) "BAJIO.LT" "EAVIII"
 
 
 let ops = compile blocks

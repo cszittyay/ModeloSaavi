@@ -28,8 +28,8 @@ let WAHA = Location "Waha FDt Com"
 
   // Datos comunes del día y hub
 let gasDay     = DateOnly(2025, 10, 22)
-let entryPt = Location "Ehremberg"
-let buyer      = "EAX"  // Datos comunes del día y hub
+let entryPt = Location "AguaDulce" //  Location "Ramones" // Location "Ehremberg"
+let buyer      = "EAVIII"  // Datos comunes del día y hub
 
 // Estado inicial
 let st0 : State =

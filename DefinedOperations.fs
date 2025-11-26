@@ -41,10 +41,10 @@ module Consume =
                 amount   = amount
                 meta     =
                   [ "component"  , box "imbalance_penalty"
-                    "desbalance" , box (decimal dmb)
-                    "tolerancia" , box (decimal tol)
-                    "measured"   , box (decimal p.measured)
-                    "outQ"       , box (decimal outQ) ]
+                    "desbalance" , box (round(decimal dmb))
+                    "tolerancia" , box (round(decimal tol))
+                    "measured"   , box (round(decimal p.measured))
+                    "outQ"       , box (round(decimal outQ))]
                   |> Map.ofList
               }
       
@@ -198,16 +198,16 @@ module Transport =
       fun stIn ->
         // Validaciones de dominio
         if String.IsNullOrWhiteSpace p.shipper then
-          Error (MissingContract "shipper")
+          Error (MissingContract "TransportParams: shipper")
 
         elif stIn.location <> p.entry then
-          Error (Other (sprintf "State@%s, esperado entry %s" stIn.location p.entry))
+          Error (Other (sprintf "TransportParams: State@%s, esperado entry %s" stIn.location p.entry))
 
         elif stIn.energy <= 0.0m<MMBTU> then
-          Error (QuantityNonPositive "transport.qEnergia")
+          Error (QuantityNonPositive "TransportParams: transport.qEnergia")
 
         elif p.fuelPct < 0m || p.fuelPct >= 1m then
-          Error (InvalidUnits "transport.fuelPct debe estar en [0,1)")
+          Error (InvalidUnits "TransportParams: transport.fuelPct debe estar en [0,1)")
         else
           // Cálculos: shrink por fuel y costo de uso
           let qtyIn  : Energy = stIn.energy
@@ -216,7 +216,7 @@ module Transport =
           let qtyOut : Energy = qtyIn - fuel
 
           // Líneas de costo: USAGE y RESERVATION
-          let usageAmount : Money = qtyOut * p.usageRate
+          let usageAmount : Money = qtyOut * p.usageRate 
 
           // Reservation: registramos como “fijo” (basis=reservation_fixed).
           // Para materializar a USD respetando unidades, multiplicamos por 1<MMBTU>.
