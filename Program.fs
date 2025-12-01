@@ -11,8 +11,16 @@ open LegosOps
 
 // escenarioSupplyTradeTransporteConsumo()
 
-let planta = "LR"
-let central = "EAX"
+//let planta = "LR"
+//let central = "EAX"
+
+//let planta = "BAJIO"
+//let central = "EAVIII"
+
+let planta = "BAJIO.LT"
+let central = "EAVIII"
+
+
 printfn "Planta: %s Central-> %s" planta central
 
 

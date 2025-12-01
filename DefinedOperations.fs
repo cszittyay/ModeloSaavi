@@ -76,16 +76,20 @@ module Supply =
                 contract = sp.contractRef
                 energy   = sp.qEnergia
                 location = sp.deliveryPt }
-
-          let amt = Domain.amount sp.qEnergia sp.price
+          // si hay un precio calculado por formula (price != 0) , se usa ese; si no, se usa index + adder
+          let price = if sp.price = 0.0m<USD/MMBTU> then sp.adder + sp.index else sp.price
+          let amt = Domain.amount sp.qEnergia price
           let cost =
             [{ kind     = CostKind.Gas
                qEnergia = sp.qEnergia
-               rate     = sp.price
+               rate     = price
                amount   = amt
                provider = sp.seller
                meta     = [ "seller", box sp.seller
                             "tcId"  , box sp.tcId
+                            "index" , box (decimal sp.index)
+                            "adder" , box (decimal sp.adder)
+                            "price" , box (decimal price)
                             "gasDay", box sp.gasDay ] |> Map.ofList }]
 
           Ok { state = stOut
@@ -172,6 +176,9 @@ module Sleeve =
                                                   "contractRef", box p.contractRef   ] |> Map.ofList }
 
 
+
+
+// Operación de venta de gas a un supplier o cliente
 module Trade =
 
   let trade (p: TradeParams) : Operation =
@@ -287,3 +294,34 @@ module Transport =
                   |> Map.add "transport.resv"    (box (decimal p.reservation)) }
 
           Ok { state = stOut; costs = costs; notes = notes }
+
+module Sell =
+  let sell (p: SellParams) : Operation =
+    fun s0 ->
+    // helper para armar TradeParams desde SellParams + estado actual
+    let tradeFromSell (st: State) : TradeParams =
+      { side     = TradeSide.Sell
+        seller   = p.seller
+        buyer    = p.buyer
+        location = st.location
+        adder    = p.adder
+        contractRef = p.contractRef
+        meta     = p.meta }
+
+    match p.delivery with
+
+    | AtReceiptPoint ->
+        // venta donde está el gas ahora: solo cambio de dueño
+        let tp = tradeFromSell s0
+        Trade.trade tp s0
+
+    | DeliveredTo (_, tParams) ->
+          // Transport.transport : TransportParams -> Operation
+          // Operation = State -> Result<Transition,string>
+          Transport.transport tParams s0
+          |> Result.bind (fun tTransport ->
+              let st1 = tTransport.state
+              let tp  = tradeFromSell st1
+              Trade.trade tp st1
+          )
+        

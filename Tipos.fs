@@ -165,7 +165,21 @@ type MultiSupplyTradeParams =
   { legs       : SupplyTradeParams list
   }
 
+// Venta directa entre dos contrapartes
+type DeliveryMode =
+  | AtReceiptPoint                     // vendo donde compré (mismo punto)
+  | DeliveredTo of Location * TransportParams
+  // Location = punto de entrega; TransportParams = como ya tengas definido
 
+type SellParams =
+  { seller      : Party
+    buyer       : Party
+    qty         : Energy
+    price       : EnergyPrice   // o el tipo que uses
+    adder       : EnergyPrice   // o el tipo que uses
+    contractRef : Contract
+    delivery    : DeliveryMode
+    meta        : Map<string,obj> }
 
 
 type SleeveParams =

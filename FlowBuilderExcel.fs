@@ -25,7 +25,7 @@ let getPrice  (index: decimal<USD/MMBTU>)
                : decimal<USD/MMBTU> =
                                         match formula with
                                         | "" -> index + adder
-                                        | _     -> index 
+                                        | _     -> 0m<USD/MMBTU> // Aquí puedes implementar la lógica para evaluar la fórmula si es necesario
 
 let loadSheets (path:string) =
     let flow             = new FlowSheet(path)

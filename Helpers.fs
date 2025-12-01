@@ -29,9 +29,9 @@ module DomainErrorHelpers =
     | Other msg -> sprintf "[Other] %s" msg
 
 module Display =
-  let moneyStr (m: Money) = (decimal m).ToString("0.##")
-  let rateStr  (r: EnergyPrice) = (decimal r).ToString("0.##")
-  let qtyStr   (q: Energy) = (decimal q).ToString("0.##")
+  let moneyStr (m: Money) = (decimal m).ToString("0.###")
+  let rateStr  (r: EnergyPrice) = (decimal r).ToString("0.###")
+  let qtyStr   (q: Energy) = (decimal q).ToString("0.###")
 
 module Domain =
   let inline amount (qty: Energy) (rate: EnergyPrice) : Money =   qty * rate
