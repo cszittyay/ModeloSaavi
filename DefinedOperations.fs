@@ -159,7 +159,8 @@ module Sleeve =
               provider = p.provider
               qEnergia = stIn.energy
               rate= p.adder
-              amount = amount
+              // si es export, el costo es negativo
+              amount = if p.sleeveSide = SleeveSide.Export then -amount else amount
               meta= [ "seller", box p.seller 
                       "adder", box (decimal p.adder)
                       "index" , box (decimal p.index)
@@ -295,33 +296,4 @@ module Transport =
 
           Ok { state = stOut; costs = costs; notes = notes }
 
-module Sell =
-  let sell (p: SellParams) : Operation =
-    fun s0 ->
-    // helper para armar TradeParams desde SellParams + estado actual
-    let tradeFromSell (st: State) : TradeParams =
-      { side     = TradeSide.Sell
-        seller   = p.seller
-        buyer    = p.buyer
-        location = st.location
-        adder    = p.adder
-        contractRef = p.contractRef
-        meta     = p.meta }
-
-    match p.delivery with
-
-    | AtReceiptPoint ->
-        // venta donde está el gas ahora: solo cambio de dueño
-        let tp = tradeFromSell s0
-        Trade.trade tp s0
-
-    | DeliveredTo (_, tParams) ->
-          // Transport.transport : TransportParams -> Operation
-          // Operation = State -> Result<Transition,string>
-          Transport.transport tParams s0
-          |> Result.bind (fun tTransport ->
-              let st1 = tTransport.state
-              let tp  = tradeFromSell st1
-              Trade.trade tp st1
-          )
         

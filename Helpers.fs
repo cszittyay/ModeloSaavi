@@ -67,11 +67,9 @@ module Validate =
       let okBuyer    = xs |> List.forall (fun sp -> sp.buyer     = b)
       let okGasDay   = xs |> List.forall (fun sp -> sp.gasDay    = d)
       let okDelivPt  = xs |> List.forall (fun sp -> sp.deliveryPt = p)
-      let okQty      = x::xs |> List.forall (fun sp -> sp.qEnergia > 0.0m<MMBTU>)
       if not okBuyer   then Error (BuyerMismatch (b, xs |> List.tryPick (fun sp -> Some sp.buyer) |> Option.defaultValue "<desconocido>"))
       elif not okGasDay then Error GasDayMismatch
       elif not okDelivPt then Error DeliveryPtMismatch
-      elif not okQty    then Error (NonPositiveQty (x.seller))
       else Ok (b,d,p)
 
 module Meta =

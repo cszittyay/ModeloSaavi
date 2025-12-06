@@ -48,16 +48,6 @@ type RateGas = EnergyPrice
 type GasDay = DateOnly
 
 
-
-// una Formula de precio: función de un string -> EnergyPrice
-type PriceFormula =  Formula -> EnergyPrice
-type IndexPrice = {
-                  platts : EnergyPrice
-                  adder  : EnergyPrice
-                  }
-// El valor del Index se obtiene Platts y el DiaGas
-type PriceSource = | IndexPrice | Formula
-
 type SupplyParams =
   { tcId        : string
     gasDay      : GasDay
@@ -155,31 +145,6 @@ type TradeParams =
     meta        : Map<string,obj> }
 
 
-// para el caso de multiple trade legs dentro de un supply
-type SupplyTradeParams =
-  { supply : SupplyParams
-    trade  : TradeParams }
-
-
-type MultiSupplyTradeParams =
-  { legs       : SupplyTradeParams list
-  }
-
-// Venta directa entre dos contrapartes
-type DeliveryMode =
-  | AtReceiptPoint                     // vendo donde compré (mismo punto)
-  | DeliveredTo of Location * TransportParams
-  // Location = punto de entrega; TransportParams = como ya tengas definido
-
-type SellParams =
-  { seller      : Party
-    buyer       : Party
-    qty         : Energy
-    price       : EnergyPrice   // o el tipo que uses
-    adder       : EnergyPrice   // o el tipo que uses
-    contractRef : Contract
-    delivery    : DeliveryMode
-    meta        : Map<string,obj> }
 
 
 type SleeveParams =

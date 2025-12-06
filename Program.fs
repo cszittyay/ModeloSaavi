@@ -10,21 +10,27 @@ open LegosOps
 // escenario_supply_Transport_Sleeve ()
 
 // escenarioSupplyTradeTransporteConsumo()
+type Config = { modo: string; planta: string; central: string }
 
-//let planta = "LR"
-//let central = "EAX"
+// Configuraciones 
+let getConfig modo planta central : Config =
+    // Aquí puedes cambiar los valores para probar diferentes configuraciones
+    match modo, planta, central with
+    | "CUR-A", "ESLP", "ESLP" -> { modo = "CUR-A"; planta = "ESLP"; central = "ESLP" }  
+    | "CUR-A", "BAJIO", "EAVIII" -> { modo = "CUR-A"; planta = "BAJIO"; central = "EAVIII" }
+    | "LT", "BAJIO", "EAVIII" -> { modo = "LT"; planta = "BAJIO"; central = "EAVIII" }
+    | "CUR", "LR", "EAX" -> { modo = "CUR"; planta = "LR"; central = "EAX" }
+    | "LTF", "LR", "EBC" -> { modo = "LTF"; planta = "LR"; central = "EBC" }
+    | _ -> failwith "Configuración no encontrada."
 
-//let planta = "BAJIO"
-//let central = "EAVIII"
-
-let planta = "BAJIO.LT"
-let central = "EAVIII"
 
 
-printfn "Planta: %s Central-> %s" planta central
+let config = getConfig "CUR-A" "ESLP" "ESLP"
+
+printfn "Modo %s\tPlanta: %s\tCentral-> %s" config.modo config.planta config.central
 
 
-let blocks = buildBlocksFromExcel(excelPath) planta central
+let blocks = buildBlocksFromExcel(excelPath) config.modo config.planta config.central
 
 
 let ops = compile blocks
