@@ -178,6 +178,40 @@ module Sleeve =
 
 
 
+module Sell =
+
+  let sell (s: SellParams) : Operation =
+      fun stIn ->
+        if stIn.energy <= s.qty then Error (Other $"Sell: La cantidad a vender {s.qty} es mayor a la disponible: {stIn.energy}")
+        else
+          let stOut =
+              { stIn with
+                  energy   = stIn.energy - s.qty
+                  owner    = s.buyer
+                  contract = s.contractRef }
+          
+          
+          let amount = s.qty * s.price
+          let fee =
+            { kind = CostKind.Sell
+              provider = Party "S/D"
+              qEnergia = s.qty
+              rate= s.adder
+              amount = amount
+              meta= [ "seller", box s.seller
+                      "buyer",  box s.buyer
+                      "DiaGas", box s.gasDay
+                      "QtyMMBTU", box (decimal s.qty)
+                      "Amount", box (decimal amount)
+                     ]              
+                      |> Map.ofList }
+          Ok { state=stOut; costs=[fee]; notes= [ "op", box "Sell"
+                                                  "location", box s.location        
+                                                  "seller", box s.seller
+                                                  "buyer", box s.buyer
+                                                  "adder", box s.adder
+                                                  "contractRef", box s.contractRef   ] |> Map.ofList }
+
 
 // Operación de venta de gas a un supplier o cliente
 module Trade =

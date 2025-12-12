@@ -32,7 +32,7 @@ type DomainError =
   | Other of string
 
 
-type CostKind = Gas | Transport | Storage | Tax | Fee | Sleeve | Nulo
+type CostKind = Gas | Transport | Storage | Tax | Fee | Sleeve |Sell |  Nulo
 
 type Temporalidad = DayAhead | Intraday | Monthly
 
@@ -145,7 +145,17 @@ type TradeParams =
     meta        : Map<string,obj> }
 
 
-
+// es una operación de venta intercalada en el flujo
+type SellParams =
+  { location    : Location
+    gasDay      : GasDay
+    seller      : Party
+    buyer       : Party
+    qty         : Energy
+    price       : EnergyPrice
+    adder       : EnergyPrice        // $/MMBtu (fee/adder)
+    contractRef : Contract
+    meta        : Map<string,obj> }
 
 type SleeveParams =
   { provider    : Party

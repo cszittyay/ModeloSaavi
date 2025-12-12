@@ -1,4 +1,5 @@
-﻿open Escenario
+﻿open System
+open Escenario
 open FlowBuilderExcel
 open LegosOps
 
@@ -25,12 +26,13 @@ let getConfig modo planta central : Config =
 
 
 
-let config = getConfig "CUR-A" "ESLP" "ESLP"
+let config = getConfig "CUR" "LR" "EAX"
+let diaGas = DateOnly(2025, 12, 10)
 
 printfn "Modo %s\tPlanta: %s\tCentral-> %s" config.modo config.planta config.central
 
 
-let blocks = buildBlocksFromExcel(excelPath) config.modo config.planta config.central
+let blocks = buildBlocksFromExcel(excelPath) config.modo config.planta config.central diaGas
 
 
 let ops = compile blocks

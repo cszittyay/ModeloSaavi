@@ -15,6 +15,7 @@ type SupplyTradeSheet  = ExcelFile<excelPath, "SupplyTrade", HasHeaders=true >
 type TradeSheet        = ExcelFile<excelPath, "Trade", HasHeaders=true >
 type TransportSheet    = ExcelFile<excelPath, "Transport", HasHeaders=true >
 type SleeveSheet       = ExcelFile<excelPath, "Sleeve", HasHeaders=true >
+type SellSheet         = ExcelFile<excelPath, "Sell", HasHeaders=true >
 type ConsumeSheet      = ExcelFile<excelPath, "Consume", HasHeaders=true >
 
 
@@ -34,8 +35,9 @@ let loadSheets (path:string) =
     let trade            = new TradeSheet(path)
     let transport        = new TransportSheet(path)
     let sleeve           = new SleeveSheet(path)
+    let sell             = new SellSheet(path)
     let consume          = new ConsumeSheet(path)
-    flow, supply, supplyTrade, trade, transport, sleeve, consume
+    flow, supply, supplyTrade, trade, transport, sleeve, sell, consume
 
 let parseGasDay (s:string) : GasDay =
     DateOnly.Parse s
@@ -158,20 +160,42 @@ let buildConsumes modo planta central (sheet: ConsumeSheet) : Map<string, Consum
     |> Map.ofSeq
 
 
+let buildSells cliente diaGas  (sheet: SellSheet) : Map<string, SellParams> =
+    sheet.Data
+    |> Seq.filter (fun row -> row.Client = cliente && DateOnly.FromDateTime(row.GasDay) = diaGas )
+    |> Seq.map (fun row ->
+        let sp: SellParams =
+          {
+            location    = row.Location
+            gasDay      = DateOnly.FromDateTime(row.GasDay)
+            seller      = row.Seller
+            buyer       = row.Buyer 
+            qty         = decimal row.QtyMMBTU * 1.0m<MMBTU>
+            price       = decimal row.Price * 1.0m<USD/MMBTU>
+            adder       = decimal row.Adder  * 1.0m<USD/MMBTU>      
+            contractRef = row.ContractRef
+            meta        = Map.empty
+          }
+        row.Name, sp)
+    |> Map.ofSeq
 
 
 
 
 
-let buildBlocksFromExcel (path:string) modo planta central : Block list =
-    let flowSheet, supplySheet, supplyTrade, tradeSheet, transportSheet, sbyteSheet, consumeSheet =
-        loadSheets path
+
+
+let buildBlocksFromExcel (path:string) modo planta central diaGas: Block list =
+    let flowSheet, supplySheet, supplyTrade, tradeSheet, transportSheet, sbyteSheet,  sellSheet, consumeSheet = loadSheets path
+
+    let cliente = "ClienteX"
 
     let supplies   = buildSupplies modo planta central supplySheet
     let trades     = buildTrades modo planta central tradeSheet
     let transports = buildTransports modo planta central transportSheet
     let consumes   = buildConsumes modo planta central consumeSheet
     let sleeves     = buildSleeves modo planta central sbyteSheet
+    let sells       = buildSells cliente diaGas sellSheet
 
     flowSheet.Data
     |> Seq.filter (fun row -> row.Modo = modo && row.Planta = planta && row.Central = central && row.Kind <> null )
@@ -182,7 +206,11 @@ let buildBlocksFromExcel (path:string) modo planta central : Block list =
         | "Supply" ->
             SupplyMany supplies
                
+        | "Sell" ->
+            let sp = sells |> Map.find row.Ref
+            Sell sp
         
+
         | "Trade" -> 
             let tp = trades |> Map.find row.Ref
             Trade tp

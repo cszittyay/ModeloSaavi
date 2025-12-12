@@ -95,11 +95,16 @@ let run ops st0 =
         |> List.filter   (fun c -> c.kind = CostKind.Sleeve)
         |> List.sumBy    (fun c -> c.amount)
 
+      let totalSellUSD : Money =
+        transitions
+        |> List.collect (fun t -> t.costs)
+        |> List.filter   (fun c -> c.kind = CostKind.Sell)
+        |> List.sumBy    (fun c -> c.amount)
 
       let sF = (List.last transitions).state
       setCol ConsoleColor.White
-      printfn "\nTotal Gas = %s USD | TOTAL Transport = %s USD | TOTAL Fees(Trade) = %s USD | TOTAL Sleeve = %s USD"
-            (Display.moneyStr totalGasUSD) (Display.moneyStr totalTransportUSD) (Display.moneyStr totalFeesUSD) (Display.moneyStr totalSleeveUSD)
+      printfn "\nTotal Gas = %s USD | TOTAL Transport = %s USD | TOTAL Fees(Trade) = %s USD  | TOTAL Sells = %s USD  | TOTAL Sleeve = %s USD"
+            (Display.moneyStr totalGasUSD) (Display.moneyStr totalTransportUSD) (Display.moneyStr totalFeesUSD)   (Display.moneyStr totalSellUSD) (Display.moneyStr totalSleeveUSD)
 
       printfn "\nEstado final: qty=%s MMBtu loc=%s contract=%s"
         (Display.qtyStr sF.energy) sF.location sF.contract
