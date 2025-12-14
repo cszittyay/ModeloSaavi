@@ -238,8 +238,8 @@ let buildFlowSteps (path:string) modo planta central diaGas: FlowStep list =
                 let cp = consumes |> Map.find row.Ref
                 Consume cp
 
-            //| other ->
-            //    failwithf "Kind '%s' no soportado en hoja Flow" other)
+            | other ->
+                failwithf "Kind '%s' no soportado en hoja Flow" other
 
         let joinKey =
                   // depende del tipo generado por ExcelProvider; ajustá nombre exacto
