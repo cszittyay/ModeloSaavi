@@ -109,9 +109,9 @@ type Operation = State -> Result<Transition, DomainError>
 
 
 type FlowId = {
-    modo    : string
-    planta  : string
-    central : string
+    modo   : string
+    central: string
+    path   : string  // es un identificador de la ruta que define un flow
 }
 
 

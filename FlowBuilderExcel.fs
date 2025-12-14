@@ -60,36 +60,38 @@ let parseTemporalidad = function
 
 
 
-let buildSupplies modo planta central (sheet: SupplySheet)  : SupplyParams list =
+let buildSupplies modo central path (sheet: SupplySheet)  : Map<string,  SupplyParams seq> =
+        sheet.Data
+                |> Seq.filter (fun row -> row.Modo = modo && row.Path = path && row.Central = central && row.Name <> null && row.Name <> "")
+                |> Seq.map (fun row ->
+                    let index = decimal row.Index * 1.0m<USD/MMBTU>
+                    let xadder = decimal row.Adder * 1.0m<USD/MMBTU>
+                    let formula  = string row.Formula  
+
+                    let sp : SupplyParams =
+                      { tcId        = row.TcId
+                        gasDay      = DateOnly.FromDateTime(row.GasDay)
+                        tradingHub  = parseTradingHub row.TradingHub
+                        temporalidad= parseTemporalidad row.Temporalidad
+                        deliveryPt  = row.DeliveryPt
+                        seller      = row.Seller
+                        buyer       = row.Buyer
+                        qEnergia    = decimal row.QEnergiaMMBTU * 1.0m<MMBTU>
+                        index       = index                                        
+                        adder       = xadder
+                        price       = getPrice index xadder formula
+                        contractRef = row.ContractRef
+                        meta        = Map.empty }
+                    row.Name, sp)
+                |> Seq.groupBy fst 
+                |> Seq.map (fun (name, rows) -> name, rows |> Seq.map snd)
+                |> Map.ofSeq
+
+
+
+let buildTrades modo central path (sheet: TradeSheet) : Map<string, TradeParams> =
     sheet.Data
-    |> Seq.filter (fun row -> row.Modo = modo && row.Planta = planta && row.Central = central && row.Name <> null && row.Name <> "")
-    |> Seq.map (fun row ->
-        let index = decimal row.Index * 1.0m<USD/MMBTU>
-        let xadder = decimal row.Adder * 1.0m<USD/MMBTU>
-        let formula  = string row.Formula  
-
-        let sp : SupplyParams =
-          { tcId        = row.TcId
-            gasDay      = DateOnly.FromDateTime(row.GasDay)
-            tradingHub  = parseTradingHub row.TradingHub
-            temporalidad= parseTemporalidad row.Temporalidad
-            deliveryPt  = row.DeliveryPt
-            seller      = row.Seller
-            buyer       = row.Buyer
-            qEnergia    = decimal row.QEnergiaMMBTU * 1.0m<MMBTU>
-            index       = index                                        
-            adder       = xadder
-            price       = getPrice index xadder formula
-            contractRef = row.ContractRef
-            meta        = Map.empty }
-        sp)
-        |> Seq.toList
-
-
-
-let buildTrades modo planta central (sheet: TradeSheet) : Map<string, TradeParams> =
-    sheet.Data
-    |> Seq.filter (fun row -> row.Modo = modo && row.Planta = planta && row.Central = central && row.Name <> null && row.Name <> "")
+    |> Seq.filter (fun row -> row.Modo = modo && row.Path = path && row.Central = central && row.Name <> null && row.Name <> "")
     |> Seq.map (fun row ->
         let tp : TradeParams =
           { side        = if row.Side = "Sell" then TradeSide.Sell else TradeSide.Buy
@@ -104,9 +106,9 @@ let buildTrades modo planta central (sheet: TradeSheet) : Map<string, TradeParam
     |> Map.ofSeq
 
 
-let buildSleeves modo planta central (sheet: SleeveSheet) : Map<string, SleeveParams> =
+let buildSleeves modo central path (sheet: SleeveSheet) : Map<string, SleeveParams> =
     sheet.Data
-    |> Seq.filter (fun row -> row.Modo = modo && row.Planta = planta && row.Central = central &&   row.Name <> null && row.Name <> "")
+    |> Seq.filter (fun row -> row.Modo = modo && row.Path = path && row.Central = central &&   row.Name <> null && row.Name <> "")
     |> Seq.map (fun row ->
 
         let index = decimal row.Index * 1.0m<USD/MMBTU>
@@ -129,9 +131,9 @@ let buildSleeves modo planta central (sheet: SleeveSheet) : Map<string, SleevePa
 
 
 
-let buildTransports modo planta central (sheet: TransportSheet) : Map<string, TransportParams> =
+let buildTransports modo central path (sheet: TransportSheet) : Map<string, TransportParams> =
     sheet.Data
-    |> Seq.filter (fun row -> row.Modo = modo && row.Planta = planta && row.Central = central && row.Name <> null && row.Name <> "")
+    |> Seq.filter (fun row -> row.Modo = modo && row.Path = path && row.Central = central && row.Name <> null && row.Name <> "")
     |> Seq.map (fun row ->
         let tp : TransportParams =
           { provider   = row.Provider
@@ -149,10 +151,9 @@ let buildTransports modo planta central (sheet: TransportSheet) : Map<string, Tr
     |> Map.ofSeq
 
 
-let buildConsumes modo planta central (sheet: ConsumeSheet) : Map<string, ConsumeParams> =
-    sheet.Data
-    |> Seq.filter (fun row -> row.Modo = modo && row.Planta = planta && row.Central = central && row.Name <> null && row.Name <> "")
-    |> Seq.map (fun row ->
+let buildConsumes modo central path (sheet: ConsumeSheet) : Map<string, ConsumeParams> =
+    let cd = sheet.Data |> Seq.filter (fun row -> row.Modo = modo && row.Path = path && row.Central = central && row.Name <> null && row.Name <> "") |> Seq.toList
+    cd |> Seq.map (fun row ->
         let cp : ConsumeParams =
           { provider      = row.Provider
             meterLocation = row.Location
@@ -184,38 +185,36 @@ let buildSells cliente diaGas  (sheet: SellSheet) : Map<string, SellParams> =
 
 
 
-
-
-
-
-let buildFlowSteps (path:string) modo planta central diaGas: FlowStep list =
-    let flowSheet, supplySheet, supplyTrade, tradeSheet, transportSheet, sbyteSheet,  sellSheet, consumeSheet = loadSheets path
+let buildFlowSteps (pathExcel:string) modo central path diaGas: FlowStep list =
+    let flowSheet, supplySheet, supplyTrade, tradeSheet, transportSheet, sbyteSheet,  sellSheet, consumeSheet = loadSheets pathExcel
 
     let cliente = "ClienteX"
 
-    let supplies   = buildSupplies modo planta central supplySheet
-    let trades     = buildTrades modo planta central tradeSheet
-    let transports = buildTransports modo planta central transportSheet
-    let consumes   = buildConsumes modo planta central consumeSheet
-    let sleeves     = buildSleeves modo planta central sbyteSheet
+    let supplies   = buildSupplies modo central path supplySheet
+    let trades     = buildTrades modo central path tradeSheet
+    let transports = buildTransports modo central path transportSheet
+    let consumes   = buildConsumes modo central path consumeSheet
+    let sleeves     = buildSleeves modo central path sbyteSheet
     let sells       = buildSells cliente diaGas sellSheet
 
     flowSheet.Data
-    |> Seq.filter (fun row -> row.Modo = modo && row.Planta = planta && row.Central = central && row.Kind <> null )
+    |> Seq.filter (fun row -> row.Modo = modo && row.Path = path && row.Central = central && row.Kind <> null )
     |> Seq.sortBy (fun row -> row.Order)
     |> Seq.map (fun row ->
 
         let flowId =
           { modo    = row.Modo
-            planta  = row.Planta
-            central = row.Central }
+            central = row.Central
+            path    = row.Path
+          }
 
         // construir la Operation que ya tenías
         let block : Block =
             match row.Kind with
       
             | "Supply" ->
-                SupplyMany supplies
+                let sp = supplies |> Map.find row.Ref |> Seq.toList
+                SupplyMany sp
                
             | "Sell" ->
                 let sp = sells |> Map.find row.Ref

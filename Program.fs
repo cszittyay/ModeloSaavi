@@ -11,30 +11,31 @@ open LegosOps
 // escenario_supply_Transport_Sleeve ()
 
 // escenarioSupplyTradeTransporteConsumo()
-type Config = { modo: string; planta: string; central: string }
+type Config = { modo: string;  central: string; path: string }
 
 // Configuraciones 
-let getConfig modo planta central : Config =
+let getConfig modo central path : Config =
     // Aquí puedes cambiar los valores para probar diferentes configuraciones
-    match modo, planta, central with
-    | "CUR-A", "ESLP", "ESLP" -> { modo = "CUR-A"; planta = "ESLP"; central = "ESLP" }  
-    | "CUR-A", "BAJIO", "EAVIII" -> { modo = "CUR-A"; planta = "BAJIO"; central = "EAVIII" }
-    | "LT", "BAJIO", "EAVIII" -> { modo = "LT"; planta = "BAJIO"; central = "EAVIII" }
-    | "CUR", "LR", "EAX" -> { modo = "CUR"; planta = "LR"; central = "EAX" }
-    | "LTF", "LR", "EBC" -> { modo = "LTF"; planta = "LR"; central = "EBC" }
+    match modo, central, path with
+    | "CUR-A", "ESLP", "Default" -> { modo = "CUR-A"; central = "ESLP"; path = "Default" }  
+    | "CUR-A", "BAJIO", "Default" -> { modo = "CUR-A";  central = "EAVIII"; path = "Default" }
+    | "LT", "BAJIO", "Default" -> { modo = "LT"; central = "EAVIII"; path = "Default" }
+    | "CUR", "LR", "Default" -> { modo = "CUR";  central = "EAX"; path = "Default" }
+    | "LTF", "LR", "Default" -> { modo = "LTF";  central = "EBC"; path = "Default" }
+    | "CUR", "ESLP", "Path1" -> { modo = "CUR";  central = "ESLP"; path = "Path1" }
     | _ -> failwith "Configuración no encontrada."
 
 
 
-let config = getConfig "CUR" "LR" "EAX"
+let config = getConfig "CUR" "ESLP" "Path1"
 let diaGas = DateOnly(2025, 12, 10)
 
-printfn "Modo %s\tPlanta: %s\tCentral-> %s" config.modo config.planta config.central
+printfn "Modo %s\tPlanta: %s\tCentral-> %s" config.modo config.central config.path
 
 
 
 // let blocks = buildBlocksFromExcel(excelPath) config.modo config.planta config.central
-let flowSteps = buildFlowSteps(excelPath) config.modo config.planta config.central diaGas
+let flowSteps = buildFlowSteps(excelPath) config.modo  config.central config.path diaGas
 
 
 let res = runSteps flowSteps st0
