@@ -155,7 +155,7 @@ module Sleeve =
           let stOut = { stIn with owner = p.buyer; contract = p.contractRef }
           let amount = stIn.energy * p.adder
           let fee =
-            { kind= Sleeve
+            { kind = CostKind.Sleeve
               provider = p.provider
               qEnergia = stIn.energy
               rate= p.adder

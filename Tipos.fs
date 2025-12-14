@@ -38,7 +38,7 @@ type Temporalidad = DayAhead | Intraday | Monthly
 
 type TradingHub = Mainline | Waha | Permian | SanJuan | SoCal | HSC | AguaDulce
 
-// 4) trade: compra/venta directa entre contrapartes (signo por rol)
+// 4) trade: compra/venta directa entre contraparflowtes (signo por rol)
 type TradeSide = | Buy | Sell
 
 type SleeveSide = |Export | Import
@@ -46,6 +46,9 @@ type SleeveSide = |Export | Import
 type RateGas = EnergyPrice
 
 type GasDay = DateOnly
+
+
+
 
 
 type SupplyParams =
@@ -102,6 +105,14 @@ type Transition = {
 // Es una función que toma State y devuelve Result<Transition, Error>
 // es lo que permite encadenar operaciones (composició de funciones)
 type Operation = State -> Result<Transition, DomainError>
+
+
+
+type FlowId = {
+    modo    : string
+    planta  : string
+    central : string
+}
 
 
 
@@ -180,6 +191,26 @@ type ConsumeParams =
     tolerancePct  : decimal }
 
 
+
+
+
+/// Bloques atómicos de la cadena física/comercial
+type Block =
+  | Consume           of ConsumeParams
+  | Sell              of SellParams
+  | Supply            of SupplyParams
+  | SupplyMany        of SupplyParams list
+  | Transport         of TransportParams
+  | Trade             of TradeParams
+  | Sleeve            of SleeveParams
+
+
+type FlowStep = {
+    flowId  : FlowId
+    order   : int
+    block   : Block
+    joinKey : string option
+}
 
 type DailyBalance = {
   fecha   : DateOnly

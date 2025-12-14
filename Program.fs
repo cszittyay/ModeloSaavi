@@ -32,9 +32,11 @@ let diaGas = DateOnly(2025, 12, 10)
 printfn "Modo %s\tPlanta: %s\tCentral-> %s" config.modo config.planta config.central
 
 
-let blocks = buildBlocksFromExcel(excelPath) config.modo config.planta config.central diaGas
+//let blocks = buildBlocksFromExcel(excelPath) config.modo config.planta config.central diaGas
 
 
-let ops = compile blocks
+//let ops = compile blocks
 
-run ops st0
+//run ops st0
+
+0

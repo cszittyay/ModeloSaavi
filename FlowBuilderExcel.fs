@@ -2,8 +2,11 @@
 
 open System
 open System.IO
+open FsToolkit.ErrorHandling
+
 open FSharp.Interop.Excel
 open Tipos
+open DefinedOperations
 open LegosOps
 
 [<Literal>]
@@ -185,7 +188,7 @@ let buildSells cliente diaGas  (sheet: SellSheet) : Map<string, SellParams> =
 
 
 
-let buildBlocksFromExcel (path:string) modo planta central diaGas: Block list =
+let buildFlowSteps (path:string) modo planta central diaGas: FlowStep list =
     let flowSheet, supplySheet, supplyTrade, tradeSheet, transportSheet, sbyteSheet,  sellSheet, consumeSheet = loadSheets path
 
     let cliente = "ClienteX"
@@ -201,32 +204,165 @@ let buildBlocksFromExcel (path:string) modo planta central diaGas: Block list =
     |> Seq.filter (fun row -> row.Modo = modo && row.Planta = planta && row.Central = central && row.Kind <> null )
     |> Seq.sortBy (fun row -> row.Order)
     |> Seq.map (fun row ->
-        match row.Kind with
+
+        let flowId =
+          { modo    = row.Modo
+            planta  = row.Planta
+            central = row.Central }
+
+        // construir la Operation que ya tenías
+        let block : Block =
+            match row.Kind with
       
-        | "Supply" ->
-            SupplyMany supplies
+            | "Supply" ->
+                SupplyMany supplies
                
-        | "Sell" ->
-            let sp = sells |> Map.find row.Ref
-            Sell sp
+            | "Sell" ->
+                let sp = sells |> Map.find row.Ref
+                Sell sp
         
 
-        | "Trade" -> 
-            let tp = trades |> Map.find row.Ref
-            Trade tp
+            | "Trade" -> 
+                let tp = trades |> Map.find row.Ref
+                Trade tp
             
-        | "Transport" ->
-            let tp = transports |> Map.find row.Ref
-            Transport tp
+            | "Transport" ->
+                let tp = transports |> Map.find row.Ref
+                Transport tp
 
-        | "Sleeve" ->
-            let sl = sleeves |> Map.find row.Ref
-            Sleeve sl
+            | "Sleeve" ->
+                let sl = sleeves |> Map.find row.Ref
+                Sleeve sl
 
-        | "Consume" ->
-            let cp = consumes |> Map.find row.Ref
-            Consume cp
+            | "Consume" ->
+                let cp = consumes |> Map.find row.Ref
+                Consume cp
 
-        | other ->
-            failwithf "Kind '%s' no soportado en hoja Flow" other)
+            //| other ->
+            //    failwithf "Kind '%s' no soportado en hoja Flow" other)
+
+        let joinKey =
+                  // depende del tipo generado por ExcelProvider; ajustá nombre exacto
+                  let jk = row.JoinKey
+                  if isNull (box jk) || String.IsNullOrWhiteSpace (string jk)
+                  then None
+                  else Some (string jk)
+      
+        { flowId  = flowId
+          order   = int row.Order
+          block   = block
+          joinKey = joinKey })
     |> Seq.toList
+
+ 
+let opOfBlock (b: Block) : Operation =
+    match b with
+    | Supply sp       -> Supply.supply sp
+    | SupplyMany sps  -> Supply.supplyMany sps
+    | Sell sp         -> Sell.sell sp
+    | Transport p     -> Transport.transport p
+    | Trade p         -> Trade.trade p
+    | Sleeve p        -> Sleeve.sleeve p  
+    | Consume p       -> Consume.consume p
+
+
+let runSteps (steps: FlowStep list) (initial: State)
+    : Result<State * Transition list, DomainError> =
+
+    (Ok (initial, []), steps)
+    ||> List.fold (fun acc step ->
+        acc
+        |> Result.bind (fun (st, ts) ->
+            let op = opOfBlock step.block
+            op st
+            |> Result.map (fun tr ->
+                tr.state, ts @ [tr] )))
+
+
+let splitAtJoin (joinKey: string) (steps: FlowStep list)
+    : FlowStep list * FlowStep option * FlowStep list =
+    let idxOpt =
+        steps
+        |> List.tryFindIndex (fun s -> s.joinKey = Some joinKey)
+
+    match idxOpt with
+    | None ->
+        steps, None, []
+    | Some idx ->
+        let before = steps |> List.take idx
+        let join   = steps.[idx]
+        let after  = steps |> List.skip (idx + 1)
+        before, Some join, after
+
+
+let runUntilJoin
+    (joinKey : string)
+    (steps   : FlowStep list)
+    (initial : State)
+    : Result<State * Transition list * FlowStep option * FlowStep list, DomainError> =
+
+    result {
+
+        // Separar steps en before + joinStep + after
+        let before, joinOpt, after = splitAtJoin joinKey steps
+        
+        // Ejecutar steps previos al join
+        let! (stBefore, tsBefore) =
+            runSteps before initial
+
+        // Si no hay join, devolver el resultado hasta aquí
+        match joinOpt with
+        | None ->
+            return stBefore, tsBefore, None, []
+        | Some joinStep ->
+            // Ejecutar también el step del join
+            let opJoin = opOfBlock joinStep.block
+            let! trJoin = opJoin stBefore
+            let stJoin  = trJoin.state
+            let tsAll   = tsBefore @ [trJoin]
+
+            return stJoin, tsAll, Some joinStep, after
+    }
+
+
+
+let runJoinTwoFlows
+    (joinKey   : string)
+    (flowA     : FlowStep list)
+    (flowB     : FlowStep list)
+    (initialA  : State)
+    (initialB  : State)
+    : Result<State * Transition list, DomainError> =
+
+    result {
+
+        // 1. Ejecutar Flow A hasta el join
+        let! (stAJoin, tsA, joinAOpt, postA) = runUntilJoin joinKey flowA initialA
+
+        // 2. Ejecutar Flow B hasta el join
+        let! (stBJoin, tsB, joinBOpt, postB) =  runUntilJoin joinKey flowB initialB
+
+        // 3. Validar que ambos tengan JoinKey
+        match joinAOpt, joinBOpt with
+        | None, _ | _, None ->
+            return! Error (Other $"JoinKey {joinKey} no encontrado en ambos flows")
+        | Some _, Some _ -> ()
+
+        // 4. Sumar energía en el nodo de join ("merge")
+        let energyTotal = stAJoin.energy + stBJoin.energy
+
+        // 5. Elegir un State base y asignar la energía sumada
+        let stJoin =   { stAJoin with energy = energyTotal }
+
+        // 6. Elegir la cola común (post-join)
+        //    (por ahora usamos la continuación post-join de flow A)
+        let tailSteps = postA
+
+        // 7. Ejecutar la cola común con el state sumado
+        let! (stFinal, tsTail) = runSteps tailSteps stJoin
+
+        // 8. Concatenar todas las transiciones
+        let allTransitions = tsA @ tsB @ tsTail
+
+        return stFinal, allTransitions
+    }

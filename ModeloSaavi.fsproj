@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <PackageReference Include="ExcelProvider" Version="3.0.0" />
+    <PackageReference Include="FsToolkit.ErrorHandling" Version="5.1.0" />
   </ItemGroup>
 
 </Project>
