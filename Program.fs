@@ -35,10 +35,10 @@ printfn "Modo %s\tPlanta: %s\tCentral-> %s" config.modo config.central config.pa
 
 
 // let blocks = buildBlocksFromExcel(excelPath) config.modo config.planta config.central
-let flowSteps = buildFlowSteps(excelPath) config.modo  config.central config.path diaGas
+// let flowSteps = buildFlowSteps(excelPath) config.modo  config.central config.path diaGas
+// let res = runSteps flowSteps st0
 
-
-let res = runSteps flowSteps st0
+let res = genFlujoCompleto excelPath "JOIN_ESLP" config.modo config.central diaGas
 
 printfn "%A" res
 

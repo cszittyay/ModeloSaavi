@@ -9,6 +9,9 @@ open Tipos
 open DefinedOperations
 open LegosOps
 
+
+
+
 [<Literal>]
 let excelPath = @"C:\Users\cszit\source\repos\f#\Saavi\ComposeModel\ModeloSaavi\EscenarioSample.xlsx"
 
@@ -253,6 +256,29 @@ let buildFlowSteps (pathExcel:string) modo central path diaGas: FlowStep list =
           joinKey = joinKey })
     |> Seq.toList
 
+
+
+let getFlowSteps (pathExcel: string) (modo: string) (central: string) (diaGas: DateOnly)
+    : Map<FlowId, FlowStep list> =
+
+    let flowSheet = new FlowSheet(pathExcel)
+
+    let paths =
+        flowSheet.Data
+        |> Seq.filter (fun r ->
+            String.Equals(r.Modo, modo, StringComparison.OrdinalIgnoreCase) &&
+            String.Equals(r.Central, central, StringComparison.OrdinalIgnoreCase))
+        |> Seq.map (fun r -> r.Path)
+        |> Seq.distinct
+        |> Seq.toList
+
+    paths
+    |> List.map (fun path ->
+        let fid = { modo = modo; central = central; path = path }
+        fid, buildFlowSteps pathExcel modo central path diaGas)
+    |> Map.ofList
+
+
  
 let opOfBlock (b: Block) : Operation =
     match b with
@@ -325,43 +351,99 @@ let runUntilJoin
 
 
 
-let runJoinTwoFlows
-    (joinKey   : string)
-    (flowA     : FlowStep list)
-    (flowB     : FlowStep list)
-    (initialA  : State)
-    (initialB  : State)
+
+
+
+
+
+let findPreJoinPaths (joinKey:string) (paths: Map<FlowId, FlowStep list>) =
+    paths
+    |> Map.toList
+    |> List.choose (fun (fid, steps) ->
+        if steps |> List.exists (fun s -> s.joinKey = Some joinKey) then
+            Some (fid, steps)
+        else None)
+
+let findPostJoinPath (joinKey:string) (paths: Map<FlowId, FlowStep list>) =
+    paths
+    |> Map.toList
+    |> List.tryFind (fun (_fid, steps) ->
+        match steps with
+        | first :: _ -> first.joinKey = Some joinKey
+        | [] -> false)
+
+
+
+
+let runJoinNPaths
+    (joinKey : string)
+    (paths   : Map<FlowId, FlowStep list>)
+    (initialByPath : Map<FlowId, State>)
     : Result<State * Transition list, DomainError> =
 
     result {
+        // 1) identificar todos los paths que llegan al joinKey
+        let prePaths = findPreJoinPaths joinKey paths
+        if prePaths.IsEmpty then
+            return! Error (Other $"No hay paths que lleguen a JoinKey={joinKey}")
 
-        // 1. Ejecutar Flow A hasta el join
-        let! (stAJoin, tsA, joinAOpt, postA) = runUntilJoin joinKey flowA initialA
+        // 2) correr cada path hasta el join
+        let! partials =
+            prePaths
+            |> List.traverseResultM (fun (fid, steps) ->
+                let initial =
+                    initialByPath
+                    |> Map.tryFind fid
+                    |> Option.defaultWith (fun () ->
+                        failwith $"Falta initial state para {fid}")
 
-        // 2. Ejecutar Flow B hasta el join
-        let! (stBJoin, tsB, joinBOpt, postB) =  runUntilJoin joinKey flowB initialB
+                result {
+                    let! (stJoin, ts, joinOpt, _post) = runUntilJoin joinKey steps initial
+                    match joinOpt with
+                    | None -> return! Error (Other $"JoinKey={joinKey} no encontrado en {fid.path}")
+                    | Some _ -> return (fid, stJoin, ts)
+                })
 
-        // 3. Validar que ambos tengan JoinKey
-        match joinAOpt, joinBOpt with
-        | None, _ | _, None ->
-            return! Error (Other $"JoinKey {joinKey} no encontrado en ambos flows")
-        | Some _, Some _ -> ()
+        // 3) sumar energías
+        let energyTotal =
+            partials |> List.sumBy (fun (_fid, st, _ts) -> st.energy)
 
-        // 4. Sumar energía en el nodo de join ("merge")
-        let energyTotal = stAJoin.energy + stBJoin.energy
+        let (fid0, st0, _) = partials.Head
+        let stJoin = { st0 with energy = energyTotal }
 
-        // 5. Elegir un State base y asignar la energía sumada
-        let stJoin =   { stAJoin with energy = energyTotal }
+        // 4) encontrar path post-join (recomendado: primer step con JoinKey)
+        match findPostJoinPath joinKey paths with
+        | None ->
+            // Alternativa: si no existe post-join path explícito, sólo devolvemos el estado join
+            // (pero para tu caso Path3 debería tener JoinKey para continuar)
+            return! Error (Other $"No existe path post-join que arranque con JoinKey={joinKey}. Sugerido: poner JoinKey en el primer step del Path3.")
+        | Some (_postFid, postSteps) ->
 
-        // 6. Elegir la cola común (post-join)
-        //    (por ahora usamos la continuación post-join de flow A)
-        let tailSteps = postA
+            // 5) correr la cola común
+            let! (stFinal, tsPost) = runSteps postSteps stJoin
 
-        // 7. Ejecutar la cola común con el state sumado
-        let! (stFinal, tsTail) = runSteps tailSteps stJoin
-
-        // 8. Concatenar todas las transiciones
-        let allTransitions = tsA @ tsB @ tsTail
-
-        return stFinal, allTransitions
+            // 6) unir transiciones
+            let tsPreAll = partials |> List.collect (fun (_,_,ts) -> ts)
+            return (stFinal, tsPreAll @ tsPost)
     }
+
+    // Estado inicial
+let st0 : State =
+    {   energy = 0.0m<MMBTU>
+        owner    = "N/A"
+        contract = "INIT"
+        location = "E104"
+        gasDay   = DateOnly(2025, 10, 22)
+        meta     = Map.empty }
+
+// Generación de estados iniciales para cada path
+let genInitialByPaths (s0:State) (flowIds: FlowId seq) = flowIds |> Seq.map(fun x -> x, s0) |> Map.ofSeq
+
+
+// genrera el flujo completo
+let genFlujoCompleto pathExcel (joinKey:string) modo central diaGas  =
+     let flows = getFlowSteps pathExcel modo central diaGas
+     let paths = flows.Keys 
+     let initialByPath = genInitialByPaths st0 paths
+     let result = runJoinNPaths joinKey flows initialByPath 
+     result 
