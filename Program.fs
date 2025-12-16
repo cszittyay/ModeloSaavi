@@ -1,5 +1,6 @@
 ﻿open System
 open Escenario
+open Tipos
 open FlowBuilderExcel
 open LegosOps
 
@@ -33,16 +34,14 @@ let diaGas = DateOnly(2025, 12, 10)
 printfn "Modo %s\tPlanta: %s\tCentral-> %s" config.modo config.central config.path
 
 
+let runPath = 
+    let flowSteps = getFlowSteps excelPath config.modo config.central diaGas
+    let fd =  buildFlowDef flowSteps
+    let ze = 0.0m<MMBTU>
+    match fd with
+    | Ok fs -> runFlow fs st0 ze (+) runSteps
+    | Error e -> Error e
 
-// let blocks = buildBlocksFromExcel(excelPath) config.modo config.planta config.central
-// let flowSteps = buildFlowSteps(excelPath) config.modo  config.central config.path diaGas
-// let res = runSteps flowSteps st0
+let res = runPath
 
-
-
-
-
-//let ops = compile blocks
-
-
-0
+printfn "%A" res

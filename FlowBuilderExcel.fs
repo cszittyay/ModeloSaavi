@@ -256,9 +256,39 @@ let buildFlowSteps (pathExcel:string) modo central path diaGas: FlowStep list =
     |> Seq.toList
 
 
-
-let getFlowSteps (pathExcel: string) (modo: string) (central: string) (diaGas: DateOnly)
+/// Lee la SheetFlow desde el archivo Excel y construye los paths del Flow
+/// agrupados por `FlowId`.
+///
+/// Responsabilidad:
+/// - Filtra los registros por `modo` y `central`.
+/// - Materializa los `FlowStep` correspondientes al `diaGas`.
+/// - Agrupa los steps por `FlowId`.
+/// - Ordena los steps de cada path por el campo `order`.
+///
+/// Alcance:
+/// - Esta función solo construye la representación estructural del Flow
+///   (`Map<FlowId, FlowStep list>`).
+/// - NO interpreta topología (Linear / Join).
+/// - NO clasifica roles (Contributor / Final).
+/// - NO ejecuta operaciones ni valida invariantes del Flow.
+///
+/// Garantías:
+/// - Cada lista de `FlowStep` está ordenada crecientemente por `order`.
+/// - Los `FlowId` devueltos representan paths independientes dentro del Flow.
+///
+/// Errores:
+/// - Cualquier error de lectura, parseo o datos inconsistentes del Excel
+///   debe manejarse en este nivel o propagarse explícitamente.
+///
+/// El resultado de esta función es la entrada directa de `buildFlowDef`,
+/// que se encarga de detectar la topología y validar invariantes.
+let getFlowSteps
+    (pathExcel : string)
+    (modo      : string)
+    (central   : string)
+    (diaGas    : DateOnly)
     : Map<FlowId, FlowStep list> =
+
 
     let flowSheet = new FlowSheet(pathExcel)
 
@@ -290,6 +320,7 @@ let opOfBlock (b: Block) : Operation =
     | Consume p       -> Consume.consume p
 
 
+
 let runSteps (steps: FlowStep list) (initial: State)
     : Result<State * Transition list, DomainError> =
 
@@ -303,87 +334,44 @@ let runSteps (steps: FlowStep list) (initial: State)
                 tr.state, ts @ [tr] )))
 
 
-let splitAtJoin (joinKey: string) (steps: FlowStep list)
-    : FlowStep list * FlowStep option * FlowStep list =
-    let idxOpt =
-        steps
-        |> List.tryFindIndex (fun s -> s.joinKey = Some joinKey)
-
-    match idxOpt with
-    | None ->
-        steps, None, []
-    | Some idx ->
-        let before = steps |> List.take idx
-        let join   = steps.[idx]
-        let after  = steps |> List.skip (idx + 1)
-        before, Some join, after
-
-
-let runUntilJoin
-    (joinKey : string)
-    (steps   : FlowStep list)
-    (initial : State)
-    : Result<State * Transition list * FlowStep option * FlowStep list, DomainError> =
-
-    result {
-
-        // Separar steps en before + joinStep + after
-        let before, joinOpt, after = splitAtJoin joinKey steps
-        
-        // Ejecutar steps previos al join
-        let! (stBefore, tsBefore) =
-            runSteps before initial
-
-        // Si no hay join, devolver el resultado hasta aquí
-        match joinOpt with
-        | None ->
-            return stBefore, tsBefore, None, []
-        | Some joinStep ->
-            // Ejecutar también el step del join
-            let opJoin = opOfBlock joinStep.block
-            let! trJoin = opJoin stBefore
-            let stJoin  = trJoin.state
-            let tsAll   = tsBefore @ [trJoin]
-
-            return stJoin, tsAll, Some joinStep, after
-    }
-
-
-
-
-
-
-
-
-let findPreJoinPaths (joinKey:string) (paths: Map<FlowId, FlowStep list>) =
-    paths
-    |> Map.toList
-    |> List.choose (fun (fid, steps) ->
-        if steps |> List.exists (fun s -> s.joinKey = Some joinKey) then
-            Some (fid, steps)
-        else None)
-
-let findPostJoinPath (joinKey:string) (paths: Map<FlowId, FlowStep list>) =
-    paths
-    |> Map.toList
-    |> List.tryFind (fun (_fid, steps) ->
-        match steps with
-        | first :: _ -> first.joinKey = Some joinKey
-        | [] -> false)
-
-
-let isPostJoinPath (joinKey:string) (steps: FlowStep list) =
-    match steps with
-    | first :: _ -> first.joinKey = Some joinKey
-    | [] -> false
-
-let isPreJoinPath (joinKey:string) (steps: FlowStep list) =
-    steps
-    |> List.exists (fun s -> s.joinKey = Some joinKey)
-    && not (isPostJoinPath joinKey steps)
-
-
-
+/// Ejecuta un Flow de topología JOIN a partir de paths ya clasificados
+/// por rol (`Contributor` | `Final`) y produce el estado agregado final
+/// junto con todas las transiciones generadas.
+///
+/// Responsabilidad:
+/// - Ejecuta cada path Contributor de forma independiente desde su estado inicial.
+/// - Agrega el estado en el punto JOIN identificado por `joinKey`.
+/// - Continúa la ejecución por el path Final (si existe) a partir del estado agregado.
+/// - NO infiere topología ni roles; asume que `paths` ya están correctamente clasificados.
+///
+/// Semántica del JOIN:
+/// - Solo los paths con rol `Contributor` aportan a la agregación del JOIN.
+/// - La agregación consiste en:
+///     * suma de `State.energy` mediante `addEnergy` / `zeroEnergy`.
+/// - El path `Final` NO participa de la agregación y se ejecuta
+///   exclusivamente después del JOIN.
+///
+/// Invariantes asumidas:
+/// - Existe al menos un path Contributor.
+/// - Existe a lo sumo un path Final.
+/// - Todo Contributor finaliza en un `FlowStep` con `joinKey`.
+/// - El path Final (si existe) comienza en un `FlowStep` con `joinKey`.
+///
+/// Consideraciones de diseño:
+/// - La suma de energía se parametriza para no asumir estructura algebraica
+///   concreta del tipo `Energy`.
+/// - La función no crea ni elimina costos: preserva exactamente los `ItemCost`
+///   producidos por cada operación.
+/// - No introduce transiciones sintéticas del JOIN; las transiciones devueltas
+///   corresponden únicamente a ejecuciones reales de paths.
+///
+/// Errores:
+/// - Propaga errores de `runPath`.
+/// - Devuelve `DomainError` ante violaciones de invariantes del JOIN.
+///
+/// Esta función implementa exclusivamente la semántica operacional del JOIN
+/// y debe ser invocada únicamente por `runFlow`, nunca directamente
+/// desde la capa de parsing de la SheetFlow.
 
 let runJoinNPaths
     (joinKey       : string)
@@ -502,6 +490,29 @@ let runJoinNPaths
 
 
 
+/// Construye la topología del Flow a partir de los paths ya materializados.
+///
+/// Regla principal:
+/// - Si ningún FlowStep posee joinKey, el Flow es LINEAL.
+/// - Si existe exactamente un joinKey en el conjunto, el Flow es de tipo JOIN.
+/// - Múltiples joinKey distintos en el mismo Flow se consideran inválidos.
+///
+/// Invariantes que valida:
+/// - Flow LINEAL:
+///   - Debe existir exactamente un path.
+/// - Flow JOIN:
+///   - Debe existir al menos un path Contributor (termina en joinKey).
+///   - Puede existir a lo sumo un path Final (comienza en joinKey).
+///   - Todo path debe ser clasificable como Contributor o Final respecto al joinKey.
+///
+/// Esta función NO ejecuta el Flow.
+/// Su responsabilidad es puramente estructural y semántica:
+/// detectar la topología y tiparla explícitamente para el motor de ejecución.
+///
+/// Errores devueltos:
+/// - Flow sin joinKey y con múltiples paths.
+/// - Flow con múltiples joinKey distintos.
+/// - Paths que no encajan en la topología esperada (ni Contributor ni Final).
 
 let buildFlowDef (paths: Map<FlowId, FlowStep list>) : Result<FlowDef, DomainError> =
   let err msg = Error (DomainError.Other msg)
@@ -551,6 +562,47 @@ let buildFlowDef (paths: Map<FlowId, FlowStep list>) : Result<FlowDef, DomainErr
   | _ ->
       err $"Flow inválido: hay múltiples JoinKey en el mismo Flow: {allJoinKeys}."
 
+
+
+
+
+
+/// Ejecuta un Flow previamente tipado (`FlowDef`) y devuelve el estado final
+/// junto con la secuencia completa de transiciones producidas.
+///
+/// Responsabilidad:
+/// - Actúa como dispatcher semántico entre las distintas topologías de Flow.
+/// - NO interpreta la SheetFlow ni infiere estructura; asume que `flow` ya
+///   cumple todas las invariantes topológicas validadas por `buildFlowDef`.
+///
+/// Comportamiento por topología:
+/// - Linear:
+///   - Ejecuta el único path de forma secuencial usando `runPath`.
+/// - Join:
+///   - Ejecuta todos los paths Contributor de manera independiente
+///     (cada uno desde `initial`).
+///   - Agrega el estado en el punto JOIN:
+///       * suma la energía usando `addEnergy` / `zeroEnergy`.
+///   - Continúa la ejecución por el path Final si existe,
+///     partiendo del estado agregado del JOIN.
+///   - El path Final NO contribuye a la agregación del JOIN.
+///
+/// Consideraciones de diseño:
+/// - La suma de energía se parametriza para no asumir estructura algebraica
+///   concreta del tipo `Energy`.
+/// - Las transiciones devueltas preservan el orden lógico de ejecución
+///   (contributors → final, si existe).
+/// - La función no introduce transiciones sintéticas salvo que el motor
+///   aguas abajo lo requiera explícitamente.
+///
+/// Errores:
+/// - Propaga errores de `runPath`.
+/// - Propaga errores de consistencia detectados durante la ejecución del JOIN.
+///
+/// Esta función constituye el único punto de entrada al motor de ejecución
+/// del Flow, separando claramente:
+///   * construcción topológica (buildFlowDef)
+///   * ejecución operacional (runPath*
 
 let runFlow
     (flow         : FlowDef)
