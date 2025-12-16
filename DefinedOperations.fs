@@ -54,7 +54,7 @@ module Consume =
 
           // Notas para trazabilidad
             let notes =
-                [ "op"                 , box "consume"
+                [ "op"                 , box "Consume"
                   "consume.measured"   , box (round(decimal p.measured))
                   "consume.out"        , box (round(decimal outQ))
                   "consume.desbalance" , box (round (decimal dmb))
@@ -161,7 +161,8 @@ module Sleeve =
               rate= p.adder
               // si es export, el costo es negativo
               amount = if p.sleeveSide = SleeveSide.Export then -amount else amount
-              meta= [ "seller", box p.seller 
+              meta= [ "op"    , box "Sleeve"
+                      "seller", box p.seller 
                       "adder", box (decimal p.adder)
                       "index" , box (decimal p.index)
                       "price"  , box (decimal p.price)

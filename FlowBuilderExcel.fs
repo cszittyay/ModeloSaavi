@@ -631,17 +631,40 @@ let runFlow
 
 
 // ********************************************************************************************************
-
 // Estado inicial
 let st0 : State =
     {   energy = 0.0m<MMBTU>
         owner    = "N/A"
         contract = "INIT"
         location = "E104"
-        gasDay   = DateOnly(2025, 10, 22)
+        gasDay   = DateOnly(2025,12,1)
         meta     = Map.empty }
 
-// Generación de estados iniciales para cada path
-let genInitialByPaths (s0:State) (flowIds: FlowId seq) = flowIds |> Seq.map(fun x -> x, s0) |> Map.ofSeq
+
+let runAllModoCentral xlsPath modo central diaGas =
+    let flowSteps = getFlowSteps xlsPath modo central diaGas
+    let fd =  buildFlowDef flowSteps
+    let ze = 0.0m<MMBTU>
+    match fd with
+    | Ok fs -> runFlow fs st0 ze (+) runSteps
+    | Error e -> Error e
+    
+
+let printStatus (st:State , (ts:Transition list)) = 
+        printfn "%A" st
+        
+        ts |> List.iter (fun t -> 
+            let op =
+                match t.notes.TryFind "op" with
+                | Some v -> v
+                | None -> "<sin-op>"
+
+            printfn $"Op: {op} Owner: {t.state.owner} Location: {t.state.location} Energy: {t.state.energy})" |> ignore)
+
+let showTransitions  (r: Result<(State * Transition list), DomainError>) =
+    match r with
+    | Ok (st, ts) -> printStatus (st, ts)
+    | Error e -> printfn "%A" e
+       
 
 
