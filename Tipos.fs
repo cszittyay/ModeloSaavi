@@ -194,6 +194,7 @@ type ConsumeParams =
 
 
 
+
 /// Bloques atómicos de la cadena física/comercial
 type Block =
   | Consume           of ConsumeParams
@@ -204,6 +205,11 @@ type Block =
   | Trade             of TradeParams
   | Sleeve            of SleeveParams
 
+type PathRole =
+  | Contributor
+  | Final
+
+
 
 type FlowStep = {
     flowId  : FlowId
@@ -211,6 +217,23 @@ type FlowStep = {
     block   : Block
     joinKey : string option
 }
+
+
+
+
+
+type FlowPath = {
+  id    : FlowId
+  role  : PathRole
+  steps : FlowStep list
+}
+
+// son los dos tipo de operación: Lineal o 
+type FlowDef =
+  | Linear of flowId: FlowId * steps: FlowStep list
+  | Join of joinKey: string * paths: Map<FlowId, FlowPath>
+
+
 
 type DailyBalance = {
   fecha   : DateOnly

@@ -3,7 +3,6 @@
 open System
 open System.IO
 open FsToolkit.ErrorHandling
-
 open FSharp.Interop.Excel
 open Tipos
 open DefinedOperations
@@ -373,61 +372,215 @@ let findPostJoinPath (joinKey:string) (paths: Map<FlowId, FlowStep list>) =
         | [] -> false)
 
 
+let isPostJoinPath (joinKey:string) (steps: FlowStep list) =
+    match steps with
+    | first :: _ -> first.joinKey = Some joinKey
+    | [] -> false
+
+let isPreJoinPath (joinKey:string) (steps: FlowStep list) =
+    steps
+    |> List.exists (fun s -> s.joinKey = Some joinKey)
+    && not (isPostJoinPath joinKey steps)
+
+
 
 
 let runJoinNPaths
-    (joinKey : string)
-    (paths   : Map<FlowId, FlowStep list>)
+    (joinKey       : string)
+    (paths         : Map<FlowId, FlowPath>)
     (initialByPath : Map<FlowId, State>)
+    (zeroEnergy    : Energy)
+    (addEnergy     : Energy -> Energy -> Energy)
+    (runPath       : FlowStep list -> State -> Result<State * Transition list, DomainError>)
     : Result<State * Transition list, DomainError> =
 
-    result {
-        // 1) identificar todos los paths que llegan al joinKey
-        let prePaths = findPreJoinPaths joinKey paths
-        if prePaths.IsEmpty then
-            return! Error (Other $"No hay paths que lleguen a JoinKey={joinKey}")
+    let err msg = Error (DomainError.Other msg)
 
-        // 2) correr cada path hasta el join
-        let! partials =
-            prePaths
-            |> List.traverseResultM (fun (fid, steps) ->
-                let initial =
-                    initialByPath
-                    |> Map.tryFind fid
-                    |> Option.defaultWith (fun () ->
-                        failwith $"Falta initial state para {fid}")
+    let contributors =
+        paths
+        |> Map.toList
+        |> List.choose (fun (_fid, p) -> if p.role = Contributor then Some p else None)
 
-                result {
-                    let! (stJoin, ts, joinOpt, _post) = runUntilJoin joinKey steps initial
-                    match joinOpt with
-                    | None -> return! Error (Other $"JoinKey={joinKey} no encontrado en {fid.path}")
-                    | Some _ -> return (fid, stJoin, ts)
-                })
+    let finals =
+        paths
+        |> Map.toList
+        |> List.choose (fun (_fid, p) -> if p.role = Final then Some p else None)
 
-        // 3) sumar energías
-        let energyTotal =
-            partials |> List.sumBy (fun (_fid, st, _ts) -> st.energy)
+    let endsAtJoin (steps: FlowStep list) =
+        steps |> List.tryLast |> Option.bind (fun s -> s.joinKey) = Some joinKey
 
-        let (fid0, st0, _) = partials.Head
-        let stJoin = { st0 with energy = energyTotal }
+    let startsAtJoin (steps: FlowStep list) =
+        steps |> List.tryHead |> Option.bind (fun s -> s.joinKey) = Some joinKey
 
-        // 4) encontrar path post-join (recomendado: primer step con JoinKey)
-        match findPostJoinPath joinKey paths with
-        | None ->
-            // Alternativa: si no existe post-join path explícito, sólo devolvemos el estado join
-            // (pero para tu caso Path3 debería tener JoinKey para continuar)
-            return! Error (Other $"No existe path post-join que arranque con JoinKey={joinKey}. Sugerido: poner JoinKey en el primer step del Path3.")
-        | Some (_postFid, postSteps) ->
+    let tryInitial (fid: FlowId) =
+        match initialByPath |> Map.tryFind fid with
+        | Some st -> Ok st
+        | None -> err $"Missing initial state for path {fid}"
 
-            // 5) correr la cola común
-            let! (stFinal, tsPost) = runSteps postSteps stJoin
+    let runContributor (p: FlowPath) =
+        tryInitial p.id
+        |> Result.bind (fun st0 ->
+            runPath p.steps st0
+            |> Result.map (fun (stEnd, ts) -> (p.id, stEnd, ts))
+        )
 
-            // 6) unir transiciones
-            let tsPreAll = partials |> List.collect (fun (_,_,ts) -> ts)
-            return (stFinal, tsPreAll @ tsPost)
-    }
+    // ---- validations ----
+    match contributors with
+    | [] -> err "runJoinNPaths: must have at least one Contributor path"
+    | _ ->
+        match finals with
+        | _::_::_ -> err "runJoinNPaths: at most one Final path is allowed"
+        | _ ->
+            match contributors |> List.tryFind (fun p -> not (endsAtJoin p.steps)) with
+            | Some p -> err $"Contributor path {p.id} does not END at joinKey='{joinKey}'"
+            | None ->
+                match finals |> List.tryHead with
+                | Some pFinal when not (startsAtJoin pFinal.steps) ->
+                    err $"Final path {pFinal.id} does not START at joinKey='{joinKey}'"
+                | _ ->
 
-    // Estado inicial
+                    // ---- run all contributors ----
+                    let rec runAll acc = function
+                        | [] -> Ok (List.rev acc)
+                        | p::ps ->
+                            runContributor p
+                            |> Result.bind (fun r -> runAll (r::acc) ps)
+
+                    runAll [] contributors
+                    |> Result.bind (fun partials ->
+
+                        // partials: (FlowId * State * Transition list) list
+                        let (_fid0, st0, _ts0) = partials |> List.head
+
+                        // 1) sumar energías (solo contributors)
+                        let energyTotal =
+                            partials
+                            |> List.fold (fun acc (_fid, st, _ts) -> addEnergy acc st.energy) zeroEnergy
+
+                        // 2) concatenar transitions (y por ende se preservan los costos internos)
+                        let tsContrib =
+                            partials
+                            |> List.collect (fun (_fid, _st, ts) -> ts)
+
+                        // 3) (opcional pero típico) agregar un Transition "JOIN" con costos agregados
+                        //    - concatena TODOS los ItemCost producidos por contributors
+                        let joinCosts =
+                            tsContrib
+                            |> List.collect (fun t -> t.costs)
+
+                        // Nota: definimos el estado "agregado" del join
+                        let stJoin =
+                            { st0 with energy = energyTotal }
+
+                        // Transition sintética de JOIN (si no querés crear una transición extra, eliminá esto)
+                        let joinTransition : Transition =
+                            { state = stJoin
+                              costs = joinCosts
+                              notes = Map.empty }  // o Meta.set "op" "join" etc.
+
+                        // Si preferís NO duplicar costos (porque ya están dentro de tsContrib),
+                        // entonces NO agregues joinTransition y devolvé tsContrib tal cual.
+                        //
+                        // En la práctica, hay dos estrategias:
+                        // A) tsContrib (contiene costos por operación, sin costo "join")
+                        // B) tsContrib @ [joinTransition] (incluye resumen)
+                        //
+                        // Acá elijo A por seguridad (no duplica).
+                        let tsUpToJoin = tsContrib
+
+                        // ---- run Final if present ----
+                        match finals |> List.tryHead with
+                        | None ->
+                            Ok (stJoin, tsUpToJoin)
+
+                        | Some pFinal ->
+                            runPath pFinal.steps stJoin
+                            |> Result.map (fun (stFinal, tsFinal) ->
+                                (stFinal, tsUpToJoin @ tsFinal)
+                            )
+                    )
+
+
+
+
+let buildFlowDef (paths: Map<FlowId, FlowStep list>) : Result<FlowDef, DomainError> =
+  let err msg = Error (DomainError.Other msg)
+
+  let allJoinKeys =
+    paths
+    |> Map.toList
+    |> List.collect (fun (_fid, steps) -> steps |> List.choose (fun s -> s.joinKey))
+    |> List.distinct
+
+  let endsAtJoin (jk: string) (steps: FlowStep list) =
+    steps |> List.tryLast |> Option.bind (fun s -> s.joinKey) = Some jk
+
+  let startsAtJoin (jk: string) (steps: FlowStep list) =
+    steps |> List.tryHead |> Option.bind (fun s -> s.joinKey) = Some jk
+
+  match allJoinKeys with
+  | [] ->
+      match paths |> Map.toList with
+      | [ (fid, steps) ] -> Ok (FlowDef.Linear (fid, steps))
+      | _ -> err "Flow lineal inválido: hay múltiples paths pero ningún JoinKey."
+  | [ jk ] ->
+      let flowPaths =
+        paths
+        |> Map.map (fun fid steps ->
+            let role =
+              if endsAtJoin jk steps then Contributor
+              elif startsAtJoin jk steps then Final
+              else
+                // path participa del flow pero no encaja en la topología esperada
+                // (p.ej. tiene el joinKey en el medio, o nunca lo toca)
+                // si querés permitir join en el medio, se puede extender para "split" del path.
+                failwith $"Path {fid} no es Contributor (end) ni Final (start) para joinKey='{jk}'."
+
+            { id = fid; role = role; steps = steps }
+        )
+
+      // Validación: a lo sumo un Final
+      let finalsCount =
+        flowPaths |> Map.toList |> List.sumBy (fun (_,p) -> if p.role = Final then 1 else 0)
+
+      if finalsCount > 1 then
+        err $"Flow inválido: hay {finalsCount} paths Final para joinKey='{jk}' (debe haber a lo sumo 1)."
+      else
+        Ok (FlowDef.Join (jk, flowPaths))
+
+  | _ ->
+      err $"Flow inválido: hay múltiples JoinKey en el mismo Flow: {allJoinKeys}."
+
+
+let runFlow
+    (flow         : FlowDef)
+    (initial      : State)
+    (zeroEnergy   : Energy)
+    (addEnergy    : Energy -> Energy -> Energy)
+    (runPath      : FlowStep list -> State -> Result<State * Transition list, DomainError>)
+    : Result<State * Transition list, DomainError> =
+
+  match flow with
+  | FlowDef.Linear (_fid, steps) ->   runPath steps initial
+
+  | FlowDef.Join (joinKey, flowPaths) ->
+      let initialByPath =
+        flowPaths |> Map.map (fun _ _ -> initial)
+
+      runJoinNPaths
+        joinKey
+        flowPaths
+        initialByPath
+        zeroEnergy
+        addEnergy
+        runPath
+
+
+
+
+// ********************************************************************************************************
+
+// Estado inicial
 let st0 : State =
     {   energy = 0.0m<MMBTU>
         owner    = "N/A"
@@ -440,10 +593,3 @@ let st0 : State =
 let genInitialByPaths (s0:State) (flowIds: FlowId seq) = flowIds |> Seq.map(fun x -> x, s0) |> Map.ofSeq
 
 
-// genrera el flujo completo
-let genFlujoCompleto pathExcel (joinKey:string) modo central diaGas  =
-     let flows = getFlowSteps pathExcel modo central diaGas
-     let paths = flows.Keys 
-     let initialByPath = genInitialByPaths st0 paths
-     let result = runJoinNPaths joinKey flows initialByPath 
-     result 
