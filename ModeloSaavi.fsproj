@@ -8,7 +8,9 @@
 
   <ItemGroup>
     <Compile Include="Tipos.fs" />
+    <Compile Include="ResutlRows.fs" />
     <Compile Include="Helpers.fs" />
+    <Compile Include="ProyectOperations.fs" />
     <Compile Include="DefinedOperations.fs" />
     <Compile Include="Kleisli.fs" />
     <Compile Include="LegosOps.fs" />

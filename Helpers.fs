@@ -85,6 +85,12 @@ module Meta =
 
   let set (k: string) (v: obj) (m: Map<string,obj>) = Map.add k v m
 
+
+  let require<'T> (k:string) (m:Map<string,obj>) : Result<'T, DomainError> =
+    match tryGet<'T> k m with
+    | Some v -> Ok v
+    | None -> Error (DomainError.Other $"Missing or invalid notes['{k}']")
+
 /// Chequea un balance contra una tolerancia
 let check (eps: Energy) (b: DailyBalance) : bool =
   let lhs = b.buy + b.withdraw
