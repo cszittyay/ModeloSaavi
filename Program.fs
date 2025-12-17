@@ -31,7 +31,7 @@ let getConfig modo central : Config =
 let config = getConfig "CUR" "ESLP"
 let diaGas = DateOnly(2025, 12, 10)
 
-printfn "Modo %s\tPlanta: %s\tCentral-> %s" config.modo config.central 
+printfn "Modo %s\tPlanta: %s\tCentral-> %s" config.modo config.central |> ignore
 
 let res = runAllModoCentral excelPath config.modo config.central diaGas
 

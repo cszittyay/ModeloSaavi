@@ -216,6 +216,7 @@ type FlowStep = {
     order   : int
     block   : Block
     joinKey : string option
+    ref     : string
 }
 
 

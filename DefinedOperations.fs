@@ -50,7 +50,6 @@ module Consume =
       
 
           // El consumo deja qty = 0 en el estado
-            let stOut : State = { stIn with energy = p.measured }
 
           // Notas para trazabilidad
             let notes =
@@ -61,7 +60,7 @@ module Consume =
                   "consume.tolerance[]"  , box (round  (decimal tol)) ]
                 |> Map.ofList
 
-            Ok { state = stOut
+            Ok { state = stIn
                  costs = penalty :: []
                  notes = notes }
 
