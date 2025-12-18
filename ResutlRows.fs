@@ -74,26 +74,27 @@ type ConsumeResultRow = {
 }
 
 type SupplyResultRow = {
-  runId     : int
-  gasDay    : DateOnly
-  modo      : string
-  central   : string
-  path      : string
-  order     : int
-  ref       : string option
-
-  tcId        : string
-  tradingHub  : TradingHub
-  temporalidad: Temporalidad
-  deliveryPt  : Location
-  seller      : string
-  buyer       : string
-  qty         : Energy
-  index       : EnergyPrice
-  adder       : EnergyPrice
-  price       : EnergyPrice
-  contractRef : string
+  runId:int; 
+  gasDay:DateOnly; 
+  modo:string; 
+  central:string; 
+  path:string; 
+  order:int; 
+  ref:string option
+  legNo:int
+  tcId:string; 
+  tradingHub:TradingHub; 
+  temporalidad:Temporalidad; 
+  deliveryPt:Location
+  seller:string; 
+  buyer:string; 
+  qty:Energy; 
+  index:EnergyPrice; 
+  adder:EnergyPrice; 
+  price:EnergyPrice
+  contractRef:string
 }
+
 
 type TradeResultRow = {
   runId     : int

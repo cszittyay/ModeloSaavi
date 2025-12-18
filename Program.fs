@@ -28,7 +28,10 @@ let getConfig modo central : Config =
     | _ -> failwith "Configuración no encontrada."
 
 
-let config = getConfig "CUR" "ESLP"
+//let config = getConfig "CUR" "ESLP"
+
+let config = getConfig "CUR" "EAX"
+
 let diaGas = DateOnly(2025, 12, 10)
 
 printfn "Modo %s\tPlanta: %s\tCentral-> %s" config.modo config.central |> ignore

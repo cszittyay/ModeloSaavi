@@ -23,28 +23,36 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
     Ok (modo, central, path, order, refOpt)
 
   // -------- Supply --------
-  let projectSupply (t: Transition) : Result<SupplyResultRow, DomainError> =
-    getCommon t >>= fun (modo, central, path, order, refOpt) ->
-    Meta.require<SupplyParams> "supplyParams" t.notes >>= fun p ->
-    Ok {
-      runId = runId
-      gasDay = t.state.gasDay
-      modo = modo; central = central; path = path
-      order = order
-      ref = refOpt
+  let projectSupplyRows (runId:int) (t: Transition) : Result<SupplyResultRow list, DomainError> =
+      getCommon t
+      |> Result.bind (fun (modo, central, path, order, refOpt) ->
+          Meta.require<SupplyParams list> "supplyParamsMany" t.notes
+          |> Result.map (fun sps ->
+              sps
+              |> List.mapi (fun i sp ->
+                  { runId = runId
+                    gasDay = t.state.gasDay
+                    modo = modo; 
+                    central = central; 
+                    path = path
+                    order = order; 
+                    ref = refOpt
+                    legNo = i + 1
 
-      tcId = p.tcId
-      tradingHub = p.tradingHub
-      temporalidad = p.temporalidad
-      deliveryPt = p.deliveryPt
-      seller = p.seller
-      buyer = p.buyer
-      qty = (p.qEnergia : Energy)        // decimal<MMBTU> -> Energy
-      index = p.index
-      adder = p.adder
-      price = p.price
-      contractRef = p.contractRef
-    }
+                    tcId = sp.tcId
+                    tradingHub = sp.tradingHub
+                    temporalidad = sp.temporalidad
+                    deliveryPt = sp.deliveryPt
+                    seller = sp.seller
+                    buyer = sp.buyer
+                    qty = (sp.qEnergia : Energy)
+                    index = sp.index
+                    adder = sp.adder
+                    price = sp.price
+                    contractRef = sp.contractRef }))
+      )
+
+
 
   // -------- Trade --------
   let projectTrade (t: Transition) : Result<TradeResultRow, DomainError> =
@@ -178,7 +186,8 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
     accR >>= fun acc ->
       match Meta.tryGet<string> "op" t.notes with
       | Some "supplyMany" ->
-          projectSupply t <!> fun row -> { acc with supplies = row :: acc.supplies }
+         projectSupplyRows runId t
+             |> Result.map (fun rows -> { acc with supplies = rows @ acc.supplies })
 
       | Some "trade" ->
           projectTrade t <!> fun row -> { acc with trades = row :: acc.trades }

@@ -94,8 +94,12 @@ module Supply =
 
           Ok { state = stOut
                costs = cost
-               notes = [ "op", box "supply"
-                         "supplyParams", box sp
+               notes = [ 
+                
+                            
+                         "op", box "supply"
+                         "supplyParamsMany", box [sp]
+                         "legsCount", box 1
                          "seller", box sp.seller
                          "buyer", box sp.buyer
                          "deliveryPt", box sp.deliveryPt ] |> Map.ofList }
@@ -139,8 +143,9 @@ module Supply =
 
             Ok { state = stOut
                  costs = costs
-                 notes = [ "op"        , box "supply"
-                           "supplyParams" , box sps
+                 notes = [ "op"        , box "supplyMany"
+                           "supplyParamsMany", box sps
+                           "legsCount", box sps.Length
                            "buyer"     , box buyer
                            "gasDay"    , box gasDay
                            "deliveryPt", box deliveryPt
@@ -173,6 +178,7 @@ module Sleeve =
           Ok { state=stOut; costs=[fee]; notes= [ "op", box "Sleeve"
                                                   "sleeveParams", box p
                                                   "location", box p.location
+                                                  "qty", box (decimal stIn.energy)
                                                   "provider", box p.provider        
                                                   "seller", box p.seller
                                                   "Seeve Side", box p.sleeveSide

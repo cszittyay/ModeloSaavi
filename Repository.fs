@@ -49,7 +49,7 @@ module DetailRepo =
       row.Path    <- r.path
       row.Order   <- r.order
       row.Ref     <- r.ref
-
+      row.LegNo   <- r.legNo
       row.TcId        <- r.tcId
       row.TradingHub  <- string r.tradingHub
       row.Temporalidad<- string r.temporalidad
