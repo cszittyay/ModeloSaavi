@@ -33,8 +33,10 @@ let diaGas = DateOnly(2025, 12, 10)
 
 printfn "Modo %s\tPlanta: %s\tCentral-> %s" config.modo config.central |> ignore
 
-let res = runAllModoCentral excelPath config.modo config.central diaGas
+//let res = runAllModoCentral excelPath config.modo config.central diaGas
 
 
-showTransitions res
+//showTransitions res
 
+
+let r = runFlowAndPersist excelPath config.modo config.central diaGas st0 

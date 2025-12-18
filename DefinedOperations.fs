@@ -53,11 +53,12 @@ module Consume =
 
           // Notas para trazabilidad
             let notes =
-                [ "op"                 , box "Consume"
+                [ "op"                 , box "consume"
+                  "consumeParams"      , box p
                   "consume.measured"   , box (round(decimal p.measured))
-                  "consume.out"        , box (round(decimal outQ))
-                  "consume.desbalance" , box (round (decimal dmb))
-                  "consume.tolerance[]"  , box (round  (decimal tol)) ]
+                  "qtyConsume"        , box (round(decimal outQ))
+                  "imbalance" , box (round (decimal dmb))
+                  "penaltyAmount"  , box (round  (decimal amount)) ]
                 |> Map.ofList
 
             Ok { state = stIn
@@ -94,6 +95,7 @@ module Supply =
           Ok { state = stOut
                costs = cost
                notes = [ "op", box "supply"
+                         "supplyParams", box sp
                          "seller", box sp.seller
                          "buyer", box sp.buyer
                          "deliveryPt", box sp.deliveryPt ] |> Map.ofList }
@@ -137,7 +139,8 @@ module Supply =
 
             Ok { state = stOut
                  costs = costs
-                 notes = [ "op"        , box "supplyMany"
+                 notes = [ "op"        , box "supply"
+                           "supplyParams" , box sps
                            "buyer"     , box buyer
                            "gasDay"    , box gasDay
                            "deliveryPt", box deliveryPt
@@ -168,6 +171,7 @@ module Sleeve =
                       "amount", box (decimal amount)
                       ] |> Map.ofList }
           Ok { state=stOut; costs=[fee]; notes= [ "op", box "Sleeve"
+                                                  "sleeveParams", box p
                                                   "location", box p.location
                                                   "provider", box p.provider        
                                                   "seller", box p.seller
@@ -206,6 +210,7 @@ module Sell =
                      ]              
                       |> Map.ofList }
           Ok { state=stOut; costs=[fee]; notes= [ "op", box "Sell"
+                                                  "sellParams", box s
                                                   "location", box s.location        
                                                   "seller", box s.seller
                                                   "buyer", box s.buyer
@@ -230,6 +235,7 @@ module Trade =
               amount = amount
               meta= [ "seller", box p.seller ] |> Map.ofList }
           Ok { state=stOut; costs=[fee]; notes= [ "op", box "Trade"
+                                                  "tradeParams", box p
                                                   "location", box p.location        
                                                   "seller", box p.seller
                                                   "buyer", box p.buyer
@@ -303,10 +309,11 @@ module Transport =
 
           let notes =
             [ "op",          box "transport"
+              "transportParams", box p
               "fuelPct",     box (Math.Round(decimal p.fuelPct * 100.0m, 3))
-              "qty.in",      box (Math.Round(decimal qtyIn, 2))
-              "qty.fuel",    box (Math.Round(decimal fuel, 2))
-              "qty.out",     box (Math.Round(decimal qtyOut,2))
+              "qtyIn",      box (Math.Round(decimal qtyIn, 2))
+              "fuelQty",    box (Math.Round(decimal fuel, 2))
+              "qtyOut",     box (Math.Round(decimal qtyOut,2))
               "usageRate",   box (Math.Round(decimal p.usageRate, 3))
               "reservation", box (decimal p.reservation)
               "shipper",     box p.shipper

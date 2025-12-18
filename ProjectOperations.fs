@@ -177,7 +177,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
   let folder (accR: Result<ProjectedRows, DomainError>) (t: Transition) =
     accR >>= fun acc ->
       match Meta.tryGet<string> "op" t.notes with
-      | Some "supply" ->
+      | Some "supplyMany" ->
           projectSupply t <!> fun row -> { acc with supplies = row :: acc.supplies }
 
       | Some "trade" ->
