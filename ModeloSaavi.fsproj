@@ -8,9 +8,11 @@
 
   <ItemGroup>
     <Compile Include="Tipos.fs" />
+    <Compile Include="DbContext.fs" />
     <Compile Include="ResutlRows.fs" />
     <Compile Include="Helpers.fs" />
-    <Compile Include="ProyectOperations.fs" />
+    <Compile Include="ProjectOperations.fs" />
+    <Compile Include="Repository.fs" />
     <Compile Include="DefinedOperations.fs" />
     <Compile Include="Kleisli.fs" />
     <Compile Include="LegosOps.fs" />
@@ -22,6 +24,8 @@
   <ItemGroup>
     <PackageReference Include="ExcelProvider" Version="3.0.0" />
     <PackageReference Include="FsToolkit.ErrorHandling" Version="5.1.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0-preview3.25342.7" />
+    <PackageReference Include="SQLProvider" Version="1.5.17" />
   </ItemGroup>
 
 </Project>

@@ -195,8 +195,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
       | Some "consume" ->
           projectConsume t <!> fun row -> { acc with consumes = row :: acc.consumes }
 
-      | _ ->
-          Ok acc
+      | _ ->  Ok acc
 
   ts
   |> List.fold folder (Ok empty)
@@ -207,3 +206,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
         transports = List.rev r.transports
         sleeves    = List.rev r.sleeves
         consumes   = List.rev r.consumes })
+
+
+
+

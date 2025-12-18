@@ -1,4 +1,30 @@
 module Repository
+open System.Data
+open Tipos
+open DbContext
+
+module Tx =
+
+  let withTransaction<'T>
+      (f: IDbConnection -> IDbTransaction -> Result<'T, DomainError>)
+      : Result<'T, DomainError> =
+
+    use conn = ctx.CreateConnection()
+    conn.Open()
+    use tx = conn.BeginTransaction()
+
+    try
+      match f conn tx with
+      | Ok x ->
+          tx.Commit()
+          Ok x
+      | Error e ->
+          tx.Rollback()
+          Error e
+    with ex ->
+      try tx.Rollback() with _ -> ()
+      Error (DomainError.Other ex.Message)
+
 
 module DetailRepo =
   open System
@@ -30,7 +56,7 @@ module DetailRepo =
       row.DeliveryPt  <- string r.deliveryPt
       row.Seller      <- r.seller
       row.Buyer       <- r.buyer
-      row.QtyMmbtu    <- energyToDecimal r.qty
+      row.QtyMmBtu    <- energyToDecimal r.qty
       row.IndexPrice  <- decimal r.index
       row.Adder       <- decimal r.adder
       row.Price       <- decimal r.price
@@ -168,7 +194,7 @@ module DetailRepo =
       addConsumeRows runId rows.consumes
 
       // SubmitUpdates usando la MISMA transacción
-      ctx.SubmitUpdates(transaction = tx)
+      ctx.SubmitUpdates()
       Ok ()
     with ex ->
       Error (DomainError.Other ex.Message)

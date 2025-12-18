@@ -1,32 +1,23 @@
 ﻿module Escenario
 
 open System
+open System.Data
 open Tipos              // State, Transition, DomainError, SupplierLeg, SupplyParams, CostKind, etc.
-open Kleisli            // runAll     : Operation list -> Plan (State -> Result<Transition list, _>)
-open Helpers
-open DefinedOperations
-open DefinedOperations.Consume
-open DefinedOperations.Supply
-open DefinedOperations.Trade
-open DefinedOperations.Transport
-open DefinedOperations.Sleeve
+open ProjectOperations
+open FlowBuilderExcel
+open DbContext
+open Repository.DetailRepo
+open Repository.Tx
+open ResultRows
+
 
 /// Helpers de impresión (opcionales)
 let private printMoney (m: Money) = (decimal m).ToString("0.#####")
 let private printRate (r: EnergyPrice) = (decimal r).ToString("0.#####")
 let private printQty  (q: Energy) = (decimal q).ToString("0.#####")
 
-// Los trading hubs
 
-let Mainline = Location "El Paso S Mainline FDt Com"
-let Permian = Location "El Paso Permian FDt Com"
-let SanJuan = Location "El Paso SanJuan FDt Com"
-let SoCal = Location "SoCal Gas CG FDt Com"
-let HSC = Location "Houston ShipChl FDt Com"
-let WAHA = Location "Waha FDt Com"
-
-
-  // Datos comunes del día y hub
+ // Datos comunes del día y hub
 let gasDay     = DateOnly(2025, 10, 22)
 let entryPt = Location "AguaDulce" //  Location "Ramones" // Location "Ehremberg"
 let buyer      = "EAVIII"  // Datos comunes del día y hub
@@ -40,500 +31,102 @@ let st0 : State =
         gasDay   = gasDay
         meta     = Map.empty }
 
-// Ejecuta una secuencia de Operations y muestra el resultado
-let run ops st0 =
-  let setCol c = Console.ForegroundColor <- c
-  match runAll ops st0 with
-  | Error e ->
-      printfn "ERROR runAll: %A" e
-  | Ok transitions ->
-      setCol ConsoleColor.Green
-      printfn "Transiciones: %d" (List.length transitions)
-
-      transitions |> List.iteri (fun i t ->
-        let s = t.state
-        let opName = t.notes |> Map.tryFind "op" |> Option.map string |> Option.defaultValue ""
-        setCol ConsoleColor.White
-        printfn "\n#%d op = %s    qty = %s MMBtu     loc = %s      contract = %s"
-          (i+1) opName (Display.qtyStr s.energy) s.location s.contract
-
-        if List.isEmpty t.costs then printfn "   cost: (sin costos)"
-        else
-            t.costs |> List.iter (fun c ->
-            setCol ConsoleColor.Yellow
-            printfn "   provider = %s      cost kind = %A      qty = %s MMBTU   rate = %s USD/MMBTU     amount = %s USD"
-              c.provider c.kind (Display.qtyStr c.qEnergia) (Display.rateStr c.rate) (Display.moneyStr c.amount)
-            setCol ConsoleColor.Green
-            printfn "   Meta data %A\n" c.meta)
-            setCol ConsoleColor.White
-            printfn "Notas: %A\n" t.notes
-            setCol ConsoleColor.Cyan        
-        
-        )
-      let totalTransportUSD : Money =
-        transitions
-        |> List.collect (fun t -> t.costs)
-        |> List.filter   (fun c -> c.kind = CostKind.Transport)
-        |> List.sumBy    (fun c -> c.amount)
-
-      let totalFeesUSD : Money =
-        transitions
-        |> List.collect (fun t -> t.costs)
-        |> List.filter   (fun c -> c.kind = CostKind.Fee)
-        |> List.sumBy    (fun c -> c.amount)
-
-      let totalGasUSD : Money =
-        transitions
-        |> List.collect (fun t -> t.costs)
-        |> List.filter   (fun c -> c.kind = CostKind.Gas)
-        |> List.sumBy    (fun c -> c.amount)
-
-
-      let totalSleeveUSD : Money =
-        transitions
-        |> List.collect (fun t -> t.costs)
-        |> List.filter   (fun c -> c.kind = CostKind.Sleeve)
-        |> List.sumBy    (fun c -> c.amount)
-
-      let totalSellUSD : Money =
-        transitions
-        |> List.collect (fun t -> t.costs)
-        |> List.filter   (fun c -> c.kind = CostKind.Sell)
-        |> List.sumBy    (fun c -> c.amount)
-
-      let sF = (List.last transitions).state
-      setCol ConsoleColor.White
-      printfn "\nTotal Gas = %s USD | TOTAL Transport = %s USD | TOTAL Fees(Trade) = %s USD  | TOTAL Sells = %s USD  | TOTAL Sleeve = %s USD"
-            (Display.moneyStr totalGasUSD) (Display.moneyStr totalTransportUSD) (Display.moneyStr totalFeesUSD)   (Display.moneyStr totalSellUSD) (Display.moneyStr totalSleeveUSD)
-
-      printfn "\nEstado final: qty=%s MMBtu loc=%s contract=%s"
-        (Display.qtyStr sF.energy) sF.location sF.contract
-
-
-
-
-/// Construye un escenario: compra consolidada (2 suppliers) + transporte único
-let escenarioSupplyManyMasTransport_1 () =
-
-
-  // TC 1
-  let sp1 : SupplyParams =
-    { tcId        = "TC-001"
-      gasDay      = gasDay
-      temporalidad = DayAhead
-      tradingHub  = TradingHub.Mainline
-      deliveryPt  = Location "OGILBY DEL"
-      seller      = "SUPPLIER_A"
-      buyer       = buyer
-      qEnergia    = 8000.0m<MMBTU>
-      index       = 2.01m<USD/MMBTU>
-      price       = 3.10m<USD/MMBTU>
-      adder       = 0.05m<USD/MMBTU>
-      contractRef = "C-A-2025"
-      meta        = Map.empty }
-
-  // TC 2
-  let sp2 : SupplyParams =
-    { tcId        = "TC-002"
-      gasDay      = gasDay
-      tradingHub  = TradingHub.Mainline
-      temporalidad       = Intraday
-      deliveryPt  = Location "OGILBY DEL"
-      seller      = "SUPPLIER_B"
-      buyer       = buyer
-      qEnergia    = 5000.0m<MMBTU>
-      price       = 3.35m<USD/MMBTU>
-      index       = 2.01m<USD/MMBTU>
-      adder       = 0.029m<USD/MMBTU>
-      contractRef = "C-B-2025"
-      meta        = Map.empty }
-
-
-  let sps = [ sp1; sp2 ]
-
-  // Estado inicial
-  let st0 : State =
-    { energy = 0.0m<MMBTU>
-      owner    = buyer
-      contract = "INIT"
-      location = entryPt
-      gasDay   = gasDay
-      meta     = Map.empty }
-
-  // Pipeline: supplyMany -> transport
-  let rate : EnergyPrice = 0.08m<USD/MMBTU>
-
-  // Transport
-  let tp: TransportParams = { 
-             provider = Party "TC Energy"
-             pipeline = "NBP"
-             entry = entryPt
-             exit = Location "OGILBY DEL"
-             shipper = buyer 
-             fuelMode = FuelMode.RxBase
-             fuelPct = 0.01m 
-             usageRate =  0.08m<USD/MMBTU>
-             reservation = 0.2m<USD/MMBTU>
-             acaRate = 0.0014m<USD/MMBTU>
-             meta = Map.empty }
-  
-  let tr : Operation = transport tp
-
-  let ops : Operation list =
-    [ supplyMany sps
-      transport tp]
-
-
-  run ops st0
-  
-// ============================================================================================================
-
-let escenario_Supply_Transport_Trade ()=
-  // Base
-  let contratRef = "CR-2025-01"
-  let gasRxPt = "EHRENBERG"
-  let entryPtA005F1 = gasRxPt
-  let exitPtA005F1 = "OGILBY"
-  let buyer      = "SES"
-
-  // Cuatro TCs
-  let sp1 : SupplyParams =
-    { tcId        = "sp-001"; 
-      gasDay = gasDay 
-      tradingHub  = TradingHub.Mainline
-      temporalidad = DayAhead
-      deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
-      seller      = "JP Morgan" 
-      buyer = buyer
-      qEnergia    = 21645.0m<MMBTU>
-      price = 2.37m<USD/MMBTU>
-      index       = 2.01m<USD/MMBTU>
-      
-      adder       = 0.029m<USD/MMBTU>
-      contractRef = contratRef 
-      meta = Map.empty }
-
-  let sp2 : SupplyParams =
-    { tcId        = "sp-001"; 
-      gasDay = gasDay; 
-      tradingHub  = TradingHub.Mainline
-      temporalidad = DayAhead;
-      deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
-      seller      = "JP Morgan" 
-      buyer = buyer
-      qEnergia  = 43355.0m<MMBTU> 
-      price     = 0.775m<USD/MMBTU>
-      index       = 2.01m<USD/MMBTU>
-      adder     = 0.0m<USD/MMBTU>
-      contractRef = contratRef 
-      meta = Map.empty }
-
-  let sp3 : SupplyParams =
-    { tcId        = "sp-002"; 
-      gasDay = gasDay; 
-      temporalidad = Intraday;
-      tradingHub  = TradingHub.Mainline
-      deliveryPt = gasRxPt
-      seller      = "JP Morgan";
-      buyer = buyer
-      qEnergia    = 4372.0m<MMBTU> 
-      price = 3.35m<USD/MMBTU>
-      index       = 2.01m<USD/MMBTU>
-      adder       = 0.005m<USD/MMBTU>
-      contractRef = contratRef 
-      meta = Map.empty }
-
-  
-  let sp4: SupplyParams =
-    { tcId        = "sp-002"; 
-      gasDay = gasDay; 
-      temporalidad = Intraday;
-      tradingHub  = TradingHub.Mainline
-      deliveryPt = gasRxPt
-      seller      = "Mercuria";
-      buyer = buyer
-      qEnergia    = 18000.0m<MMBTU> 
-      price = 2.575m<USD/MMBTU>
-      index       = 2.01m<USD/MMBTU>
-      adder       = 0.005m<USD/MMBTU>
-      contractRef = contratRef 
-      meta = Map.empty }
-
-
-  let sps = [ sp1; sp2; sp3; sp4 ]
-
-  
-
-  // TransportParams 
-  // Planta EAX
-  // CMD: 135.000<MBTU>
-  // Receipt Location:	336406	EHRENBERG REC
-  // Delivery Location:	336408	OGILBY DEL
-
-  let pA005F1 : TransportParams =
-    { provider = "TC Energy"
-      pipeline = "NBP"
-      entry       = entryPtA005F1
-      exit        = exitPtA005F1
-      fuelMode    = FuelMode.RxBase
-      shipper     = "EAX"
-      fuelPct     = 0.007m                 // 0,7% fuel
-      usageRate   = 0.08m<USD/MMBTU>
-      reservation = 0.50m<USD/MMBTU> 
-      acaRate     = 0.0014m<USD/MMBTU>
-      meta        = Map.empty
-      }    // ej.: fijo
-
-
-  // TransportParams 
-  // Planta EAX
-  // CMD: 135.000<MBTU>
-  // Receipt Location:	OGILBY
-  // Delivery Location:	336408	
-  // Fuel: 0.1751%
-
-  let pM005F1 : TransportParams =
-    { provider    = "Gasoducto Aguaprieta"
-      pipeline    = "GRO"
-      entry       = exitPtA005F1
-      exit        = "Planta_EAX"
-      shipper     = "EAX"
-      fuelMode    = FuelMode.ExBase
-      fuelPct     = 0.001751m                // 0.1751% fuel
-      usageRate   = 0.08m<USD/MMBTU>
-      reservation = 0.50m<USD/MMBTU> 
-      acaRate     = 0.0m<USD/MMBTU>
-      meta        = Map.empty
-      }    // ej.: fijo
-
-  // Trade con adder 0.5 USD/MMBTU
-  let pTradeSES : TradeParams =
-    { 
-      side         = TradeSide.Sell
-      location     = "Ehrenberg"
-      seller       = "Suppliers USA"
-      buyer        = "SES"
-      adder        = 0.0m<USD/MMBTU>
-      contractRef  = "MARKET_Z"
-      meta         = Map.empty }
-
-  let pTradeSE : TradeParams =
-    { side         = TradeSide.Sell
-      location     = "Ogilby"
-      seller       = "SES"
-      buyer        = "SE"
-      adder        = 0.20m<USD/MMBTU>
-      contractRef  = "MARKET_Z"
-      meta         = Map.empty }
-
-  let pTradeSE_EAX : TradeParams =
-    { side         = TradeSide.Sell
-      location     = "EAX"
-      seller       = "SE"
-      buyer        = "EAX"
-      adder        = 0.20m<USD/MMBTU>
-      contractRef  = "MARKET_Z"
-      meta         = Map.empty }
-
-  // parametros de Consumo (planta)
-  let pConsume = 
-    { provider = "Savi Energía"
-      meterLocation       = "Planta_EAX"
-      measured           = 85000.0m<MMBTU>
-      tolerancePct       = 5.0m
-      penaltyRate        = 0.10m<USD/MMBTU>
-      }
-    // ej.: fijo
-
-
-  // Composición Kleisli (último estado)
-  let pipeline : Operation =  supplyMany sps >=> trade pTradeSES  >=> transport pA005F1   >=> trade pTradeSE  >=> transport pM005F1   >=> consume pConsume
-
-  match pipeline st0 with
-  | Error e ->
-      printfn "ERROR pipeline: %A" e
-  | Ok tFinal ->
-      printfn "OK pipeline. Ultimo estado: qty=%s MMBtu loc=%s contract=%s"
-        (Display.qtyStr tFinal.state.energy) tFinal.state.location tFinal.state.contract
-
-let escenario_supply_Transport_Sleeve () =
-  // Base
-  let gasRxPt = "EHRENBERG"
-  let entryPtA005F1 = gasRxPt
-  let exitPtA005F1 = "OGILBY"
-  let buyer      = "SES"
-  let contractRef = "Sleeve-Trafigura"
-
-  // Dos sps
-  let sp1 : SupplyParams =
-    { tcId        = "TC-001"; 
-      gasDay = gasDay; 
-      tradingHub  = TradingHub.Mainline
-      temporalidad = DayAhead;
-      deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
-      seller      = "Koch"; 
-      buyer = buyer
-      qEnergia    = 5300.0m<MMBTU>; 
-      price = 2.95m<USD/MMBTU>
-      index       = 2.01m<USD/MMBTU>
-      adder       = 0.029m<USD/MMBTU>
-      contractRef = contractRef;
-      meta = Map.empty }
-
-  let sp2 : SupplyParams =
-    { tcId        = "TC-004"; 
-      gasDay = gasDay; 
-      tradingHub  = TradingHub.Mainline
-      temporalidad = DayAhead;
-      deliveryPt = gasRxPt          // Punto en el que el Suministrador (Productor) entrega el gas
-      seller      = "J.Aron";
-      buyer = buyer
-      qEnergia    = 26.0m<MMBTU>; 
-      price = 2.95m<USD/MMBTU>
-      index       = 2.01m<USD/MMBTU>
-
-      adder       = 0.029m<USD/MMBTU>
-      contractRef = contractRef;
-      meta = Map.empty }
-
-
-
-  let sp3 : SupplyParams =
-    { tcId        = "TC-002";
-      gasDay = gasDay; 
-      temporalidad = DayAhead;
-      tradingHub  = TradingHub.Mainline
-      deliveryPt = gasRxPt
-      seller      = "J.Aron"; 
-      buyer = buyer
-      qEnergia    = 10000.0m<MMBTU>; 
-      price = 2.575m<USD/MMBTU>
-      index       = 2.01m<USD/MMBTU>
-      adder       = 0.02m<USD/MMBTU>
-      contractRef = contractRef; 
-      meta = Map.empty }
-
-  let sps = [ sp1; sp2; sp3 ]
-
-  
-
-  // TransportParams 
-  // Planta EAX
-  // CMD: 135.000<MBTU>
-  // Receipt Location:	336406	EHRENBERG REC
-  // Delivery Location:	336408	OGILBY DEL
-
-  let pA005F1 : TransportParams =
-    { provider = "TC Energy"
-      pipeline    = "NBP"
-      entry       = entryPtA005F1
-      exit        = exitPtA005F1
-      shipper     = "EAX"
-      fuelMode    = FuelMode.RxBase
-      fuelPct     = 0.007m                 // 0,7% fuel
-      usageRate   = 0.08m<USD/MMBTU>
-      reservation = 0.50m<USD/MMBTU> 
-      acaRate     = 0.0014m<USD/MMBTU>
-      meta        = Map.empty
-      }    // ej.: fijo
-
-
-  // TransportParams 
-  // Planta EAX
-  // CMD: 135.000<MBTU>
-  // Receipt Location:	OGILBY
-  // Delivery Location:	336408	
-  // Fuel: 0.1751%
-
-  let pM005F1 : TransportParams =
-    { provider = "Gasoducto Aguaprieta"
-      pipeline    = "GRO"
-      entry       = exitPtA005F1
-      exit        = "Planta_La_Estrella"
-      shipper     = "EAX"
-      fuelMode    = FuelMode.ExBase
-      fuelPct     = 0.001751m                // 0.1751% fuel
-      usageRate   = 0.08m<USD/MMBTU>
-      reservation = 0.50m<USD/MMBTU> 
-      acaRate     = 0.0m<USD/MMBTU>
-      meta        = Map.empty
-      }    // ej.: fijo
-
-
-  // Sleeve
-  let pSleeveExport : SleeveParams =
-    {
-      provider = "Trafigura"
-      seller = "SES"
-      buyer = "SE"
-      location = "Ogilby"
-      sleeveSide = SleeveSide.Export
-      price = 2.575m<USD/MMBTU>
-      index       = 2.01m<USD/MMBTU>
-      adder       = 0.02m<USD/MMBTU>
-      meta = Map.empty
-      contractRef = contractRef
-    }
-
-
-  let pSleeveImport : SleeveParams =
-    {
-      provider = "Trafigura"
-      seller = "SES"
-      buyer = "SE"
-      location = "Algodones"
-      sleeveSide = SleeveSide.Import
-      price = 2.575m<USD/MMBTU>
-      index       = 2.01m<USD/MMBTU>
-      adder       = 0.02m<USD/MMBTU>
-      meta = Map.empty
-      contractRef = contractRef
-    }
-
-  // Trade con adder 0.5 USD/MMBTU
-  let pTradeSES : TradeParams =
-    { 
-      location     = "Ehrenberg"
-      side         = TradeSide.Sell
-      seller       = "Suppliers USA"
-      buyer        = "SES"
-      adder        = 0.50m<USD/MMBTU>
-      contractRef  = "MARKET_Z"
-      meta         = Map.empty }
-
-  let pTradeSE : TradeParams =
-    { side         = TradeSide.Sell
-      location     = "EAX"
-      seller       = "SE"
-      buyer        = "EAX"
-      adder        = 0.20m<USD/MMBTU>
-      contractRef  = "MARKET_Z"
-      meta         = Map.empty }
-
-  // parametros de Consumo (planta)
-  let pConsume = 
-    { provider            = "Savi Energía"
-      meterLocation       = "Planta_La_Estrella"
-      measured           = 15300.0m<MMBTU>
-      tolerancePct       = 5.0m
-      penaltyRate        = 0.10m<USD/MMBTU>
-      }
-
-
-
-
-
-
-
-  // Si querés también la traza completa (balances/costos):
-  let ops : Operation list = [ supplyMany sps ;
-                               trade pTradeSES ;
-                               transport pA005F1 ; 
-                               sleeve pSleeveExport ;
-                               sleeve pSleeveImport ;
-                               transport pM005F1; 
-                               trade pTradeSE  ;
-                               consume pConsume]
-  run ops st0
 
 
+// Los trading hubs
+module FlowRunRepo =
+
+  let insertAndGetRunId
+      (conn   : IDbConnection)
+      (tx     : IDbTransaction)
+      (gasDay : DateOnly)
+      (modo   : string)
+      (central: string)
+      : Result<int, DomainError> =
+
+    try
+      // Contexto ligado a la MISMA conexión y transacción
+
+      // Crear fila FlowRun
+      let fr = ctx.Fm.FlowRun.Create()
+      fr.GasDay  <- gasDay.ToDateTime(TimeOnly.MinValue)
+      fr.Modo    <- modo
+      fr.Central <- central
+      // fr.CreatedAt lo setea el DEFAULT de SQL Server
+
+      // Persistir
+      ctx.SubmitUpdates()
+
+      // SQLProvider rellena el IDENTITY automáticamente
+      Ok fr.RunId
+
+    with ex ->
+      Error (DomainError.Other ex.Message)
+
+
+let persistAll
+    (conn: IDbConnection)
+    (tx  : IDbTransaction)
+    (runId: int)
+    (rows: ProjectedRows)
+    : Result<unit, DomainError> =
+  try
+    // Contexto “scoped” a la transacción
+    
+
+    // IMPORTANTE: usar ctxTx para Create() y para SubmitUpdates()
+    // (no el ctx global)
+    addSupplyRows   runId rows.supplies
+    addTradeRows    runId rows.trades
+    addSellRows     runId rows.sells
+    addTransportRows runId rows.transports
+    addSleeveRows   runId rows.sleeves
+    addConsumeRows  runId rows.consumes
+
+    ctx.SubmitUpdates()
+    Ok ()
+  with ex ->
+    Error (DomainError.Other ex.Message)
+
+let runFlowAndPersist
+    (pathExcel : string)
+    (modo      : string)
+    (central   : string)
+    (diaGas    : DateOnly)
+    (initial   : State)
+    : Result<int * State * Transition list, DomainError> =
+
+  // 1) Leer Excel -> paths
+  let paths : Map<FlowId, FlowStep list> =
+    getFlowSteps pathExcel modo central diaGas
+
+  // 2) Topología (Linear/Join) + PathRole
+  buildFlowDef paths
+  |> Result.bind (fun flowDef ->
+
+      // 3) Ejecutar Flow (puro) -> transitions
+      runFlow flowDef initial 0.0m<MMBTU> (+) runSteps
+      |> Result.bind (fun (finalState, transitions) ->
+
+          // 4) Persistir en 1 transacción
+          withTransaction  (fun conn tx ->
+
+              // 4.1) Insert header FlowRun -> RunId (IDENTITY)
+              FlowRunRepo.insertAndGetRunId conn tx diaGas modo central
+              |> Result.bind (fun runId ->
+
+                  // 4.2) Proyección post-ejecución
+                  projectRows runId transitions
+                  |> Result.bind (fun rows ->
+
+                      // 4.3) Inserts detalle (SQLProvider) dentro de conn/tx
+                      persistAll conn tx runId rows
+                      |> Result.map (fun () ->
+                          // devolvemos runId + resultados en memoria (útil para logs/UI)
+                          (runId, finalState, transitions)
+                      )
+                  )
+              )
+          )
+      )
+  )
