@@ -13,6 +13,9 @@ open System
 type Energy = decimal<MMBTU>      // MMBtu (puedes cambiar por GJ y agregar conversión)
 type Money  = decimal<USD>      // USD (o MXN si prefieres)
 
+
+type Stage = Build | Execute | Project | Persist
+
 // ===== Tipos derivados =====
 type EnergyPrice = decimal<USD/MMBTU>   // $/MMBtu
 

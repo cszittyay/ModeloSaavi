@@ -4,6 +4,8 @@ open Tipos
 open FlowBuilderExcel
 open LegosOps
 open ProjectOperations
+open ErrorLog.Logging
+open ErrorLog.RunStages
 
 
 
@@ -24,22 +26,50 @@ let getConfig modo central : Config =
     | "CUR", "LR"-> { modo = "CUR";  central = "EAX"}
     | "LTF", "LR"-> { modo = "LTF";  central = "EBC"}
     | "CUR", "EAX"-> { modo = "CUR";  central = "EAX"}
+    | "CUR", "ECHI"-> { modo = "CUR";  central = "ECHI"}
     | "CUR", "ESLP" -> { modo = "CUR";  central = "ESLP" }
     | _ -> failwith "Configuración no encontrada."
 
 
-//let config = getConfig "CUR" "ESLP"
+// let config = getConfig "CUR" "ESLP"
 
-let config = getConfig "CUR" "EAX"
+//let config = getConfig "CUR" "EAX"
 
-let diaGas = DateOnly(2025, 12, 10)
+let config = getConfig "CUR" "ESLP"
+
+let diaGas = DateOnly(2025, 12, 19)
 
 printfn "Modo %s\tPlanta: %s\tCentral-> %s" config.modo config.central |> ignore
 
 //let res = runAllModoCentral excelPath config.modo config.central diaGas
 
 
-//showTransitions res
+// showTransitions res
 
 
-let r = runFlowAndPersist excelPath config.modo config.central diaGas st0 
+
+// let r = runFlowAndPersist excelPath config.modo config.central diaGas st0 
+let runKey = Guid.NewGuid()
+let modo = "CUR"
+let central = "EAX"
+let gasDay = DateOnly(2025,12,19)
+
+init "logs"
+
+let result =
+    withRunContext runKey modo central gasDay (fun () ->
+      logRunStarted()
+
+      // Acá llamás tu función real
+      match runFlowAndPersist excelPath modo central gasDay st0 with
+      | Ok (runId, finalState, transitions) ->
+          logRunOk (Some runId) transitions.Length
+          Ok runId
+      | Error e ->
+          logRunFailed e
+          Error e
+    )
+
+match result with
+    | Ok _ -> 0
+    | Error _ -> 1

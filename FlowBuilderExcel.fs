@@ -716,7 +716,7 @@ let st0 : State =
         owner    = "N/A"
         contract = "INIT"
         location = "E104"
-        gasDay   = DateOnly(2025,12,1)
+        gasDay   = DateOnly(2025,12,19)
         meta     = Map.empty }
 
 
