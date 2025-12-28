@@ -2,7 +2,6 @@
 open Escenario
 open Tipos
 open FlowBuilderExcel
-open LegosOps
 open ProjectOperations
 open ErrorLog.Logging
 open ErrorLog.RunStages
@@ -70,6 +69,3 @@ let result =
           Error e
     )
 
-match result with
-    | Ok _ -> 0
-    | Error _ -> 1

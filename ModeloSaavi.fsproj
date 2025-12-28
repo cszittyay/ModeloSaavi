@@ -16,7 +16,6 @@
     <Compile Include="DefinedOperations.fs" />
     <Compile Include="Kleisli.fs" />
     <Compile Include="ErrorLog.fs" />
-    <Compile Include="LegosOps.fs" />
     <Compile Include="FlowBuilderExcel.fs" />
     <Compile Include="Escenario.fs" />
     <Compile Include="Program.fs" />

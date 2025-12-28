@@ -6,7 +6,6 @@ open FsToolkit.ErrorHandling
 open FSharp.Interop.Excel
 open Tipos
 open DefinedOperations
-open LegosOps
 open Helpers
 
 

@@ -111,12 +111,6 @@ type Operation = State -> Result<Transition, DomainError>
 
 
 
-type FlowId = {
-    modo   : string
-    central: string
-    path   : string  // es un identificador de la ruta que define un flow
-}
-
 
 
 
@@ -211,6 +205,13 @@ type Block =
 type PathRole =
   | Contributor
   | Final
+
+
+type FlowId = {
+    modo   : string
+    central: string
+    path   : string  // es un identificador de la ruta que define un flow
+}
 
 
 
