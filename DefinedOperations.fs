@@ -1,8 +1,68 @@
 ﻿module DefinedOperations
 open System
 open Tipos
-open Helpers
 open Unidades
+
+
+module DomainError =
+  let msg = function
+    | QuantityNonPositive w -> $"Cantidad no positiva en {w}"
+    | MissingContract id    -> $"Falta contrato {id}"
+    | CapacityExceeded w    -> $"Capacidad excedida: {w}"
+    | InvalidUnits d        -> $"Unidades inválidas: {d}"
+    | Other s               -> s
+
+module DomainErrorHelpers =
+  open Tipos
+  let describe (err: DomainError) : string =
+    match err with
+    | QuantityNonPositive where_ -> sprintf "[QuantityNonPositive] %s → cantidad <= 0" where_
+    | MissingContract id -> sprintf "[MissingContract] Faltante: %s" id
+    | CapacityExceeded what -> sprintf "[CapacityExceeded] Capacidad excedida en %s" what
+    | InvalidUnits detail -> sprintf "[InvalidUnits] %s" detail
+    | Other msg -> sprintf "[Other] %s" msg
+
+
+
+module Domain =
+  let inline amount (qty: Energy) (rate: EnergyPrice) : Money =   qty * rate
+  let weightedAvgRate (sps: SupplyParams list)  : EnergyPrice =
+    let qty = sps |> List.sumBy (fun sp -> sp.qEnergia)
+    if qty = 0.0m<MMBTU> then 0.0m<USD/MMBTU>
+    else
+      let amt = sps |> List.sumBy (fun sp -> amount sp.qEnergia sp.price)
+      (amt / qty)
+
+module Validate =
+  type Err =
+    | EmptyLegs
+    | BuyerMismatch of expected:Party * found:Party
+    | GasDayMismatch
+    | DeliveryPtMismatch
+    | NonPositiveQty of Party
+  
+  let toString = function
+    | EmptyLegs -> "No hay suppliers/legs para consolidar."
+    | BuyerMismatch (e,f) -> $"Buyer inconsistente. Esperado={e} encontrado={f}"
+    | GasDayMismatch -> "GasDay inconsistente entre legs."
+    | DeliveryPtMismatch -> "DeliveryPoint inconsistente entre legs."
+    | NonPositiveQty p -> $"Cantidad no positiva en leg del seller={p}"
+  
+  let legsConsolidados (sps: SupplyParams list) =
+    match sps with
+    | [] -> Error EmptyLegs
+    | x::xs ->
+      let b = x.buyer
+      let d = x.gasDay
+      let p = x.deliveryPt
+      let okBuyer    = xs |> List.forall (fun sp -> sp.buyer     = b)
+      let okGasDay   = xs |> List.forall (fun sp -> sp.gasDay    = d)
+      let okDelivPt  = xs |> List.forall (fun sp -> sp.deliveryPt = p)
+      if not okBuyer   then Error (BuyerMismatch (b, xs |> List.tryPick (fun sp -> Some sp.buyer) |> Option.defaultValue "<desconocido>"))
+      elif not okGasDay then Error GasDayMismatch
+      elif not okDelivPt then Error DeliveryPtMismatch
+      else Ok (b,d,p)
+
 
 
 module Consume =

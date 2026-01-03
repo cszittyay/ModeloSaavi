@@ -9,6 +9,7 @@ open DbContext
 open Repository.DetailRepo
 open Repository.Tx
 open ResultRows
+open Helpers.FlowBuilderUtils
 
 
 /// Helpers de impresión (opcionales)
