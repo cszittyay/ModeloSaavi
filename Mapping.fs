@@ -45,22 +45,30 @@ module Mappings =
       Observaciones = c.observaciones
       Codigo = c.codigo }
 
-  let transaccionToDomain (r:TransaccionRow) : Transaccion =
-    { id = TransaccionId r.Id_Transaccion
-      tipo =
-        match r.DescripcionTipoTransaccion with
-        | Some d -> TipoTransaccion.ofDescripcion d
-        | None -> TipoTransaccion.Otro (string r.Id_TipoTransaccion)
-      idContrato = r.Id_Contrato |> Option.map ContratoId
-      diaGas = r.DiaGas
-      nominado = r.Nominado
-      confirmado = r.Confirmado
-      asignado = r.Asignado
-      idPuntoEntrega = r.Id_PuntoEntrega
-      idRuta = r.Id_Ruta |> Option.map RutaId
-      idCompraSpot = r.Id_CompraSpot |> Option.map CompraSpotId
-      temporalidad = r.Temporalidad
-      idVentaGas = r.Id_VentaGas }
+
+
+  let transaccionJoinToDomain (r: TransaccionJoinRow) : Transaccion =
+      { id = TransaccionId r.Id_Transaccion
+        tipo =
+          match r.TipoTransaccionDescripcion with
+          | Some d -> TipoTransaccion.ofDescripcion d
+          | None -> TipoTransaccion.Otro (string r.Id_TipoTransaccion)
+        idContrato = ContratoId r.Id_Contrato
+        idPuntoEntrega = r.Id_PuntoEntrega
+        idTipoServicio = r.Id_TipoServicio
+        idIndicePrecio = r.Id_IndicePrecio
+        adder = r.Adder
+        fuel = r.Fuel
+        tarifaTransporte = r.TarifaTransporte
+        formulaPrecio = r.FormulaPrecio
+        precioFijo = r.PrecioFijo
+        volumen = r.Volumen
+        observaciones = r.Observaciones
+        vigenciaDesde = r.VigenciaDesde
+        vigenciaHasta = r.VigenciaHasta
+        idMonedaPrecioFijo = r.Id_MonedaPrecioFijo
+        idUnidadPrecioEnergiaAdder = r.Id_UnidadPrecioEnergiaAdder
+        idUnidadEnergiaVolumen = r.Id_UnidadEnergiaVolumen }
 
   let compraGasToDomain (r:CompraGasRow) : CompraGas =
     { id = CompraGasId r.Id_CompraGas
@@ -70,7 +78,7 @@ module Mappings =
       asignado = r.Asignado
       idPuntoEntrega = r.Id_PuntoEntrega
       idRuta = r.Id_Ruta |> Option.map RutaId
-      idTransaccion = r.Id_Transaccion |> Option.map TransaccionId
+      idTransaccion =  TransaccionId r.Id_Transaccion |> Some
       idCompraSpot = r.Id_CompraSpot |> Option.map CompraSpotId
       temporalidad = r.Temporalidad
       idVentaGas = r.Id_VentaGas }

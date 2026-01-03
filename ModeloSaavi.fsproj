@@ -13,6 +13,7 @@
     <Compile Include="TiposDTO.fs" />
     <Compile Include="Mapping.fs" />
     <Compile Include="ResutlRows.fs" />
+    <Compile Include="LoadFromSQL.fs" />
     <Compile Include="DefinedOperations.fs" />
     <Compile Include="Helpers.fs" />
     <Compile Include="ProjectOperations.fs" />

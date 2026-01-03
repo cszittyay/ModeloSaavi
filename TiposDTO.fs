@@ -105,16 +105,22 @@ type Contrato =
 type Transaccion =
   { id: TransaccionId
     tipo: TipoTransaccion
-    idContrato: ContratoId option
-    diaGas: DateOnly
-    nominado: decimal
-    confirmado: decimal option
-    asignado: decimal option
+    idContrato: ContratoId
     idPuntoEntrega: int
-    idRuta: RutaId option
-    idCompraSpot: CompraSpotId option
-    temporalidad: string
-    idVentaGas: int option }
+    idTipoServicio: int
+    idIndicePrecio: int option
+    adder: decimal option
+    fuel: decimal
+    tarifaTransporte: decimal
+    formulaPrecio: string option
+    precioFijo: decimal option
+    volumen: decimal
+    observaciones: string option
+    vigenciaDesde: DateOnly
+    vigenciaHasta: DateOnly
+    idMonedaPrecioFijo: int option
+    idUnidadPrecioEnergiaAdder: int option
+    idUnidadEnergiaVolumen: int option }
 
 type CompraGas =
   { id: CompraGasId
