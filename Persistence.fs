@@ -71,13 +71,14 @@ type TransaccionRow =
 type CompraGasRow =
   { Id_CompraGas: int
     DiaGas: DateOnly
+    Id_Transaccion: int
+    Id_FlowDetail: int
+    BuyBack: bool option
+    Id_PuntoEntrega: int
+    Temporalidad: string
+    Id_IndicePrecio: int option
+    Adder: decimal option
+    Precio: decimal option
     Nominado: decimal
     Confirmado: decimal option
-    Asignado: decimal option
-    Id_PuntoEntrega: int
-    Id_Ruta: int option
-    Id_Transaccion: int
-    Id_CompraSpot: int option
-    Temporalidad: string
-    Id_VentaGas: int option }
-
+     }

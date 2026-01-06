@@ -5,13 +5,22 @@ open FlowBuilderExcel
 open ProjectOperations
 open ErrorLog.Logging
 open ErrorLog.RunStages
-open Gnx.Persistence.SqlProviderExample
+open Gnx.Persistence.SQL_Data
+open FlowBuilderDB
+
+let idFlowDetail = 1
+let diaGas = DateOnly(2026, 1, 1)
 
 
+//let t = loadTransacciones()
+//let c = loadContratos()
+//let cg = loadCompraGas diaGas idFlowDetail
 
-let t = loadTransacciones()
+//cg|> Seq.iter (printfn "%A")
 
-t|> Seq.iter (printfn "%A")
+
+let sd = buildSupplysDB  diaGas idFlowDetail
+sd|> Seq.iter (printfn "%A")
 
 
 

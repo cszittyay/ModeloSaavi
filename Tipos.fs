@@ -260,3 +260,22 @@ module Unidades =
     let inline toGJ (e: decimal<MMBTU>) : decimal<GJ> =   (decimal e) * gj_per_mmbtu |> LanguagePrimitives.DecimalWithMeasure<GJ>
 
     let inline toMMBtu (e: decimal<GJ>) : decimal<MMBTU> =  (decimal e) / gj_per_mmbtu |> LanguagePrimitives.DecimalWithMeasure<MMBTU>
+
+
+
+
+// Mainline | Waha | Permian | SanJuan | SoCal | HSC | AguaDulce
+let parseTradingHub = function
+    | "Permian"         -> TradingHub.Permian
+    | "Waha FDt Com"    -> TradingHub.Waha
+    | "HSC"             -> TradingHub.HSC
+    | "San Juan"        -> TradingHub.SanJuan
+    | "SML"             -> TradingHub.AguaDulce
+    | "SoCal Gas CG FDt Com" -> TradingHub.SoCal
+    | x                 -> failwithf "TradingHub desconocido: %s" x
+
+let parseTemporalidad = function
+    | "DayAhead" -> Temporalidad.DayAhead
+    | "Intraday" -> Temporalidad.Intraday
+    | "Monthly"  -> Temporalidad.Monthly
+    | x          -> failwithf "Temporalidad desconocida: %s" x

@@ -73,14 +73,16 @@ module Mappings =
   let compraGasToDomain (r:CompraGasRow) : CompraGas =
     { id = CompraGasId r.Id_CompraGas
       diaGas = r.DiaGas
+      idTransaccion =  TransaccionId r.Id_Transaccion 
+      idFlowDetail = r.Id_FlowDetail
+      buyBack = r.BuyBack
+      idPuntoEntrega = r.Id_PuntoEntrega
+      temporalidad = r.Temporalidad
+      idIndicePrecio = r.Id_IndicePrecio
+      adder = r.Adder
+      precio = r.Precio
       nominado = r.Nominado
       confirmado = r.Confirmado
-      asignado = r.Asignado
-      idPuntoEntrega = r.Id_PuntoEntrega
-      idRuta = r.Id_Ruta |> Option.map RutaId
-      idTransaccion =  TransaccionId r.Id_Transaccion |> Some
-      idCompraSpot = r.Id_CompraSpot |> Option.map CompraSpotId
-      temporalidad = r.Temporalidad
-      idVentaGas = r.Id_VentaGas }
+      }
 
 

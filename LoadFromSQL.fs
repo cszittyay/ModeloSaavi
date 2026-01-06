@@ -6,7 +6,7 @@ open DbContext
 open Gnx.Domain
 /// Ejemplo de “mapping” desde SqlProvider a Rows.
 /// Ajustá connection string y el provider a tu entorno.
-module SqlProviderExample =
+module SQL_Data =
 
   
 
@@ -59,10 +59,33 @@ module SqlProviderExample =
         VigenciaHasta = DateOnly.FromDateTime t.VigenciaHasta
         Id_MonedaPrecioFijo = t.IdMonedaPrecioFijo
         Id_UnidadPrecioEnergiaAdder = t.IdUnidadPrecioEnergiaAdder
-        Id_UnidadEnergiaVolumen = t.IdUnidadEnergiaVolumen                                                                                                   }
+        Id_UnidadEnergiaVolumen = t.IdUnidadEnergiaVolumen }
 
     }
     |> Seq.map Mappings.transaccionJoinToDomain
     |> Seq.toList
 
 
+  let loadCompraGas (diaGas:DateOnly) idFlowDetail =
+     let dia = diaGas.ToDateTime(TimeOnly.MinValue)
+     query {
+      for cg in ctx.Dbo.CompraGas do
+      where (cg.DiaGas = dia && cg.IdFlowDetail = idFlowDetail)
+      select
+            { 
+                CompraGasRow.Id_CompraGas = cg.IdCompraGas
+                DiaGas = diaGas
+                Id_Transaccion = cg.IdTransaccion
+                Id_FlowDetail = cg.IdFlowDetail
+                BuyBack = cg.BuyBack
+                Id_PuntoEntrega = cg.IdPuntoEntrega
+                Temporalidad = cg.Temporalidad
+                Id_IndicePrecio = cg.IdIndicePrecio
+                Adder = cg.Adder
+                Precio = cg.Precio
+                Nominado = cg.Nominado
+                Confirmado = cg.Confirmado
+            }
+     }
+     |> Seq.map Mappings.compraGasToDomain
+     |> Seq.toList

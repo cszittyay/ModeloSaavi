@@ -6,17 +6,14 @@ namespace Gnx.Domain
 open System
 
 /// IDs (strong types) to evitar mezclar PK/FK accidentalmente.
-[<Struct; NoEquality; NoComparison>]
+[<Struct; >]
 type ContratoId = ContratoId of int
 
-[<Struct; NoEquality; NoComparison>]
+[<Struct>]
 type TransaccionId = TransaccionId of int
 
 [<Struct; NoEquality; NoComparison>]
 type CompraGasId = CompraGasId of int
-
-[<Struct; NoEquality; NoComparison>]
-type CompraSpotId = CompraSpotId of int
 
 [<Struct; NoEquality; NoComparison>]
 type RutaId = RutaId of int
@@ -69,7 +66,7 @@ module TipoContrato =
 type TipoTransaccion =
   | Compra
   | Venta
-  | Ajuste
+  | Compra_GyT
   | Transporte
   | Otro of descripcion:string
 
@@ -77,11 +74,13 @@ module TipoTransaccion =
   /// Map desde descripción/código a DU (ajustable).
   let ofDescripcion (desc:string) =
     match desc.Trim().ToUpperInvariant() with
-    | "COMPRA" | "BUY" -> Compra
-    | "VENTA" | "SELL" -> Venta
-    | "AJUSTE" | "ADJUST" -> Ajuste
-    | "TRANSPORTE" | "TRANSPORT" -> Transporte
+    | "Compra de Gas"  -> Compra
+    | "Venta de Gas" -> Venta
+    | "Compra de Gas y Transporte" -> Compra
     | other -> Otro other
+
+    
+
 
 /// ========================
 /// Entidades de dominio (records)
@@ -125,15 +124,17 @@ type Transaccion =
 type CompraGas =
   { id: CompraGasId
     diaGas: DateOnly
+    idTransaccion: TransaccionId 
+    idFlowDetail: int
+    buyBack: bool option
+    idPuntoEntrega: int
+    temporalidad: string
+    idIndicePrecio: int option
+    precio: decimal option
+    adder: decimal option
     nominado: decimal
     confirmado: decimal option
-    asignado: decimal option
-    idPuntoEntrega: int
-    idRuta: RutaId option
-    idTransaccion: TransaccionId option
-    idCompraSpot: CompraSpotId option
-    temporalidad: string
-    idVentaGas: int option }
+    }
 
 
 
@@ -188,8 +189,8 @@ module Db =
   [<Struct; NoEquality; NoComparison>]
   type TipoTransaccionId = TipoTransaccionId of int
 
-  [<Struct; NoEquality; NoComparison>]
-  type TransaccionId = TransaccionId of int
+  // [<Struct; NoEquality; NoComparison>]
+  //type TransaccionId = TransaccionId of int
 
   // --- Tablas ---
 
@@ -210,7 +211,7 @@ module Db =
     /// SQL: [Id_Ruta] [int] NULL
     idRuta: RutaId option
     /// SQL: [Id_Transaccion] [int] NULL
-    idTransaccion: TransaccionId option
+    idTransaccion: int option
     /// SQL: [Id_CompraSpot] [int] NULL
     idCompraSpot: CompraSpotId option
     /// SQL: [Temporalidad] [varchar] (50) NOT NULL
