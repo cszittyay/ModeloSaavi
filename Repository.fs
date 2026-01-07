@@ -173,10 +173,6 @@ module DetailRepo =
       row.MeterLocation <- string r.meterLocation
       row.QtyConsumeMmBtu    <- energyToDecimal r.qtyConsume
       row.MeasuredMmBtu      <- energyToDecimal r.measured
-      row.ImbalanceMmBtu     <- energyToDecimal r.imbalance
-      row.TolerancePct  <- r.tolerancePct
-      row.PenaltyRate   <- decimal r.penaltyRate
-      row.PenaltyAmount <- r.penaltyAmount |> Option.map decimal
     )
 
   let persistAll

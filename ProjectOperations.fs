@@ -172,10 +172,6 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
       meterLocation = p.meterLocation
       qtyConsume = qtyConsume
       measured = (p.measured : Energy)
-      imbalance = imbalance
-      tolerancePct = p.tolerancePct
-      penaltyRate = p.penaltyRate
-      penaltyAmount = penaltyAmount
     }
 
 

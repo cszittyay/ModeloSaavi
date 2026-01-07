@@ -66,10 +66,6 @@ type ConsumeResultRow = {
   meterLocation : Location
   qtyConsume    : Energy
   measured      : Energy
-  imbalance     : Energy
-  tolerancePct  : decimal
-  penaltyRate   : EnergyPrice
-  penaltyAmount : Money option
 }
 
 type SupplyResultRow = {

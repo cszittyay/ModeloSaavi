@@ -155,11 +155,11 @@ let buildConsumes modo central path (sheet: ConsumeSheet) : Map<string, ConsumeP
     let cd = sheet.Data |> Seq.filter (fun row -> row.Modo = modo && row.Path = path && row.Central = central && row.Name <> null && row.Name <> "") |> Seq.toList
     cd |> Seq.map (fun row ->
         let cp : ConsumeParams =
-          { provider      = row.Provider
+          { gasDay       = DateOnly(2026, 1, 1)
+            provider      = row.Provider
             meterLocation = row.Location
             measured      = decimal row.MeasuredMMBTU * 1.0m<MMBTU>
-            tolerancePct  = decimal row.TolerancePct
-            penaltyRate   = decimal row.PenaltyUSDMMBTU * 1.0m<USD/MMBTU> }
+          }
         row.Name, cp)
     |> Map.ofSeq
 

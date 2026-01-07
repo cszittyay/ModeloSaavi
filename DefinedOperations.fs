@@ -79,31 +79,23 @@ module Consume =
           Error (Other (sprintf "Consume: State@%s, esperado meterLocation=%s" stIn.location p.meterLocation))
         elif p.measured < 0.0m<MMBTU> then
           Error (InvalidUnits (sprintf "Consume.consume: measured=%M < 0" (decimal p.measured)))
-        elif p.tolerancePct < 0.0m then
-          Error (InvalidUnits (sprintf "Consume.consume: tolerancePct=%M < 0" p.tolerancePct))
         else
           // Cantidad "a la salida" del sistema (lo que se va a consumir)
             let outQ : Energy = stIn.energy
               // Desbalance respecto a lo medido: positivo => sobredespacho; negativo => subdespacho
             let dmb  : Energy = outQ - p.measured
               // Tolerancia absoluta (Energy) a partir del % sobre outQ
-            let tol  : Energy = abs outQ * (p.tolerancePct / 100.0m)
-            let desvio = if abs dmb > tol then abs dmb - tol else 0.0m<MMBTU>
-            let amount : Money = desvio * p.penaltyRate   // (MMBTU * USD/MMBTU) = USD
             
             let penalty : ItemCost  =
               // Penalidad solo si |dmb| > tol
                 {
                 kind     = CostKind.Nulo
-                qEnergia = desvio
+                qEnergia = outQ
+                rate = 0.0m<USD/MMBTU>
+                amount = 0.0m<USD>
                 provider = p.provider
-                rate     = p.penaltyRate
-                amount   = amount
                 meta     =
-                  [ "component"  , box "imbalance_penalty"
-                    "desbalance" , box (round(decimal dmb))
-                    "tolerancia" , box (round(decimal tol))
-                    "measured"   , box (round(decimal p.measured))
+                  [ "measured"   , box (round(decimal p.measured))
                     "outQ"       , box (round(decimal outQ))]
                   |> Map.ofList
               }
@@ -116,10 +108,8 @@ module Consume =
                 [ "op"                 , box "consume"
                   "consumeParams"      , box p
                   "consume.measured"   , box (round(decimal p.measured))
-                  "qtyConsume"        , box (round(decimal outQ))
-                  "imbalance" , box (round (decimal dmb))
-                  "penaltyAmount"  , box (round  (decimal amount)) ]
-                |> Map.ofList
+                  "qtyConsume"        , box (round(decimal outQ))]
+                 |> Map.ofList
 
             Ok { state = stIn
                  costs = penalty :: []

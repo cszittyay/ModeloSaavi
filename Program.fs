@@ -19,13 +19,23 @@ let diaGas = DateOnly(2026, 1, 1)
 //cg|> Seq.iter (printfn "%A")
 
 
-//let sd = buildSupplysDB  diaGas idFlowDetail
-//sd|> Seq.iter (printfn "%A")
+//let sd = buildSupplysDB diaGas 1 "Default"
+//sd.Values|> Seq.iter (fun s -> printfn "%A\n" s)
 
 
-let trades = buildSleevesDB 2 "Default"
-// trades |> List.iter(fun x -> printfn $"Master:{x.IdFlowMaster}\tPath:{x.Path}\tDetail:{x.IdFlowDetail}\tOrden:{x.Orden}")
-trades.Values |>  Seq.iter (printfn "%A")
+//let sleeves = buildSleevesDB 2 "Default"
+//sleeves.Values |>  Seq.iter (printfn "%A")
+
+//let transport = buildTransportsDB 2 "Default"
+//transport.Values |>  Seq.iter (printfn "%A")
+
+//let trades = buildTradesDB 2  "Default"
+//trades.Values |>  Seq.iter (printfn "%A")
+
+
+let cd = buildConsumeDB diaGas 1 "Default"
+cd.Values|> Seq.iter (fun s -> printfn "%A\n" s)
+
 
 ////escenario_Supply_Transport_Trade ()
 //// escenario_supply_Transport_Sleeve ()

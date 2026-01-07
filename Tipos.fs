@@ -180,11 +180,12 @@ type SleeveParams =
 // 4) CONSUMO (sale del sistema; calcula desbalance vs medido)
 // ========================================================
 type ConsumeParams =
-  { provider      : Party
+  { 
+    gasDay      : GasDay
+    provider      : Party
     meterLocation : Location
     measured      : decimal<MMBTU>
-    penaltyRate   : EnergyPrice
-    tolerancePct  : decimal }
+   }
 
 
 

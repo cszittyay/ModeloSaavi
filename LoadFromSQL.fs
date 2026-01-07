@@ -89,3 +89,18 @@ module SQL_Data =
      }
      |> Seq.map Mappings.compraGasToDomain
      |> Seq.toList
+
+
+  // Convierte para un día Gas  un idFlowDetail  devuelve el consumo en MMBtu y el punto de entrega
+
+  let loadConsumo (diaGas:DateOnly) idFlowDetail =
+     
+      let dia = diaGas.ToDateTime(TimeOnly.MinValue)
+  
+      let result = query {
+              for cg in ctx.Dbo.Consumo do
+              where (cg.DiaGas = dia && cg.IdFlowDetail.Value = idFlowDetail)
+              select
+                    (cg.IdPunto, cg.Demanda)
+            }
+      result
