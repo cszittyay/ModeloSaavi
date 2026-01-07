@@ -122,9 +122,8 @@ let buildSleeves modo central path (sheet: SleeveSheet) : Map<string, SleevePara
                 buyer       = row.Buyer
                 location    = row.Location
                 sleeveSide  = if row.SleevSide = "Export" then SleeveSide.Export else SleeveSide.Import
-                index       = index                                        
+                index       = 1
                 adder       = xadder
-                price       = getPrice index xadder formula
                 contractRef = row.ContractRef
                 meta        = Map.empty }
         row.Name, sl)

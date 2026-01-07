@@ -154,7 +154,6 @@ module DetailRepo =
       row.QtyMmBtu   <- energyToDecimal r.qty
       row.IndexPrice <- decimal r.index
       row.Adder      <- decimal r.adder
-      row.Price      <- decimal r.price
       row.ContractRef<- string r.contractRef
     )
 

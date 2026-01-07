@@ -171,9 +171,8 @@ type SleeveParams =
     buyer       : Party
     location    : Location
     sleeveSide  : SleeveSide
-    index       : EnergyPrice
+    index       : int
     adder       : EnergyPrice
-    price       : EnergyPrice
     contractRef : Contract
     meta        : Map<string,obj> }
 

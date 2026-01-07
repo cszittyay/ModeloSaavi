@@ -232,7 +232,6 @@ module Sleeve =
                       "seller", box p.seller 
                       "adder", box (decimal p.adder)
                       "index" , box (decimal p.index)
-                      "price"  , box (decimal p.price)
                       "amount", box (decimal amount)
                       ] |> Map.ofList }
           Ok { state=stOut; costs=[fee]; notes= [ "op", box "Sleeve"

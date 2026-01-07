@@ -189,8 +189,8 @@ module Db =
   [<Struct; NoEquality; NoComparison>]
   type TipoTransaccionId = TipoTransaccionId of int
 
-  // [<Struct; NoEquality; NoComparison>]
-  //type TransaccionId = TransaccionId of int
+  [<Struct>]
+  type TransaccionId = TransaccionId of int
 
   // --- Tablas ---
 

@@ -145,7 +145,6 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
       qty = qty
       index = p.index
       adder = p.adder
-      price = p.price
       contractRef = p.contractRef
     }
 
