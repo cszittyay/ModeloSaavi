@@ -19,10 +19,13 @@ let diaGas = DateOnly(2026, 1, 1)
 //cg|> Seq.iter (printfn "%A")
 
 
-let sd = buildSupplysDB  diaGas idFlowDetail
-sd|> Seq.iter (printfn "%A")
+//let sd = buildSupplysDB  diaGas idFlowDetail
+//sd|> Seq.iter (printfn "%A")
 
 
+let trades = buildTradesDB "CUR ESLP" "Path1"
+// trades |> List.iter(fun x -> printfn $"Master:{x.IdFlowMaster}\tPath:{x.Path}\tDetail:{x.IdFlowDetail}\tOrden:{x.Orden}")
+trades.Values |>  Seq.iter (printfn "%A")
 
 ////escenario_Supply_Transport_Trade ()
 //// escenario_supply_Transport_Sleeve ()

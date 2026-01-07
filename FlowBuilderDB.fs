@@ -9,16 +9,33 @@ open Helpers
 open DbContext
 open Gnx.Persistence.SQL_Data
 
-
+let dEntidadLegal = ctx.Dbo.EntidadLegal |> Seq.map(fun e -> e.IdEntidadLegal, e) |> Map.ofSeq
+let dContrato = loadContratos() |> List.map (fun c -> c.id, c) |> Map.ofList
+let dPunto = ctx.Dbo.Punto |> Seq.map(fun p -> p.IdPunto, p.Codigo) |> Map.ofSeq
+  
 let transactions = loadTransacciones() |> List.map (fun t -> t.id, t) |> Map.ofList
+let dFlowMaster = ctx.Fm.FlowMaster |> Seq.map(fun fm -> fm.Nombre, fm) |> Map.ofSeq
+let dTipoOperacion = ctx.Fm.TipoOperacion 
+                     |> Seq.map(fun top -> top.Descripcion, top.IdTipoOperacion) 
+                     |> Seq.toList
+                     |> Map.ofList
 
+// Obtener los FlowDetail y mapearlos por (IdFlowMaster, Path)
+let dFlowDetail = ctx.Fm.FlowDetail 
+                  |> Seq.groupBy(fun fd -> (fd.IdFlowMaster, fd.Path))
+                  |> Seq.map(fun (k, v) -> k, v )
+                  |> Map.ofSeq
+
+let dTrades = ctx.Fm.Trade |> Seq.map(fun t -> t.IdFlowDetail, t) |> Map.ofSeq
+
+let getFlowDetail codigoFlowMaster path tipoOper  =
+    match dFlowDetail.TryFind (codigoFlowMaster, path) with
+    | Some details -> details |> Seq.toList |> List.filter(fun fd -> fd.IdTipoOperacion = dTipoOperacion.[tipoOper])
+    | None -> List.empty
 
 let buildSupplysDB diaGas idFlowDetail : Map<string, SupplyParams list> = 
     let compraGas = loadCompraGas diaGas idFlowDetail
-    let dEntidadLegal = ctx.Dbo.EntidadLegal |> Seq.map(fun e -> e.IdEntidadLegal, e) |> Map.ofSeq
-    let dContrato = loadContratos() |> List.map (fun c -> c.id, c) |> Map.ofList
     let dTradingHub = ctx.Platts.IndicePrecio |> Seq.map(fun th -> th.IdIndicePrecio, th.Nemonico) |> Map.ofSeq
-    let dPunto = ctx.Dbo.Punto |> Seq.map(fun p -> p.IdPunto, p.Codigo) |> Map.ofSeq
 
     compraGas|> List.map(fun cg ->
         
@@ -26,8 +43,6 @@ let buildSupplysDB diaGas idFlowDetail : Map<string, SupplyParams list> =
         let confirmado = None
         let transact = transactions.[cg.idTransaccion]
         let contrato = dContrato.[transact.idContrato]
-        let buyer =  dEntidadLegal.[contrato.idContraparte].Nombre |> Option.defaultValue "N/A"
-        let seller = dEntidadLegal.[contrato.idParte].Nombre |> Option.defaultValue "N/A"   
         let tradingHubNemo = dTradingHub.[transact.idIndicePrecio |> Option.defaultValue 0]
 
         let sp : SupplyParams =
@@ -37,8 +52,8 @@ let buildSupplysDB diaGas idFlowDetail : Map<string, SupplyParams list> =
                 tradingHub  = parseTradingHub tradingHubNemo
                 temporalidad= parseTemporalidad cg.temporalidad
                 deliveryPt  = dPunto.[cg.idPuntoEntrega]
-                seller      = seller
-                buyer       = buyer
+                seller      = dEntidadLegal.[contrato.idContraparte].Nombre
+                buyer       = dEntidadLegal.[contrato.idParte].Nombre
                 qEnergia    = cg.nominado * 1.0m<MMBTU>
                 index       = 1.0m * 0.m<USD/MMBTU> // Placeholder, replace with actual index retrieval                                        
                 adder       = 1.0m * 0.m<USD/MMBTU>
@@ -52,10 +67,25 @@ let buildSupplysDB diaGas idFlowDetail : Map<string, SupplyParams list> =
         |> Map.ofList
 
 
-   
+let buildTradesDB codigoFlowMaster path  : Map<string, TradeParams> =
+    let flowMaster = dFlowMaster.[codigoFlowMaster]
+    let tradeGas = getFlowDetail flowMaster.IdFlowMaster path "Trade"
+    tradeGas |> List.map(fun  fd ->
+        let trade = dTrades.[fd.IdFlowDetail]
+        let tp : TradeParams =
+                {
+                  side = if trade.Side = "Sell" then TradeSide.Sell else TradeSide.Buy
+                  buyer = dEntidadLegal.[trade.IdBuyer].Nombre 
+                  seller = dEntidadLegal.[trade.IdSeller].Nombre
+                  location = dPunto.[trade.IdPunto]
+                  adder   = (trade.Adder |> Option.defaultValue 0.0m) * 1.m<USD/MMBTU>
+                  contractRef = trade.Codigo
+                  meta = Map.empty
+                 }
+        trade.Codigo, tp
+        )
+        |> Map.ofList
 
-
-        
 let buildTransportsDB modo central : Map<string, TransportParams> = failwith "Not implemented"
 
 let buildConsumesDB modo central : Map<string, ConsumeParams> = failwith "Not implemented"
