@@ -144,6 +144,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
 
       qty = qty
       index = p.index
+      price = 1.m<USD/MMBTU>  // las ventas sleeve no tienen pric e fijo
       adder = p.adder
       contractRef = p.contractRef
     }

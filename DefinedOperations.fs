@@ -249,7 +249,6 @@ module Sell =
                   owner    = s.buyer
                   contract = s.contractRef }
           
-          
           let amount = s.qty * s.price
           let fee =
             { kind = CostKind.Sell
@@ -271,6 +270,20 @@ module Sell =
                                                   "buyer", box s.buyer
                                                   "adder", box s.adder
                                                   "contractRef", box s.contractRef   ] |> Map.ofList }
+
+    
+  let sellMany (xs: SellParams list) : Operation =
+      fun st0 ->
+        // aplico en orden; fallo al primer error
+        let folder st s =
+          st |> Result.bind (fun st' -> sell s st' |> Result.map (fun tr -> tr.state))
+
+        (Ok st0, xs) ||> List.fold folder
+        |> Result.map (fun stFinal ->
+            { state = stFinal
+              costs = [] // si querés acumularlos, ver variante 2b abajo
+              notes = [ "op", box "SellMany"
+                        "count", box xs.Length ] |> Map.ofList })
 
 
 // Operación de venta de gas a un supplier o cliente
@@ -299,7 +312,7 @@ module Trade =
 
 
 module Transport = 
-/// Operación de transporte de gas
+/// Operación de transporte de gasd
 
     let transport (p: TransportParams) : Operation =
       fun stIn ->

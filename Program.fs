@@ -33,9 +33,11 @@ let diaGas = DateOnly(2026, 1, 1)
 //trades.Values |>  Seq.iter (printfn "%A")
 
 
-let cd = buildConsumeDB diaGas 1 "Default"
-cd.Values|> Seq.iter (fun s -> printfn "%A\n" s)
+//let cd = buildConsumeDB diaGas 1 "Default"
+//cd.Values|> Seq.iter (fun s -> printfn "%A\n" s)
 
+//let sd = buildSellsDB diaGas 1 "Default"
+//sd.Values|> Seq.iter (fun s -> printfn "%A\n" s)
 
 ////escenario_Supply_Transport_Trade ()
 //// escenario_supply_Transport_Sleeve ()
@@ -75,11 +77,11 @@ cd.Values|> Seq.iter (fun s -> printfn "%A\n" s)
 
 
 
-//// let r = runFlowAndPersist excelPath config.modo config.central diaGas st0 
+// let r = runFlowAndPersist excelPath config.modo config.central diaGas st0 
 //let runKey = Guid.NewGuid()
 //let modo = "CUR"
 //let central = "EAX"
-//let gasDay = DateOnly(2025,12,19)
+//let gasDay = DateOnly(2026,1,1)
 
 //init "logs"
 
@@ -87,7 +89,7 @@ cd.Values|> Seq.iter (fun s -> printfn "%A\n" s)
 //    withRunContext runKey modo central gasDay (fun () ->
 //      logRunStarted()
 
-//      // Acá llamás tu función real
+//       Acá llamás tu función real
 //      match runFlowAndPersist excelPath modo central gasDay st0 with
 //      | Ok (runId, finalState, transitions) ->
 //          logRunOk (Some runId) transitions.Length
@@ -97,3 +99,29 @@ cd.Values|> Seq.iter (fun s -> printfn "%A\n" s)
 //          Error e
 //    )
 
+
+
+
+let runKey = Guid.NewGuid()
+let modo = "CUR"
+let central = "EAX"
+let gasDay = DateOnly(2026,1,1)
+
+init "logs"
+let flowMaster = "CUR EAX"
+let path = "Default"
+
+
+let result =
+    withRunContext runKey modo central gasDay (fun () ->
+      logRunStarted()
+
+      // Acá llamás tu función real
+      match runrFlowAndPersistDB  flowMaster path gasDay st0 with
+      | Ok (runId, finalState, transitions) ->
+          logRunOk (Some runId) transitions.Length
+          Ok runId
+      | Error e ->
+          logRunFailed e
+          Error e
+    )

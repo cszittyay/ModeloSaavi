@@ -69,7 +69,7 @@ let fromTransitions (ts: Transition list) : DailyBalance list =
        ) zero)
 
 
-
+let do2dt (dateOnly:DateOnly) = dateOnly.ToDateTime(TimeOnly.MinValue)
  
 
 
@@ -86,6 +86,7 @@ module FlowBuilderUtils =
         | Trade p         -> Trade.trade p
         | Sleeve p        -> Sleeve.sleeve p  
         | Consume p       -> Consume.consume p
+        | SellMany sp     -> Sell.sellMany sp
     
     let withStepMeta (step: FlowStep) (tr: Transition) =
       let fid = step.flowId
@@ -94,6 +95,7 @@ module FlowBuilderUtils =
         | Supply _      -> "supply"
         | SupplyMany _  -> "supplyMany"
         | Sell _        -> "sell"
+        | SellMany _    -> "sellMany"
         | Trade _       -> "trade"
         | Transport _   -> "transport"
         | Sleeve _      -> "sleeve"
@@ -160,6 +162,7 @@ module FlowBuilderUtils =
                 | Transport p     -> printfn $"Transport {p}"
                 | Sleeve p        -> printfn $"Sleeve {p}"
                 | Consume p       -> printfn $"Consume {p}"
+                | SellMany sp     -> printfn $"SellMany {sp}"
 
                 // 4) Ejecutar la operación sobre el estado actual.
                 //    Si falla: Error -> se corta el fold.

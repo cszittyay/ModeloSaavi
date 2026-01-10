@@ -195,12 +195,13 @@ type ConsumeParams =
 /// Bloques atómicos de la cadena física/comercial
 type Block =
   | Consume           of ConsumeParams
-  | Sell              of SellParams
-  | Supply            of SupplyParams
+   | Supply            of SupplyParams
   | SupplyMany        of SupplyParams list
   | Transport         of TransportParams
   | Trade             of TradeParams
   | Sleeve            of SleeveParams
+  | Sell              of SellParams
+  | SellMany          of SellParams list
 
 type PathRole =
   | Contributor

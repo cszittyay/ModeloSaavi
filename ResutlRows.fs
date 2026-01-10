@@ -47,6 +47,7 @@ type SleeveResultRow = {
   sleeveSide  : SleeveSide
 
   qty         : Energy
+  price       : EnergyPrice
   index       : int
   adder       : EnergyPrice
   contractRef : Contract

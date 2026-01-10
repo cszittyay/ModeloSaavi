@@ -151,6 +151,7 @@ module DetailRepo =
       row.Location   <- string r.location
       row.SleeveSide <- string r.sleeveSide
 
+      row.Price      <- decimal r.price
       row.QtyMmBtu   <- energyToDecimal r.qty
       row.IndexPrice <- decimal r.index
       row.Adder      <- decimal r.adder

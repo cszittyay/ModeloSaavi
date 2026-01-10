@@ -10,6 +10,7 @@ open Repository.DetailRepo
 open Repository.Tx
 open ResultRows
 open Helpers.FlowBuilderUtils
+open FlowBuilderDB
 
 
 /// Helpers de impresión (opcionales)
@@ -37,6 +38,7 @@ let st0 : State =
 // Los trading hubs
 module FlowRunRepo =
 
+  
   let insertAndGetRunId
       (conn   : IDbConnection)
       (tx     : IDbTransaction)
@@ -114,6 +116,50 @@ let runFlowAndPersist
 
               // 4.1) Insert header FlowRun -> RunId (IDENTITY)
               FlowRunRepo.insertAndGetRunId conn tx diaGas modo central
+              |> Result.bind (fun runId ->
+
+                  // 4.2) Proyección post-ejecución
+                  projectRows runId transitions
+                  |> Result.bind (fun rows ->
+
+                      // 4.3) Inserts detalle (SQLProvider) dentro de conn/tx
+                      persistAll conn tx runId rows
+                      |> Result.map (fun () ->
+                          // devolvemos runId + resultados en memoria (útil para logs/UI)
+                          (runId, finalState, transitions)
+                      )
+                  )
+              )
+          )
+      )
+  )
+
+
+
+
+let runrFlowAndPersistDB
+    (flowMaster : string)
+    (path   : string)
+    (diaGas    : DateOnly)
+    (initial   : State)
+    : Result<int * State * Transition list, DomainError> =
+
+  // 1) Leer Excel -> paths
+  let paths : Map<FlowId, FlowStep list> = getFlowStepsDB   flowMaster path diaGas 
+
+  // 2) Topología (Linear/Join) + PathRole
+  buildFlowDef paths
+  |> Result.bind (fun flowDef ->
+
+      // 3) Ejecutar Flow (puro) -> transitions
+      runFlow flowDef initial 0.0m<MMBTU> (+) runSteps
+      |> Result.bind (fun (finalState, transitions) ->
+
+          // 4) Persistir en 1 transacción
+          withTransaction  (fun conn tx ->
+
+              // 4.1) Insert header FlowRun -> RunId (IDENTITY)
+              FlowRunRepo.insertAndGetRunId conn tx diaGas flowMaster path
               |> Result.bind (fun runId ->
 
                   // 4.2) Proyección post-ejecución
