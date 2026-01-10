@@ -25,7 +25,7 @@ type Location = string
 type Contract = string
 type Pipeline = string
 type Formula  = string
-
+type IdVentaGas = int    // PK de la tabla VentasGas
 
 type DomainError =
   | QuantityNonPositive of where:string
@@ -155,7 +155,8 @@ type TradeParams =
 
 // es una operación de venta intercalada en el flujo
 type SellParams =
-  { location    : Location
+  { idVentaGas  : IdVentaGas
+    location    : Location
     gasDay      : GasDay
     seller      : Party
     buyer       : Party

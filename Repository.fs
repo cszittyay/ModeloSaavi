@@ -88,6 +88,7 @@ module DetailRepo =
     rows |> List.iter (fun r ->
       let row = ctx.Fm.FlowSellResult.Create()
       row.RunId   <- runId
+      row.IdVentaGas <- r.idVentaGas
       row.GasDay  <- r.gasDay.ToDateTime(TimeOnly.MinValue)
       row.Modo    <- r.modo
       row.Central <- r.central

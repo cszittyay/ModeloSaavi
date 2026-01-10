@@ -145,7 +145,6 @@ module Supply =
           Ok { state = stOut
                costs = cost
                notes = [ 
-                
                             
                          "op", box "supply"
                          "supplyParamsMany", box [sp]
@@ -283,6 +282,7 @@ module Sell =
             { state = stFinal
               costs = [] // si querés acumularlos, ver variante 2b abajo
               notes = [ "op", box "SellMany"
+                        "sellParamsMany", box xs
                         "count", box xs.Length ] |> Map.ofList })
 
 

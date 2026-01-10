@@ -4,6 +4,7 @@ open Tipos
 
 
 
+
 type TransportResultRow = {
   runId     : int
   gasDay    : DateOnly
@@ -111,6 +112,7 @@ type TradeResultRow = {
 
 type SellResultRow = {
   runId     : int
+  idVentaGas : IdVentaGas
   gasDay    : DateOnly
   modo      : string
   central   : string

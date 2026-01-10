@@ -170,6 +170,7 @@ let buildSells cliente diaGas  (sheet: SellSheet) : Map<string, SellParams> =
     |> Seq.map (fun row ->
         let sp: SellParams =
           {
+            idVentaGas  = 0 //row.IdVentaGas
             location    = row.Location
             gasDay      = DateOnly.FromDateTime(row.GasDay)
             seller      = row.Seller

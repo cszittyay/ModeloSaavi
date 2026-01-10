@@ -74,24 +74,53 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
     }
 
   // -------- Sell --------
-  let projectSell (t: Transition) : Result<SellResultRow, DomainError> =
-    getCommon t >>= fun (modo, central, path, order, refOpt) ->
-    Meta.require<SellParams> "sellParams" t.notes >>= fun p ->
-    Ok {
-      runId = runId
-      gasDay = t.state.gasDay
-      modo = modo; central = central; path = path
-      order = order
-      ref = refOpt
+  let projectSell (runId:int) (t: Transition) : Result<SellResultRow, DomainError> =
+        getCommon t >>= fun (modo, central, path, order, refOpt) ->
+        Meta.require<SellParams> "sellParams" t.notes >>= fun p ->
+        Ok {
+          idVentaGas = p.idVentaGas
+          runId = runId
+          gasDay = t.state.gasDay
+          modo = modo; central = central; path = path
+          order = order
+          ref = refOpt
 
-      location = p.location
-      seller = p.seller
-      buyer = p.buyer
-      qty = p.qty
-      price = p.price
-      adder = p.adder
-      contractRef = p.contractRef
-    }
+          location = p.location
+          seller = p.seller
+          buyer = p.buyer
+          qty = p.qty
+          price = p.price
+          adder = p.adder
+          contractRef = p.contractRef
+        }
+
+  let projectSellRows (runId:int) (t: Transition) : Result<SellResultRow list, DomainError> =
+      getCommon t
+      |> Result.bind (fun (modo, central, path, order, refOpt) ->
+          Meta.require<SellParams list> "sellParamsMany" t.notes
+          |> Result.map (fun sps ->
+              sps
+              |> List.mapi (fun i sp ->
+                  { 
+                  idVentaGas = sp.idVentaGas
+                  runId = runId
+                  path = path
+                  gasDay = t.state.gasDay
+                  modo = modo
+                  central = central
+                  order = order
+                  ref = refOpt
+
+                  location = sp.location
+                  seller = sp.seller
+                  buyer = sp.buyer
+                  qty = sp.qty
+                  price = sp.price
+                  adder = sp.adder
+                  contractRef = sp.contractRef})
+          )
+      )
+
 
   // -------- Transport --------
   let projectTransport (t: Transition) : Result<TransportResultRow, DomainError> =
@@ -189,7 +218,12 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
           projectTrade t <!> fun row -> { acc with trades = row :: acc.trades }
 
       | Some "sell" ->
-          projectSell t <!> fun row -> { acc with sells = row :: acc.sells }
+         projectSell runId t <!> fun row -> { acc with sells = row :: acc.sells }
+
+      | Some "sellMany" ->
+         projectSellRows runId t
+             |> Result.map (fun rows -> { acc with sells = rows @ acc.sells })
+
 
       | Some "transport" ->
           projectTransport t <!> fun row -> { acc with transports = row :: acc.transports }
