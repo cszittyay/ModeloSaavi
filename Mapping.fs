@@ -48,12 +48,18 @@ module Mappings =
 
 
   let transaccionJoinToDomain (r: TransaccionJoinRow) : Transaccion =
-      { id = TransaccionId r.Id_Transaccion
+      { id = r.Id_Transaccion
         tipo =
           match r.TipoTransaccionDescripcion with
           | Some d -> TipoTransaccion.ofDescripcion d
           | None -> TipoTransaccion.Otro (string r.Id_TipoTransaccion)
+        contratRef = r.ContractRef
         idContrato = ContratoId r.Id_Contrato
+        idBuyer = r.IdParte
+        idSeller = r.IdContraparte
+        buyer = r.Parte
+        seller = r.Contraparte
+        puntoEntrega = r.PuntoEntrega
         idPuntoEntrega = r.Id_PuntoEntrega
         idTipoServicio = r.Id_TipoServicio
         idIndicePrecio = r.Id_IndicePrecio
@@ -63,17 +69,12 @@ module Mappings =
         formulaPrecio = r.FormulaPrecio
         precioFijo = r.PrecioFijo
         volumen = r.Volumen
-        observaciones = r.Observaciones
-        vigenciaDesde = r.VigenciaDesde
-        vigenciaHasta = r.VigenciaHasta
-        idMonedaPrecioFijo = r.Id_MonedaPrecioFijo
-        idUnidadPrecioEnergiaAdder = r.Id_UnidadPrecioEnergiaAdder
-        idUnidadEnergiaVolumen = r.Id_UnidadEnergiaVolumen }
+        }
 
   let compraGasToDomain (r:CompraGasRow) : CompraGas =
     { id = CompraGasId r.Id_CompraGas
       diaGas = r.DiaGas
-      idTransaccion =  TransaccionId r.Id_Transaccion 
+      idTransaccion =  r.Id_Transaccion
       idFlowDetail = r.Id_FlowDetail
       buyBack = r.BuyBack
       idPuntoEntrega = r.Id_PuntoEntrega

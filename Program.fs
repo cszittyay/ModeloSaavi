@@ -1,7 +1,6 @@
 ﻿open System
 open Escenario
 open Tipos
-open FlowBuilderExcel
 open ProjectOperations
 open ErrorLog.Logging
 open ErrorLog.RunStages
@@ -110,14 +109,14 @@ let gasDay = DateOnly(2026,1,1)
 init "logs"
 let flowMaster = "CUR EAX"
 let path = "Default"
-
+let flowMasterId = 1
 
 let result =
-    withRunContext runKey modo central gasDay (fun () ->
+    withRunContext runKey flowMaster central gasDay (fun () ->
       logRunStarted()
 
       // Acá llamás tu función real
-      match runrFlowAndPersistDB  flowMaster path gasDay st0 with
+      match runrFlowAndPersistDB  flowMasterId path gasDay st0 with
       | Ok (runId, finalState, transitions) ->
           logRunOk (Some runId) transitions.Length
           Ok runId

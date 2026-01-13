@@ -32,66 +32,52 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
               |> List.mapi (fun i sp ->
                   { runId = runId
                     gasDay = t.state.gasDay
-                    modo = modo; 
-                    central = central; 
-                    path = path
-                    order = order; 
-                    ref = refOpt
-                    legNo = i + 1
-
-                    tcId = sp.tcId
-                    tradingHub = sp.tradingHub
+                    buyBack = false
+                    transactionId = sp.transactionId
+                    flowDetailId = 1 + i // placeholder
                     temporalidad = sp.temporalidad
-                    deliveryPt = sp.deliveryPt
                     seller = sp.seller
-                    buyer = sp.buyer
                     qty = (sp.qEnergia : Energy)
-                    index = sp.index
                     adder = sp.adder
-                    price = sp.price
-                    contractRef = sp.contractRef }))
+                    // TODO: Priece
+                    index =  0.0m<USD/MMBTU> // sp.index
+                    price = sp.price}))
       )
 
 
 
   // -------- Trade --------
   let projectTrade (t: Transition) : Result<TradeResultRow, DomainError> =
-    getCommon t >>= fun (modo, central, path, order, refOpt) ->
-    Meta.require<TradeParams> "tradeParams" t.notes >>= fun p ->
-    Ok {
-      runId = runId
-      gasDay = t.state.gasDay
-      modo = modo; central = central; path = path
-      order = order
-      ref = refOpt
-
-      side = p.side
-      seller = p.seller
-      buyer = p.buyer
-      location = p.location
-      adder = p.adder
-      contractRef = p.contractRef
-    }
+        getCommon t >>= fun (modo, central, path, order, refOpt) ->
+        Meta.require<TradeParams> "tradeParams" t.notes >>= fun p ->
+        Ok {
+          runId = runId
+          gasDay = t.state.gasDay
+          transactionId = p.transactionId
+          flowDetailId = 1 // placeholder
+          sellerId = p.sellerId
+          buyerId = p.buyerId
+          locationId = p.locationId
+          qty = t.state.energy
+          adder =  p.adder
+          price = p.price
+        }
 
   // -------- Sell --------
   let projectSell (runId:int) (t: Transition) : Result<SellResultRow, DomainError> =
         getCommon t >>= fun (modo, central, path, order, refOpt) ->
         Meta.require<SellParams> "sellParams" t.notes >>= fun p ->
         Ok {
-          idVentaGas = p.idVentaGas
+          ventaGasId = p.idVentaGas
           runId = runId
           gasDay = t.state.gasDay
-          modo = modo; central = central; path = path
-          order = order
-          ref = refOpt
-
-          location = p.location
-          seller = p.seller
-          buyer = p.buyer
+          flowDetailId = p.flowDetailId
           qty = p.qty
           price = p.price
           adder = p.adder
-          contractRef = p.contractRef
+          locationId = t.state.locationId
+          sellerId = p.sellerId
+          buyerId = p.buyerId
         }
 
   let projectSellRows (runId:int) (t: Transition) : Result<SellResultRow list, DomainError> =
@@ -102,22 +88,16 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
               sps
               |> List.mapi (fun i sp ->
                   { 
-                  idVentaGas = sp.idVentaGas
+                  ventaGasId = sp.idVentaGas
                   runId = runId
-                  path = path
+                  flowDetailId = sp.flowDetailId
                   gasDay = t.state.gasDay
-                  modo = modo
-                  central = central
-                  order = order
-                  ref = refOpt
-
-                  location = sp.location
-                  seller = sp.seller
-                  buyer = sp.buyer
+                  locationId = sp.locationId
+                  sellerId = sp.sellerId
+                  buyerId = sp.buyerId
                   qty = sp.qty
                   price = sp.price
-                  adder = sp.adder
-                  contractRef = sp.contractRef})
+                  adder = sp.adder})
           )
       )
 
@@ -132,25 +112,16 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
     Ok {
       runId = runId
       gasDay = t.state.gasDay
-      modo = modo; central = central; path = path
-      order = order
-      ref = refOpt
-
-      provider = p.provider
+      flowDetailId = p.flowDetailId
+      transactionId = p.transactionId
+      routeId = p.routeId
       pipeline = p.pipeline
-      entry = p.entry
-      exit = p.exit
-      shipper = p.shipper
       fuelMode = p.fuelMode
-      fuelPct = p.fuelPct
 
       qtyIn = qtyIn
       qtyOut = qtyOut
       fuelQty = fuelQty
 
-      usageRate = p.usageRate
-      reservation = p.reservation
-      acaRate = p.acaRate
     }
 
   // -------- Sleeve --------
@@ -161,21 +132,16 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
     Ok {
       runId = runId
       gasDay = t.state.gasDay
-      modo = modo; central = central; path = path
-      order = order
-      ref = refOpt
-
-      provider = p.provider
-      seller = p.seller
-      buyer = p.buyer
-      location = p.location
+      flowDetailId = p.flowDetailId
+      transactionId = p.transactionId
+      locationId = p.locationId
+      // TODO: index price from index ref
+      indexPrice = 0.0m<USD/MMBTU>  // placeholder
       sleeveSide = p.sleeveSide
 
       qty = qty
-      index = p.index
       price = 1.m<USD/MMBTU>  // las ventas sleeve no tienen pric e fijo
       adder = p.adder
-      contractRef = p.contractRef
     }
 
   // -------- Consume --------
@@ -194,14 +160,11 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
     Ok {
       runId = runId
       gasDay = t.state.gasDay
-      modo = modo; central = central; path = path
-      order = order
-      ref = refOpt
-
-      provider = p.provider
-      meterLocation = p.meterLocation
-      qtyConsume = qtyConsume
-      measured = (p.measured : Energy)
+      flowDetailId = p.flowDetailId
+      // TODO: ProviderId from some meta or param
+      providerId = 0 // placeholder
+      locationId = p.locationId
+      qtyAsigned = qtyConsume
     }
 
 

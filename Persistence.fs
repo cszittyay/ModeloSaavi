@@ -26,7 +26,13 @@ type ContratoRow =
 
 type TransaccionJoinRow =
   { Id_Transaccion: int
+    ContractRef : string 
     Id_IndicePrecio: int option
+    Parte : string 
+    Contraparte : string
+    IdParte : int
+    IdContraparte : int
+    PuntoEntrega : string
     Id_PuntoEntrega: int
     Id_TipoTransaccion: int
     TipoTransaccionDescripcion: string option
@@ -38,12 +44,7 @@ type TransaccionJoinRow =
     FormulaPrecio: string option
     PrecioFijo: decimal option
     Volumen: decimal
-    Observaciones: string option
-    VigenciaDesde: DateOnly
-    VigenciaHasta: DateOnly
-    Id_MonedaPrecioFijo: int option
-    Id_UnidadPrecioEnergiaAdder: int option
-    Id_UnidadEnergiaVolumen: int option }
+ }
 
 [<CLIMutable>]
 type TransaccionRow =

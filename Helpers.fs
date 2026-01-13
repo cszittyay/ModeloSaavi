@@ -104,8 +104,6 @@ module FlowBuilderUtils =
       let notes =
         tr.notes
         |> Map.add "op"     (box opName)
-        |> Map.add "modo"   (box fid.modo)
-        |> Map.add "central"(box fid.central)
         |> Map.add "path"   (box fid.path)
         |> Map.add "order"  (box step.order)
         |> Map.add "ref"    (box step.ref)

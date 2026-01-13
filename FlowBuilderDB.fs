@@ -9,96 +9,24 @@ open Helpers
 open DbContext
 open Gnx.Persistence.SQL_Data
 open Gnx.Domain
+open Gnx.Persistence
 
 
 // =====================================================================================
 // Caches (lazy) - evitamos pegarle a la DB al cargar el módulo y permitimos reuso.
 // =====================================================================================
+
+
 type flowId = int
 
-let private entidadLegalById =
-    lazy (ctx.Dbo.EntidadLegal |> Seq.map (fun e -> e.IdEntidadLegal, e) |> Map.ofSeq)
 
-let private puntoCodigoById =
-    lazy (ctx.Dbo.Punto |> Seq.map (fun p -> p.IdPunto, p.Codigo) |> Map.ofSeq)
-
-let  contratosById =
-    lazy (loadContratos() |> List.map (fun c -> c.id, c) |> Map.ofList)
-
-let private transaccionesById =
-    lazy (loadTransacciones() |> List.map (fun t -> t.id, t) |> Map.ofList)
-
-
-
-let private flowMasterByNombre =
-    lazy (ctx.Fm.FlowMaster |> Seq.map (fun fm -> fm.Nombre, fm) |> Map.ofSeq)
-
-let private flowMasterById =
-    lazy (ctx.Fm.FlowMaster |> Seq.map (fun fm -> fm.IdFlowMaster, fm) |> Map.ofSeq)
-
-
-let private tipoOperacionByDesc =
-    lazy (
-        ctx.Fm.TipoOperacion
-        |> Seq.map (fun top -> top.Descripcion, top.IdTipoOperacion)
-        |> Seq.toList
-        |> Map.ofList
-    )
-
-let private tipoOperacionById =
-    lazy (
-        ctx.Fm.TipoOperacion
-        |> Seq.map (fun top -> top.IdTipoOperacion, top.Descripcion)
-        |> Seq.toList
-        |> Map.ofList
-    )
-
-
-let private rutaById =
-    lazy (ctx.Dbo.Ruta |> Seq.map (fun r -> r.IdRuta, r) |> Map.ofSeq)
-
-// (IdFlowMaster, Path) -> seq FlowDetail
-let private flowDetailsByMasterPath =
-    lazy (
-        ctx.Fm.FlowDetail
-        |> Seq.groupBy (fun fd -> (fd.IdFlowMaster, fd.Path))
-        |> Seq.map (fun (k, v) -> k, v)
-        |> Map.ofSeq
-    )
-
-// Operaciones “master data” por IdFlowDetail (las transaccionales suelen requerir diaGas)
-let private tradeByFlowDetailId =
-    lazy (ctx.Fm.Trade |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq)
-
-// NOTE: estas tablas pueden o no existir en tu schema `Fm`. Si existen, descomentá.
-let private sleeveByFlowDetailId =
-    lazy (ctx.Fm.Sleeve |> Seq.map (fun s -> s.IdFlowDetail, s) |> Map.ofSeq)
-//
-let private transportByFlowDetailId =
-    lazy (ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq)
-//
-//let private consumeByFlowDetailId =
-//    lazy (ctx.Fm.Consume |> Seq.map (fun c -> c.IdFlowDetail, c) |> Map.ofSeq)
-//
-//let private sellByFlowDetailId =
-//    lazy (ctx.Fm. |> Seq.map (fun s -> s.IdFlowDetail, s) |> Map.ofSeq)
-
-let private tradingHubNemonicoById =
-    lazy (ctx.Platts.IndicePrecio |> Seq.map (fun th -> th.IdIndicePrecio, th.Nemonico) |> Map.ofSeq)
-
-
-let dEnt = entidadLegalById.Value
-let dPto = puntoCodigoById.Value
-let dCont = contratosById.Value
-let dTrans = transaccionesById.Value
-let dRuta = rutaById.Value
 
 // =====================================================================================
 // Helpers
 // =====================================================================================
 
-let private tryFindFlowMaster (codigoFM: string) (path: string) =
-    ctx.Fm.FlowMaster |> Seq.tryFind (fun fm -> fm.Nombre = codigoFM)
+let private tryFindFlowMaster flowMasterId =
+    ctx.Fm.FlowMaster |> Seq.tryFind (fun fm -> fm.IdFlowMaster = flowMasterId)
 
 let private getFlowDetails (idFlowMaster: int) (path: string) =
     match flowDetailsByMasterPath.Value.TryFind (idFlowMaster, path) with
@@ -133,19 +61,21 @@ let buildSupplysDB diaGas (idFlowMaster: int) path : Map<flowId, SupplyParams li
 
         let sp : SupplyParams =
                 { 
-                tcId        = contrato.codigo
                 gasDay      = diaGas
-                tradingHub  = parseTradingHub tradingHubNemo
-                temporalidad= parseTemporalidad cg.temporalidad
-                deliveryPt  = dPto.[cg.idPuntoEntrega]
-                seller      = dEnt.[contrato.idContraparte].Nombre
-                buyer       = dEnt.[contrato.idParte].Nombre
-                qEnergia    = cg.nominado * 1.0m<MMBTU>
-                index       = 1.0m * 0.m<USD/MMBTU> // Placeholder, replace with actual index retrieval                                        
-                adder       = 1.0m * 0.m<USD/MMBTU>
-                price       = (cg.precio |> Option.defaultValue 0.0m) * 1.m<USD/MMBTU> 
+                transactionId = transact.id
+                buyerId    = transact.idBuyer
+                sellerId   = transact.idSeller
+                buyer      = transact.buyer
+                seller     = transact.seller
+                temporalidad  = parseTemporalidad cg.temporalidad
+                deliveryPt = transact.puntoEntrega
+                deliveryPtId  = cg.idPuntoEntrega
+                qEnergia     = cg.nominado * 1.0m<MMBTU>
+                index        = (cg.idIndicePrecio |> Option.defaultValue 0) 
+                adder        = (cg.adder |> Option.defaultValue 0.0m) * 1.m<USD/MMBTU>
+                price        = (cg.precio |> Option.defaultValue 0.0m) * 1.m<USD/MMBTU>
                 contractRef = contrato.codigo
-                meta        = Map.empty }
+                meta         = Map.empty }
         flowDetail.IdFlowDetail, sp
         )
         |> List.groupBy fst 
@@ -159,14 +89,21 @@ let buildTradesDB idFlowMaster path  : Map<flowId , TradeParams> =
 
     tradeGas |> List.map(fun  fd ->
         let trade = tradeByFlowDetailId.Value.[fd.IdFlowDetail]
+        let transact = dTrans.[trade.IdTransaccion]
         let tp : TradeParams =
                 {
                   side = if trade.Side = "Sell" then TradeSide.Sell else TradeSide.Buy
-                  buyer = dEnt.[trade.IdBuyer].Nombre 
-                  seller = dEnt.[trade.IdSeller].Nombre
-                  location = dPto.[trade.IdPunto]
-                  adder   = (trade.Adder |> Option.defaultValue 0.0m) * 1.m<USD/MMBTU>
-                  contractRef = trade.Codigo
+                  transactionId = trade.IdTransaccion
+                  flowDetailId = fd.IdFlowDetail
+                  buyer      = transact.buyer
+                  buyerId    = transact.idBuyer
+                  sellerId   = transact.idSeller
+                  seller     = transact.seller
+                  adder      = (transact.adder |> Option.defaultValue 0.0m) * 1.0m<USD/MMBTU>
+                  // TODO: Precio
+                  price      = 0.0m<USD/MMBTU> // Placeholder, reemplazar con lógica de precio real
+                  locationId = transact.idPuntoEntrega
+                  location   = transact.puntoEntrega
                   meta = Map.empty
                  }
         fd.IdFlowDetail, tp
@@ -189,15 +126,19 @@ let buildSleevesDB idFlowMaster path : Map<flowId, SleeveParams> =
         match dSleeve.TryFind fd.IdFlowDetail with
         | None -> None
         | Some sl ->
+            let transact = dTrans.[sl.IdTransaccion]
             let sp : SleeveParams =
-                { provider    = dEnt.[sl.IdProvider].Nombre
-                  seller      = dEnt.[sl.IdSeller].Nombre
-                  buyer       = dEnt.[sl.IdBuyer].Nombre
-                  location    = dPto.[sl.IdPunto]
+                { provider    = transact.buyer
+                  transactionId = sl.IdTransaccion
+                  flowDetailId = fd.IdFlowDetail
+                  locationId  = transact.idPuntoEntrega
+                  seller      = transact.seller
+                  buyer       = transact.buyer
+                  location    = transact.puntoEntrega
                   sleeveSide  = if sl.Side = "Export" then SleeveSide.Export else SleeveSide.Import
-                  index       = sl.IdIndicePrecio
-                  adder       = (sl.Adder |> Option.defaultValue 0.0m) * 1.0m<USD/MMBTU>
-                  contractRef = sl.Codigo
+                  index       = transact.idIndicePrecio |> Option.defaultValue 0
+                  adder       = (transact.adder |> Option.defaultValue 0)  * 1.0m<USD/MMBTU>
+                  contractRef = transact.contratRef
                   meta        = Map.empty }
             Some (fd.IdFlowDetail, sp)
     )
@@ -218,7 +159,11 @@ let buildTransportsDB idFlowMaster path : Map<flowId, TransportParams> =
             let cto = dCont.[ContratoId ruta.IdContrato]
             let tp : TransportParams =
                 { provider    = dEnt.[cto.idContraparte].Nombre
+                  transactionId = tr.IdTransaccion
+                  flowDetailId = fd.IdFlowDetail
                   pipeline    = "Gasoducto"
+                  shipperId   = cto.idContraparte
+                  routeId     = ruta.IdRuta
                   entry       = dPto.[ruta.IdPuntoRecepcion]
                   exit        = dPto.[ruta.IdPuntoEntrega]
                   acaRate     = tr.AcaRate  * 1.0m<USD/MMBTU>
@@ -237,13 +182,17 @@ let buildTransportsDB idFlowMaster path : Map<flowId, TransportParams> =
 
 // En el caso de Consume, sólo debería haber uno por FlowMaster, independiente del path.
 let buildConsumeDB diaGas idFlowMaster path: Map<flowId, ConsumeParams> =
-   let fdConsumo = ctx.Fm.FlowDetail |> Seq.find (fun fd -> fd.IdFlowMaster = idFlowMaster && tipoOperacionByDesc.Value.[ "Consume"] = fd.IdTipoOperacion)
+   let fdConsumo = ctx.Fm.FlowDetail 
+                   |> Seq.find (fun fd -> fd.IdFlowMaster = idFlowMaster && tipoOperacionByDesc.Value.[ "Consume"] = fd.IdTipoOperacion)
+   
    let idPunto, consumo = loadConsumo diaGas fdConsumo.IdFlowDetail |> Seq.head
 
    let consumeParams : ConsumeParams =
-        { meterLocation = dPto.[idPunto]
+        { 
           gasDay   = diaGas
-          provider = "Internal"
+          flowDetailId = fdConsumo.IdFlowDetail
+          location   = dPto.[idPunto]
+          locationId = idPunto
           measured   =(consumo |> Option.defaultValue 0.0m) * 1.0m<MMBTU> // Placeholder, reemplazar con lógica de consumo real
         }
 
@@ -263,8 +212,12 @@ let buildSellsDB diaGas idFlowMaster path : Map<flowId, SellParams list> =
                 {   idVentaGas  = vr.IdVentaGas
                     location      = dPto.[vr.PuntoEntrega]
                     gasDay      = diaGas
+                    flowDetailId = vr.IdFlowDetail
                     seller      = dEnt.[vr.IdVendedor].Nombre
+                    sellerId    = vr.IdVendedor
+                    buyerId     = vr.IdComprador
                     buyer       = dEnt.[vr.IdComprador].Nombre
+                    locationId  = vr.PuntoEntrega
                     qty         = vr.CantidadMmBtu  * 1.0m<MMBTU>
                     price       = vr.PrecioUsd * 1.0m<USD/MMBTU>
                     adder       = 0.0m<USD/MMBTU>
@@ -279,11 +232,11 @@ let buildSellsDB diaGas idFlowMaster path : Map<flowId, SellParams list> =
 // FlowSteps (equivalente a buildFlowSteps / getFlowSteps de Excel)
 // =====================================================================================
 
-let buildFlowStepsDb (codigoFM:string) (path: string) (diaGas: DateOnly) : FlowStep list =
+let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnly) : FlowStep list =
     let fm =
-        match tryFindFlowMaster codigoFM path with
+        match tryFindFlowMaster flowMasterId  with
         | Some fm -> fm
-        | None -> failwithf "No se encontró FlowMaster para modo='%s' central='%s'" codigoFM path
+        | None -> failwithf "No se encontró FlowMaster para el Id='%d'" flowMasterId
 
 
     let supplies   = buildSupplysDB diaGas fm.IdFlowMaster path
@@ -301,7 +254,7 @@ let buildFlowStepsDb (codigoFM:string) (path: string) (diaGas: DateOnly) : FlowS
 
     flowDetails
     |> List.map (fun fd ->
-        let flowId = { modo = codigoFM; central = path; path = path }
+        let flowId = { flowMasterId = flowMasterId; path = path }
 
         let tipoDesc =
             tipoOperacionById.Value
@@ -340,15 +293,13 @@ let buildFlowStepsDb (codigoFM:string) (path: string) (diaGas: DateOnly) : FlowS
     )
 
 let getFlowStepsDB
-    (flowMaster      : string)
+    (flowMasterId      : FlowMasterId)
     (path   : string)
     (diaGas    : DateOnly)
     : Map<FlowId, FlowStep list> =
 
-    let fm =
-        match tryFindFlowMaster flowMaster path with
-        | Some fm -> fm
-        | None -> failwithf "No se encontró FlowMaster para modo='%s' central='%s'" flowMaster path
+    let fm = ctx.Fm.FlowMaster |> Seq.find (fun fm -> fm.IdFlowMaster = flowMasterId)
+        
 
     let paths =
         ctx.Fm.FlowDetail
@@ -359,8 +310,8 @@ let getFlowStepsDB
 
     paths
     |> List.map (fun path ->
-        let fid = { modo = flowMaster; central = path; path = path }
-        fid, buildFlowStepsDb flowMaster path diaGas)
+        let fid = { flowMasterId = flowMasterId; path = path }
+        fid, buildFlowStepsDb flowMasterId path diaGas)
     |> Map.ofList
 
 

@@ -2,6 +2,7 @@ module Repository
 open System.Data
 open Tipos
 open DbContext
+open Helpers
 
 module Tx =
 
@@ -37,6 +38,7 @@ module DetailRepo =
 
   // Helpers para mapear Energy (decimal<MMBTU>) a decimal
   let inline energyToDecimal (e: Energy) : decimal = decimal e
+  let inline priceToDecimal (p: EnergyPrice) : decimal = decimal p
 
   // ============ SUPPLY ============
   let addSupplyRows (runId:int) (rows: SupplyResultRow list) =
@@ -44,23 +46,13 @@ module DetailRepo =
       let row = ctx.Fm.FlowSupplyResult.Create()
       row.RunId   <- runId
       row.GasDay  <- r.gasDay.ToDateTime(TimeOnly.MinValue)
-      row.Modo    <- r.modo
-      row.Central <- r.central
-      row.Path    <- r.path
-      row.Order   <- r.order
-      row.Ref     <- r.ref
-      row.LegNo   <- r.legNo
-      row.TcId        <- r.tcId
-      row.TradingHub  <- string r.tradingHub
-      row.Temporalidad<- string r.temporalidad
-      row.DeliveryPt  <- string r.deliveryPt
-      row.Seller      <- r.seller
-      row.Buyer       <- r.buyer
-      row.QtyMmBtu    <- energyToDecimal r.qty
-      row.IndexPrice  <- decimal r.index
-      row.Adder       <- decimal r.adder
-      row.Price       <- decimal r.price
-      row.ContractRef <- r.contractRef
+      row.IdFlowDetail <- r.flowDetailId
+      row.IdTransaccion <- r.transactionId 
+      row.Temporalidad <- string r.temporalidad
+      row.BuyBack  <- r.buyBack
+      row.QtyMmBtu  <- energyToDecimal r.qty
+      row.IndexPrice <- Some (priceToDecimal r.index)
+      row.Adder     <- Some (priceToDecimal r.adder)
     )
 
   // ============ TRADE ============
@@ -68,19 +60,14 @@ module DetailRepo =
     rows |> List.iter (fun r ->
       let row =  ctx.Fm.FlowTradeResult.Create()
       row.RunId   <- runId
-      row.GasDay  <- r.gasDay.ToDateTime(TimeOnly.MinValue)
-      row.Modo    <- r.modo
-      row.Central <- r.central
-      row.Path    <- r.path
-      row.Order   <- r.order
-      row.Ref     <- r.ref
-
-      row.Side        <- string r.side
-      row.Seller      <- string r.seller
-      row.Buyer       <- string r.buyer
-      row.Location    <- string r.location
-      row.Adder       <- decimal r.adder
-      row.ContractRef <- string r.contractRef
+      row.GasDay  <- do2dt r.gasDay
+      row.IdFlowDetail <- r.flowDetailId
+      row.IdTransaccion <- r.transactionId
+      row.IdSeller      <- r.sellerId
+      row.IdBuyer       <- r.buyerId
+      row.IdLocation    <- r.locationId
+      row.QtyMmBtu      <- energyToDecimal r.qty
+      row.Price <-  priceToDecimal r.price
     )
 
   // ============ SELL ============
@@ -88,21 +75,15 @@ module DetailRepo =
     rows |> List.iter (fun r ->
       let row = ctx.Fm.FlowSellResult.Create()
       row.RunId   <- runId
-      row.IdVentaGas <- r.idVentaGas
-      row.GasDay  <- r.gasDay.ToDateTime(TimeOnly.MinValue)
-      row.Modo    <- r.modo
-      row.Central <- r.central
-      row.Path    <- r.path
-      row.Order   <- r.order
-      row.Ref     <- r.ref
-
-      row.Location    <- string r.location
-      row.Seller      <- string r.seller
-      row.Buyer       <- string r.buyer
-      row.QtyMmBtu    <- energyToDecimal r.qty
-      row.Price       <- decimal r.price
-      row.Adder       <- decimal r.adder
-      row.ContractRef <- string r.contractRef
+      row.GasDay  <- do2dt r.gasDay
+      row.IdFlowDetail <- r.flowDetailId
+      row.IdVentaGas <- r.ventaGasId
+      row.IdBuyer    <- r.buyerId
+      row.IdSeller  <- r.sellerId
+      row.QtyMmBtu  <- energyToDecimal r.qty
+      row.Price     <- priceToDecimal r.price
+      row.Adder <- priceToDecimal r.adder
+      
     )
 
   // ============ TRANSPORT ============
@@ -110,71 +91,42 @@ module DetailRepo =
     rows |> List.iter (fun r ->
       let row = ctx.Fm.FlowTransportResult.Create()
       row.RunId   <- runId
-      row.GasDay  <- r.gasDay.ToDateTime(TimeOnly.MinValue)
-      row.Modo    <- r.modo
-      row.Central <- r.central
-      row.Path    <- r.path
-      row.Order   <- r.order
-      row.Ref     <- r.ref
-
-      row.Provider <- string r.provider
+      row.GasDay  <- do2dt r.gasDay
+      row.IdFlowDetail <- r.flowDetailId
+      row.IdTransaccion <- r.transactionId
       row.Pipeline <- string r.pipeline
-      row.EntryLoc <- string r.entry
-      row.ExitLoc  <- string r.exit
-      row.Shipper  <- string r.shipper
-      row.FuelMode <- string r.fuelMode
-      row.FuelPct  <- r.fuelPct
+      row.IdRuta       <- r.routeId
+      row.FuelQtyMmBtu <- energyToDecimal r.fuelQty
+      row.QtyInMmBtu   <- energyToDecimal r.qtyIn
+      row.QtyOutMmBtu  <- energyToDecimal r.qtyOut
 
-      row.QtyInMmBtu    <- energyToDecimal r.qtyIn
-      row.QtyOutMmBtu   <- energyToDecimal r.qtyOut
-      row.FuelQtyMmBtu  <- energyToDecimal r.fuelQty
-
-      row.UsageRate   <- decimal r.usageRate
-      row.Reservation <- decimal r.reservation
-      row.AcaRate     <- decimal r.acaRate
     )
-
   // ============ SLEEVE ============
   let addSleeveRows (runId:int) (rows: SleeveResultRow list) =
     rows |> List.iter (fun r ->
       let row = ctx.Fm.FlowSleeveResult.Create()
       row.RunId   <- runId
       row.GasDay  <- r.gasDay.ToDateTime(TimeOnly.MinValue)
-      row.Modo    <- r.modo
-      row.Central <- r.central
-      row.Path    <- r.path
-      row.Order   <- r.order
-      row.Ref     <- r.ref
-
-      row.Provider   <- string r.provider
-      row.Seller     <- string r.seller
-      row.Buyer      <- string r.buyer
-      row.Location   <- string r.location
-      row.SleeveSide <- string r.sleeveSide
-
-      row.Price      <- decimal r.price
-      row.QtyMmBtu   <- energyToDecimal r.qty
-      row.IndexPrice <- decimal r.index
-      row.Adder      <- decimal r.adder
-      row.ContractRef<- string r.contractRef
+      row.IdFlowDetail <- r.flowDetailId
+      row.IdTransaccion <- r.transactionId
+      row.IdLocation    <- r.locationId
+      row.SleeveSide    <- string r.sleeveSide
+      row.QtyMmBtu      <- energyToDecimal r.qty
+      row.Price         <- priceToDecimal r.price   
+      row.IndexPrice    <- priceToDecimal r.indexPrice
     )
+
 
   // ============ CONSUME ============
   let addConsumeRows (runId:int) (rows: ConsumeResultRow list) =
     rows |> List.iter (fun r ->
       let row = ctx.Fm.FlowConsumeResult.Create()
       row.RunId   <- runId
-      row.GasDay  <- r.gasDay.ToDateTime(TimeOnly.MinValue)
-      row.Modo    <- r.modo
-      row.Central <- r.central
-      row.Path    <- r.path
-      row.Order   <- r.order
-      row.Ref     <- r.ref
-
-      row.Provider      <- string r.provider
-      row.MeterLocation <- string r.meterLocation
-      row.QtyConsumeMmBtu    <- energyToDecimal r.qtyConsume
-      row.MeasuredMmBtu      <- energyToDecimal r.measured
+      row.GasDay  <- do2dt r.gasDay
+      row.IdFlowDetail <- r.flowDetailId
+      row.AsignadoMmBtu <- energyToDecimal r.qtyAsigned
+      row.IdPunto  <- r.locationId
+      row.IdProvider <- r.providerId    
     )
 
   let persistAll

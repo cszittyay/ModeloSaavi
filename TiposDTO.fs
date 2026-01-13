@@ -4,6 +4,7 @@ namespace Gnx.Domain
 
 
 open System
+open Tipos
 
 /// IDs (strong types) to evitar mezclar PK/FK accidentalmente.
 [<Struct; >]
@@ -102,9 +103,15 @@ type Contrato =
     codigo: string }
 
 type Transaccion =
-  { id: TransaccionId
+  { id: int
+    contratRef : Contract
     tipo: TipoTransaccion
     idContrato: ContratoId
+    idBuyer : EntidadLegalId
+    idSeller : EntidadLegalId
+    buyer : Party
+    seller : Party
+    puntoEntrega: string
     idPuntoEntrega: int
     idTipoServicio: int
     idIndicePrecio: int option
@@ -113,18 +120,12 @@ type Transaccion =
     tarifaTransporte: decimal
     formulaPrecio: string option
     precioFijo: decimal option
-    volumen: decimal
-    observaciones: string option
-    vigenciaDesde: DateOnly
-    vigenciaHasta: DateOnly
-    idMonedaPrecioFijo: int option
-    idUnidadPrecioEnergiaAdder: int option
-    idUnidadEnergiaVolumen: int option }
+    volumen: decimal }
 
 type CompraGas =
   { id: CompraGasId
     diaGas: DateOnly
-    idTransaccion: TransaccionId 
+    idTransaccion: int 
     idFlowDetail: int
     buyBack: bool option
     idPuntoEntrega: int

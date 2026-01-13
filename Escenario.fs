@@ -4,14 +4,13 @@ open System
 open System.Data
 open Tipos              // State, Transition, DomainError, SupplierLeg, SupplyParams, CostKind, etc.
 open ProjectOperations
-open FlowBuilderExcel
 open DbContext
 open Repository.DetailRepo
 open Repository.Tx
 open ResultRows
 open Helpers.FlowBuilderUtils
 open FlowBuilderDB
-
+open Gnx.Persistence.SQL_Data
 
 /// Helpers de impresión (opcionales)
 let private printMoney (m: Money) = (decimal m).ToString("0.#####")
@@ -28,32 +27,33 @@ let buyer      = "EAVIII"  // Datos comunes del día y hub
 let st0 : State =
     {   energy = 0.0m<MMBTU>
         owner    = buyer
-        contract = "INIT"
+        ownerId  = 1001
+        transactionId =  0
         location = entryPt
+        locationId = 501
         gasDay   = gasDay
         meta     = Map.empty }
 
 
 
-// Los trading hubs
 module FlowRunRepo =
-
+  open Gnx.Persistence.SQL_Data
   
   let insertAndGetRunId
       (conn   : IDbConnection)
       (tx     : IDbTransaction)
       (gasDay : DateOnly)
-      (modo   : string)
+      (flowMasterId   : int)
       (central: string)
       : Result<int, DomainError> =
 
     try
       // Contexto ligado a la MISMA conexión y transacción
-
+      let fm = dFlowMaster.[flowMasterId]
       // Crear fila FlowRun
       let fr = ctx.Fm.FlowRun.Create()
       fr.GasDay  <- gasDay.ToDateTime(TimeOnly.MinValue)
-      fr.Modo    <- modo
+      fr.Modo    <- fm.Codigo
       fr.Central <- central
       // fr.CreatedAt lo setea el DEFAULT de SQL Server
 
@@ -91,61 +91,19 @@ let persistAll
   with ex ->
     Error (DomainError.Other ex.Message)
 
-let runFlowAndPersist
-    (pathExcel : string)
-    (modo      : string)
-    (central   : string)
-    (diaGas    : DateOnly)
-    (initial   : State)
-    : Result<int * State * Transition list, DomainError> =
-
-  // 1) Leer Excel -> paths
-  let paths : Map<FlowId, FlowStep list> =
-    getFlowSteps pathExcel modo central diaGas
-
-  // 2) Topología (Linear/Join) + PathRole
-  buildFlowDef paths
-  |> Result.bind (fun flowDef ->
-
-      // 3) Ejecutar Flow (puro) -> transitions
-      runFlow flowDef initial 0.0m<MMBTU> (+) runSteps
-      |> Result.bind (fun (finalState, transitions) ->
-
-          // 4) Persistir en 1 transacción
-          withTransaction  (fun conn tx ->
-
-              // 4.1) Insert header FlowRun -> RunId (IDENTITY)
-              FlowRunRepo.insertAndGetRunId conn tx diaGas modo central
-              |> Result.bind (fun runId ->
-
-                  // 4.2) Proyección post-ejecución
-                  projectRows runId transitions
-                  |> Result.bind (fun rows ->
-
-                      // 4.3) Inserts detalle (SQLProvider) dentro de conn/tx
-                      persistAll conn tx runId rows
-                      |> Result.map (fun () ->
-                          // devolvemos runId + resultados en memoria (útil para logs/UI)
-                          (runId, finalState, transitions)
-                      )
-                  )
-              )
-          )
-      )
-  )
 
 
 
 
 let runrFlowAndPersistDB
-    (flowMaster : string)
+    (flowMasterId : int)
     (path   : string)
     (diaGas    : DateOnly)
     (initial   : State)
     : Result<int * State * Transition list, DomainError> =
 
   // 1) Leer Excel -> paths
-  let paths : Map<FlowId, FlowStep list> = getFlowStepsDB   flowMaster path diaGas 
+  let paths : Map<FlowId, FlowStep list> = getFlowStepsDB   flowMasterId path diaGas 
 
   // 2) Topología (Linear/Join) + PathRole
   buildFlowDef paths
@@ -159,7 +117,7 @@ let runrFlowAndPersistDB
           withTransaction  (fun conn tx ->
 
               // 4.1) Insert header FlowRun -> RunId (IDENTITY)
-              FlowRunRepo.insertAndGetRunId conn tx diaGas flowMaster path
+              FlowRunRepo.insertAndGetRunId conn tx diaGas flowMasterId path
               |> Result.bind (fun runId ->
 
                   // 4.2) Proyección post-ejecución

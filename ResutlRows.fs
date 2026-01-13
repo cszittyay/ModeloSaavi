@@ -8,125 +8,80 @@ open Tipos
 type TransportResultRow = {
   runId     : int
   gasDay    : DateOnly
-  modo      : string
-  central   : string
-  path      : string
-  order     : int
-  ref       : string option
-
-  provider  : Party
+  flowDetailId : FlowDetailId
+  transactionId :TransactionId
   pipeline  : Pipeline
-  entry     : Location
-  exit      : Location
-  shipper   : Party
   fuelMode  : FuelMode
-  fuelPct   : decimal
-
+  routeId   : RouteId
   qtyIn     : Energy
   qtyOut    : Energy
   fuelQty   : Energy
-
-  usageRate   : EnergyPrice
-  reservation : EnergyPrice
-  acaRate     : EnergyPrice
 }
 
 
 type SleeveResultRow = {
   runId     : int
   gasDay    : DateOnly
-  modo      : string
-  central   : string
-  path      : string
-  order     : int
-  ref       : string option
-
-  provider    : Party
-  seller      : Party
-  buyer       : Party
-  location    : Location
+  flowDetailId : FlowDetailId
+  transactionId :TransactionId
+  locationId    : LocationId
   sleeveSide  : SleeveSide
 
   qty         : Energy
   price       : EnergyPrice
-  index       : int
+  indexPrice  : EnergyPrice
   adder       : EnergyPrice
-  contractRef : Contract
 }
 
 
 type ConsumeResultRow = {
   runId     : int
   gasDay    : DateOnly
-  modo      : string
-  central   : string
-  path      : string
-  order     : int
-  ref       : string option
-
-  provider      : Party
-  meterLocation : Location
-  qtyConsume    : Energy
-  measured      : Energy
+  flowDetailId : FlowDetailId
+  providerId   : EntidadLegalId
+  locationId   : LocationId
+  qtyAsigned    : Energy
 }
 
 type SupplyResultRow = {
   runId:int; 
   gasDay:DateOnly; 
-  modo:string; 
-  central:string; 
-  path:string; 
-  order:int; 
-  ref:string option
-  legNo:int
-  tcId:string; 
-  tradingHub:TradingHub; 
-  temporalidad:Temporalidad; 
-  deliveryPt:Location
+  flowDetailId : FlowDetailId
+  transactionId :TransactionId
+  temporalidad:Temporalidad
+  buyBack: bool
   seller:string; 
-  buyer:string; 
-  qty:Energy; 
-  index:EnergyPrice; 
-  adder:EnergyPrice; 
-  price:EnergyPrice
-  contractRef:string
+  qty   :Energy; 
+  index :EnergyPrice; 
+  adder :EnergyPrice; 
+  price :EnergyPrice
 }
 
 
 type TradeResultRow = {
   runId     : int
   gasDay    : DateOnly
-  modo      : string
-  central   : string
-  path      : string
-  order     : int
-  ref       : string option
-
-  side        : TradeSide
-  seller      : Party
-  buyer       : Party
-  location    : Location
+  flowDetailId : FlowDetailId
+  transactionId :int
+  sellerId     : EntidadLegalId
+  buyerId      : EntidadLegalId
+  locationId   : LocationId
+  qty         : Energy
   adder       : EnergyPrice
-  contractRef : Contract
+  price       : EnergyPrice
 }
 
 type SellResultRow = {
   runId     : int
-  idVentaGas : IdVentaGas
   gasDay    : DateOnly
-  modo      : string
-  central   : string
-  path      : string
-  order     : int
-  ref       : string option
-
-  location    : Location
-  seller      : Party
-  buyer       : Party
+  flowDetailId : FlowDetailId
+  ventaGasId  : VentaGasId
+  locationId    : LocationId
+  sellerId      : EntidadLegalId
+  buyerId       : EntidadLegalId
   qty         : Energy
   price       : EnergyPrice
   adder       : EnergyPrice
-  contractRef : Contract
 }
 
 

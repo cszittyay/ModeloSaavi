@@ -21,7 +21,6 @@
     <Compile Include="Kleisli.fs" />
     <Compile Include="ErrorLog.fs" />
     <Compile Include="FlowBuilderDB.fs" />
-    <Compile Include="FlowBuilderExcel.fs" />
     <Compile Include="Escenario.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

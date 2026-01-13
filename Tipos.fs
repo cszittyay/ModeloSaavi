@@ -50,24 +50,37 @@ type RateGas = EnergyPrice
 
 type GasDay = DateOnly
 
+type FlowMasterId = int
 
+type FlowDetailId = int
 
+type TransactionId = int
+
+type EntidadLegalId = int
+
+type LocationId = int
+
+type RouteId = int
+
+type VentaGasId = int
 
 
 type SupplyParams =
-  { tcId        : string
-    gasDay      : GasDay
-    tradingHub  : TradingHub
-    temporalidad: Temporalidad
+  { transactionId: TransactionId
+    buyerId    : EntidadLegalId
+    sellerId   : EntidadLegalId
+    buyer         : Party
+    seller        : Party
+    gasDay       : GasDay
+    temporalidad : Temporalidad
     deliveryPt  : Location
-    seller      : string
-    buyer       : string
-    qEnergia    : decimal<MMBTU>
-    index       : EnergyPrice
-    adder       : EnergyPrice
-    price       : EnergyPrice
-    contractRef : string
-    meta        : Map<string,obj> }
+    deliveryPtId : LocationId
+    qEnergia     : decimal<MMBTU>
+    index        : int 
+    adder        : EnergyPrice
+    price        : EnergyPrice
+    contractRef : Contract
+    meta         : Map<string,obj> }
 
 
 // =====================
@@ -90,9 +103,10 @@ type State = {
   gasDay   : DateOnly
   energy   : Energy
   owner    : Party
-  contract : Contract
+  ownerId  : EntidadLegalId
+  transactionId : TransactionId
   location : Location 
- 
+  locationId : LocationId
   meta     : Map<string,obj>
 }
 
@@ -126,11 +140,15 @@ type FuelMode = |RxBase | ExBase
 
 
 type TransportParams =
-  { provider    : Party
+  { transactionId : TransactionId
+    flowDetailId : FlowDetailId
+    provider    : Party
     pipeline    : Pipeline                  // Gasoducto
     entry       : Location
     exit        : Location
+    routeId     : RouteId
     shipper     : Party
+    shipperId   : EntidadLegalId
     fuelMode    : FuelMode  
     fuelPct     : decimal
     usageRate   : EnergyPrice       // $/MMBtu sobre salida
@@ -145,21 +163,30 @@ type TransportParams =
 // ========================================================
 type TradeParams =
   { side        : TradeSide
-    seller      : Party
-    buyer       : Party
-    location    : Location
-    adder       : EnergyPrice        // $/MMBtu (fee/adder)
-    contractRef : Contract
+    transactionId: TransactionId
+    flowDetailId : FlowDetailId
+    sellerId      : EntidadLegalId
+    seller        : Party
+    buyer         : Party
+    buyerId       : EntidadLegalId
+    locationId    : LocationId
+    location      : Location
+    adder       : EnergyPrice
+    price       : EnergyPrice
     meta        : Map<string,obj> }
 
 
 // es una operación de venta intercalada en el flujo
 type SellParams =
   { idVentaGas  : IdVentaGas
+    flowDetailId : FlowDetailId
     location    : Location
+    locationId  : LocationId
     gasDay      : GasDay
     seller      : Party
+    sellerId    : EntidadLegalId
     buyer       : Party
+    buyerId     : EntidadLegalId
     qty         : Energy
     price       : EnergyPrice
     adder       : EnergyPrice        // $/MMBtu (fee/adder)
@@ -168,9 +195,12 @@ type SellParams =
 
 type SleeveParams =
   { provider    : Party
+    transactionId : TransactionId
+    flowDetailId : FlowDetailId
     seller      : Party
     buyer       : Party
     location    : Location
+    locationId  : LocationId
     sleeveSide  : SleeveSide
     index       : int
     adder       : EnergyPrice
@@ -183,12 +213,11 @@ type SleeveParams =
 type ConsumeParams =
   { 
     gasDay      : GasDay
-    provider      : Party
-    meterLocation : Location
+    flowDetailId : FlowDetailId
+    location : Location
+    locationId    : LocationId
     measured      : decimal<MMBTU>
    }
-
-
 
 
 
@@ -210,8 +239,7 @@ type PathRole =
 
 
 type FlowId = {
-    modo   : string
-    central: string
+    flowMasterId : FlowMasterId  // es el identificador del flow master
     path   : string  // es un identificador de la ruta que define un flow
 }
 

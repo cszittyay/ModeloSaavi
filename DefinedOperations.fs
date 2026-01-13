@@ -36,7 +36,8 @@ module Domain =
 module Validate =
   type Err =
     | EmptyLegs
-    | BuyerMismatch of expected:Party * found:Party
+    // TODO: mostrar el nombre de la entiad
+    | BuyerMismatch of expected:EntidadLegalId * found:EntidadLegalId
     | GasDayMismatch
     | DeliveryPtMismatch
     | NonPositiveQty of Party
@@ -52,13 +53,13 @@ module Validate =
     match sps with
     | [] -> Error EmptyLegs
     | x::xs ->
-      let b = x.buyer
+      let b = x.buyerId
       let d = x.gasDay
-      let p = x.deliveryPt
-      let okBuyer    = xs |> List.forall (fun sp -> sp.buyer     = b)
+      let p = x.deliveryPtId
+      let okBuyer    = xs |> List.forall (fun sp -> sp.buyerId   = b)
       let okGasDay   = xs |> List.forall (fun sp -> sp.gasDay    = d)
-      let okDelivPt  = xs |> List.forall (fun sp -> sp.deliveryPt = p)
-      if not okBuyer   then Error (BuyerMismatch (b, xs |> List.tryPick (fun sp -> Some sp.buyer) |> Option.defaultValue "<desconocido>"))
+      let okDelivPt  = xs |> List.forall (fun sp -> sp.deliveryPtId = p)
+      if not okBuyer   then Error (BuyerMismatch (b, xs |> List.tryPick (fun sp -> Some sp.buyerId) |> Option.defaultValue 0))
       elif not okGasDay then Error GasDayMismatch
       elif not okDelivPt then Error DeliveryPtMismatch
       else Ok (b,d,p)
@@ -75,8 +76,8 @@ module Consume =
     let consume (p: ConsumeParams) : Operation =
       fun stIn ->
         // Validaciones de dominio
-        if stIn.location <> p.meterLocation then
-          Error (Other (sprintf "Consume: State@%s, esperado meterLocation=%s" stIn.location p.meterLocation))
+        if stIn.location <> p.location then
+          Error (Other (sprintf "Consume: State@%s, esperado location=%s" stIn.location p.location))
         elif p.measured < 0.0m<MMBTU> then
           Error (InvalidUnits (sprintf "Consume.consume: measured=%M < 0" (decimal p.measured)))
         else
@@ -93,7 +94,8 @@ module Consume =
                 qEnergia = outQ
                 rate = 0.0m<USD/MMBTU>
                 amount = 0.0m<USD>
-                provider = p.provider
+                // TODO: Provider consumo
+                provider = "S/D"
                 meta     =
                   [ "measured"   , box (round(decimal p.measured))
                     "outQ"       , box (round(decimal outQ))]
@@ -123,11 +125,12 @@ module Supply =
           let stOut =
             { stIn with
                 owner    = sp.buyer
-                contract = sp.contractRef
                 energy   = sp.qEnergia
-                location = sp.deliveryPt }
+                location = sp.deliveryPt
+            }
           // si hay un precio calculado por formula (price != 0) , se usa ese; si no, se usa index + adder
-          let price = if sp.price = 0.0m<USD/MMBTU> then sp.adder + sp.index else sp.price
+          // TODO: Calcular price desde indice + adder si price = 0
+          let price =  0.0m<USD/MMBTU> // if sp.price = 0.0m<USD/MMBTU> then sp.adder + sp.index else sp.price
           let amt = Domain.amount sp.qEnergia price
           let cost =
             [{ kind     = CostKind.Gas
@@ -136,7 +139,7 @@ module Supply =
                amount   = amt
                provider = sp.seller
                meta     = [ "seller", box sp.seller
-                            "tcId"  , box sp.tcId
+                            "contracRef"  , box sp.contractRef
                             "index" , box (decimal sp.index)
                             "adder" , box (decimal sp.adder)
                             "price" , box (decimal price)
@@ -164,13 +167,14 @@ module Supply =
           if totalQty <= 0.0m<MMBTU> then Error (QuantityNonPositive "SupplyMany: qty total <= 0")
           else
             // nuevo estado consolidando la compra multi-supplier
+            let sp0 = sps[0]
             let stOut =
               { stIn with
-                  owner    = buyer
-                  contract = "MULTI"
+                  owner    = sp0.buyer
                   energy   = totalQty
-                  location = deliveryPt
-                  gasDay   = gasDay }
+                  location = sp0.deliveryPt
+                  gasDay   = gasDay 
+              }
 
             // costos por cada leg (mantiene trazabilidad por seller/contract/tcId)
             let costs =
@@ -183,7 +187,8 @@ module Supply =
                     rate     = sp.price
                     amount   = amt
                     meta     = [ "cycle"     , box sp.temporalidad
-                                 "tradingHub", box sp.tradingHub
+                                 // TODO: agregar trading Hub
+                                 "tradingHub", "Trading HUB"// box sp0.
                                  "adder"    , box sp.adder ] |> Map.ofList })
 
             // precio promedio ponderado (opcional en notes)
@@ -208,7 +213,7 @@ module Sleeve =
       fun stIn ->
         if stIn.energy <= 0.0m<MMBTU> then Error (Other "Trade: qEnergia <= 0")
         else
-          let stOut = { stIn with owner = p.buyer; contract = p.contractRef }
+          let stOut = { stIn with owner = p.buyer }
           let amount = stIn.energy * p.adder
           let fee =
             { kind = CostKind.Sleeve
@@ -235,7 +240,7 @@ module Sleeve =
                                                   "contractRef", box p.contractRef   ] |> Map.ofList }
 
 
-
+/// En la venta no cambia el Owner del State, solo se reduce la qty disponible
 module Sell =
 
   let sell (s: SellParams) : Operation =
@@ -245,8 +250,7 @@ module Sell =
           let stOut =
               { stIn with
                   energy   = stIn.energy - s.qty
-                  owner    = s.buyer
-                  contract = s.contractRef }
+                   }
           
           let amount = s.qty * s.price
           let fee =
@@ -293,22 +297,24 @@ module Trade =
       fun stIn ->
         if stIn.energy <= 0.0m<MMBTU> then Error (Other "Trade: qEnergia <= 0")
         else
-          let stOut = { stIn with owner = p.buyer; contract = p.contractRef }
-          let amount = stIn.energy * p.adder
+          
+          let stOut = { stIn with owner = p.buyer; }
+          // TODO: calcular price desde indice + adder si price = 0
+          let amount = 0.m<USD> // tIn.energy * p.adder
           let fee =
             { kind= Fee
               provider = Party "S/D"
               qEnergia = stIn.energy
-              rate= p.adder
               amount = amount
+              // TODO: Precio de trade
+              rate = 0.0m<USD/MMBTU>
               meta= [ "seller", box p.seller ] |> Map.ofList }
           Ok { state=stOut; costs=[fee]; notes= [ "op", box "Trade"
                                                   "tradeParams", box p
                                                   "location", box p.location        
                                                   "seller", box p.seller
                                                   "buyer", box p.buyer
-                                                  "adder", box p.adder
-                                                  "contractRef", box p.contractRef   ] |> Map.ofList }
+                                                    ] |> Map.ofList }
 
 
 module Transport = 
@@ -393,7 +399,6 @@ module Transport =
             { stIn with
                 energy = qtyOut
                 location = p.exit
-                contract = if String.IsNullOrWhiteSpace stIn.contract then p.shipper else stIn.contract
                 meta     =
                   stIn.meta
                   |> Map.add "transport.entry"   (box p.entry)
