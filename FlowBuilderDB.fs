@@ -161,6 +161,7 @@ let buildTransportsDB idFlowMaster path : Map<flowId, TransportParams> =
                 { provider    = dEnt.[cto.idContraparte].Nombre
                   transactionId = tr.IdTransaccion
                   flowDetailId = fd.IdFlowDetail
+                  providerId  = cto.idParte
                   pipeline    = "Gasoducto"
                   shipperId   = cto.idContraparte
                   routeId     = ruta.IdRuta

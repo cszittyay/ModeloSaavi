@@ -66,6 +66,7 @@ module DetailRepo =
       row.IdSeller      <- r.sellerId
       row.IdBuyer       <- r.buyerId
       row.IdLocation    <- r.locationId
+      row.Adder         <- priceToDecimal r.adder
       row.QtyMmBtu      <- energyToDecimal r.qty
       row.Price <-  priceToDecimal r.price
     )
@@ -79,6 +80,7 @@ module DetailRepo =
       row.IdFlowDetail <- r.flowDetailId
       row.IdVentaGas <- r.ventaGasId
       row.IdBuyer    <- r.buyerId
+      row.IdLocation <- r.locationId
       row.IdSeller  <- r.sellerId
       row.QtyMmBtu  <- energyToDecimal r.qty
       row.Price     <- priceToDecimal r.price
@@ -93,6 +95,7 @@ module DetailRepo =
       row.RunId   <- runId
       row.GasDay  <- do2dt r.gasDay
       row.IdFlowDetail <- r.flowDetailId
+      row.IdProvider  <- r.providerId
       row.IdTransaccion <- r.transactionId
       row.Pipeline <- string r.pipeline
       row.IdRuta       <- r.routeId
@@ -110,6 +113,7 @@ module DetailRepo =
       row.IdFlowDetail <- r.flowDetailId
       row.IdTransaccion <- r.transactionId
       row.IdLocation    <- r.locationId
+      row.Adder         <- priceToDecimal r.adder
       row.SleeveSide    <- string r.sleeveSide
       row.QtyMmBtu      <- energyToDecimal r.qty
       row.Price         <- priceToDecimal r.price   

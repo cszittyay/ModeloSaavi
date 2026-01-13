@@ -143,6 +143,7 @@ type TransportParams =
   { transactionId : TransactionId
     flowDetailId : FlowDetailId
     provider    : Party
+    providerId  : EntidadLegalId
     pipeline    : Pipeline                  // Gasoducto
     entry       : Location
     exit        : Location
@@ -212,9 +213,9 @@ type SleeveParams =
 // ========================================================
 type ConsumeParams =
   { 
-    gasDay      : GasDay
-    flowDetailId : FlowDetailId
-    location : Location
+    gasDay        : GasDay
+    flowDetailId  : FlowDetailId
+    location      : Location
     locationId    : LocationId
     measured      : decimal<MMBTU>
    }

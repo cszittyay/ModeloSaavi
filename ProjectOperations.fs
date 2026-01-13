@@ -15,17 +15,17 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
   }
 
   let getCommon (t: Transition) =
-    Meta.require<string> "modo" t.notes >>= fun modo ->
-    Meta.require<string> "central" t.notes >>= fun central ->
-    Meta.require<string> "path" t.notes >>= fun path ->
-    Meta.require<int>    "order" t.notes >>= fun order ->
+    //Meta.require<string> "modo" t.notes >>= fun modo ->
+    //Meta.require<string> "central" t.notes >>= fun central ->
+    //Meta.require<string> "path" t.notes >>= fun path ->
+    //Meta.require<int>    "order" t.notes >>= fun order ->
     let refOpt = Meta.tryGet<string> "ref" t.notes
-    Ok (modo, central, path, order, refOpt)
+    Ok (refOpt)
 
   // -------- Supply --------
   let projectSupplyRows (runId:int) (t: Transition) : Result<SupplyResultRow list, DomainError> =
       getCommon t
-      |> Result.bind (fun (modo, central, path, order, refOpt) ->
+      |> Result.bind (fun (refOpt) ->
           Meta.require<SupplyParams list> "supplyParamsMany" t.notes
           |> Result.map (fun sps ->
               sps
@@ -48,7 +48,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
 
   // -------- Trade --------
   let projectTrade (t: Transition) : Result<TradeResultRow, DomainError> =
-        getCommon t >>= fun (modo, central, path, order, refOpt) ->
+        getCommon t >>= fun (refOpt) ->
         Meta.require<TradeParams> "tradeParams" t.notes >>= fun p ->
         Ok {
           runId = runId
@@ -65,7 +65,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
 
   // -------- Sell --------
   let projectSell (runId:int) (t: Transition) : Result<SellResultRow, DomainError> =
-        getCommon t >>= fun (modo, central, path, order, refOpt) ->
+        getCommon t >>= fun ( refOpt) ->
         Meta.require<SellParams> "sellParams" t.notes >>= fun p ->
         Ok {
           ventaGasId = p.idVentaGas
@@ -82,7 +82,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
 
   let projectSellRows (runId:int) (t: Transition) : Result<SellResultRow list, DomainError> =
       getCommon t
-      |> Result.bind (fun (modo, central, path, order, refOpt) ->
+      |> Result.bind (fun (refOpt) ->
           Meta.require<SellParams list> "sellParamsMany" t.notes
           |> Result.map (fun sps ->
               sps
@@ -104,7 +104,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
 
   // -------- Transport --------
   let projectTransport (t: Transition) : Result<TransportResultRow, DomainError> =
-    getCommon t >>= fun (modo, central, path, order, refOpt) ->
+    getCommon t >>= fun (refOpt) ->
     Meta.require<TransportParams> "transportParams" t.notes >>= fun p ->
     Meta.require<Energy> "qtyIn"   t.notes >>= fun qtyIn ->
     Meta.require<Energy> "qtyOut"  t.notes >>= fun qtyOut ->
@@ -113,6 +113,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
       runId = runId
       gasDay = t.state.gasDay
       flowDetailId = p.flowDetailId
+      providerId = p.providerId
       transactionId = p.transactionId
       routeId = p.routeId
       pipeline = p.pipeline
@@ -126,7 +127,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
 
   // -------- Sleeve --------
   let projectSleeve (t: Transition) : Result<SleeveResultRow, DomainError> =
-    getCommon t >>= fun (modo, central, path, order, refOpt) ->
+    getCommon t >>= fun (refOpt) ->
     Meta.require<SleeveParams> "sleeveParams" t.notes >>= fun p ->
     Meta.require<Energy> "qty" t.notes >>= fun qty ->
     Ok {
@@ -146,23 +147,16 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
 
   // -------- Consume --------
   let projectConsume (t: Transition) : Result<ConsumeResultRow, DomainError> =
-    getCommon t >>= fun (modo, central, path, order, refOpt) ->
+    getCommon t >>= fun (refOpt) ->
     Meta.require<ConsumeParams> "consumeParams" t.notes >>= fun p ->
     Meta.require<Energy> "qtyConsume" t.notes >>= fun qtyConsume ->
-
-    let imbalance =
-      Meta.tryGet<Energy> "imbalance" t.notes
-      |> Option.defaultValue 0.0m<MMBTU>
-
-    let penaltyAmount =
-      Meta.tryGet<Money> "penaltyAmount" t.notes
 
     Ok {
       runId = runId
       gasDay = t.state.gasDay
       flowDetailId = p.flowDetailId
       // TODO: ProviderId from some meta or param
-      providerId = 0 // placeholder
+      providerId = t.state.ownerId // placeholder
       locationId = p.locationId
       qtyAsigned = qtyConsume
     }

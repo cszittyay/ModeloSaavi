@@ -101,9 +101,6 @@ module Consume =
                     "outQ"       , box (round(decimal outQ))]
                   |> Map.ofList
               }
-      
-
-          // El consumo deja qty = 0 en el estado
 
           // Notas para trazabilidad
             let notes =
@@ -298,7 +295,7 @@ module Trade =
         if stIn.energy <= 0.0m<MMBTU> then Error (Other "Trade: qEnergia <= 0")
         else
           
-          let stOut = { stIn with owner = p.buyer; }
+          let stOut = { stIn with owner = p.buyer; ownerId = p.buyerId }
           // TODO: calcular price desde indice + adder si price = 0
           let amount = 0.m<USD> // tIn.energy * p.adder
           let fee =
