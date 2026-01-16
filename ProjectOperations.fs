@@ -32,10 +32,10 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
               |> List.mapi (fun i sp ->
                   { runId = runId
                     gasDay = t.state.gasDay
-                    buyBack = false
                     transactionId = sp.transactionId
                     flowDetailId = 1 + i // placeholder
                     temporalidad = sp.temporalidad
+                    buyBack = sp.qEnergia < 0.0m<MMBTU>    
                     seller = sp.seller
                     qty = (sp.qEnergia : Energy)
                     adder = sp.adder
@@ -72,6 +72,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
           runId = runId
           gasDay = t.state.gasDay
           flowDetailId = p.flowDetailId
+          transactionId = p.transactionId
           qty = p.qty
           price = p.price
           adder = p.adder
@@ -91,6 +92,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
                   ventaGasId = sp.idVentaGas
                   runId = runId
                   flowDetailId = sp.flowDetailId
+                  transactionId = sp.transactionId
                   gasDay = t.state.gasDay
                   locationId = sp.locationId
                   sellerId = sp.sellerId

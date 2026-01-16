@@ -13,7 +13,7 @@ type TransportResultRow = {
   providerId   : EntidadLegalId
   pipeline  : Pipeline
   fuelMode  : FuelMode
-  routeId   : RouteId
+  routeId   : RutaId
   qtyIn     : Energy
   qtyOut    : Energy
   fuelQty   : Energy
@@ -76,6 +76,7 @@ type SellResultRow = {
   runId     : int
   gasDay    : DateOnly
   flowDetailId : FlowDetailId
+  transactionId :TransactionId
   ventaGasId  : VentaGasId
   locationId    : LocationId
   sellerId      : EntidadLegalId

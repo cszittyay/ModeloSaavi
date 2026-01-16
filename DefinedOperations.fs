@@ -339,17 +339,18 @@ module Transport =
           let qtyOut : Energy = qtyIn - fuel
 
           // Líneas de costo: USAGE y RESERVATION
-          let usageAmount : Money = qtyOut * p.usageRate 
+          let usageAmount : Money = qtyOut * p.usageRate
 
           // Reservation: registramos como “fijo” (basis=reservation_fixed).
           // Para materializar a USD respetando unidades, multiplicamos por 1<MMBTU>.
-          let reservationAmount : Money = 1.0m<MMBTU> * p.reservation
+          let reservationAmount : Money = 1.0m<USD/MMBTU> * p.CMD
 
           let costUsage : ItemCost =
             { kind     = CostKind.Transport
               provider = p.provider
               qEnergia = qtyOut
-              rate     = p.usageRate + p.acaRate
+              //TODO: incluir acaRate en el rate?
+              rate     = 0.m<USD/MMBTU>   // p.usageRate + p.acaRate
               amount   = usageAmount
               meta     =
                 [ "component",  box "usage"
@@ -363,19 +364,20 @@ module Transport =
             { provider = p.provider
               kind     = CostKind.Transport
               qEnergia = 1.0m<MMBTU>            // basis sintético para obtener USD
-              rate     = p.reservation
+              rate     = p.usageRate
               amount   = reservationAmount
               meta     =
                 [ "component",  box "reservation"
                   "basis",      box "reservation_fixed"
                   "shipper",    box p.shipper
-                  "ACA",        box p.acaRate
+                  // TODO: incluir acaRate en el rate?
+                  "ACA",        0.0m<USD> // box p.acaRate
                   "entry",      box p.entry
                   "exit",       box p.exit ]
                 |> Map.ofList }
 
           let costs =
-            if p.reservation > 0.0m<USD/MMBTU> then [ costUsage; costReservation ]
+            if p.CMD > 0.0m<MMBTU> then [ costUsage; costReservation ]
             else [ costUsage ]
 
           let notes =
@@ -386,7 +388,7 @@ module Transport =
               "fuelQty",    box (Math.Round(decimal fuel, 2))
               "qtyOut",     box (Math.Round(decimal qtyOut,2))
               "usageRate",   box (Math.Round(decimal p.usageRate, 3))
-              "reservation", box (decimal p.reservation)
+              "reservation", box (decimal p.CMD)
               "shipper",     box p.shipper
               "entry",       box p.entry
               "exit",        box p.exit ]
@@ -403,7 +405,7 @@ module Transport =
                   |> Map.add "transport.shipper" (box p.shipper)
                   |> Map.add "transport.fuelPct" (box p.fuelPct)
                   |> Map.add "transport.usage"   (box (decimal p.usageRate))
-                  |> Map.add "transport.resv"    (box (decimal p.reservation)) }
+                  |> Map.add "transport.resv"    (box (decimal p.CMD)) }
 
           Ok { state = stOut; costs = costs; notes = notes }
 

@@ -35,9 +35,9 @@ module SQL_Data =
     |> Seq.toList
 
   /// Ejemplo: transacciones + tipo (join) -> Domain
-  let loadTransacciones () =
+  let loadTransaccionesGas () =
     query {
-      for t in ctx.Dbo.Transaccion do
+      for t in ctx.Dbo.TransaccionGas do
       join tt in ctx.Dbo.TipoTransaccion on (t.IdTipoTransaccion = tt.IdTipoTransaccion)
       join c in ctx.Dbo.Contrato on (t.IdContrato = c.IdContrato)
       join el in ctx.Dbo.EntidadLegal on (c.IdContraparte = el.IdEntidadLegal)
@@ -45,14 +45,13 @@ module SQL_Data =
       join elp in ctx.Dbo.EntidadLegal on (c.IdParte = elp.IdEntidadLegal)
       select
         { 
-            TransaccionJoinRow.Id_Transaccion = t.IdTransaccion
+            TransaccionGasJoinRow.Id_TransaccionGas = t.IdTransaccionGas
             Parte = elp.Nombre
             Contraparte = el.Nombre
             ContractRef = c.Codigo
             IdParte = c.IdParte
             IdContraparte = c.IdContraparte
             PuntoEntrega = p.Codigo
-
             Id_IndicePrecio = t.IdIndicePrecio
             Id_PuntoEntrega = t.IdPuntoEntrega
             Id_TipoTransaccion = t.IdTipoTransaccion
@@ -65,13 +64,44 @@ module SQL_Data =
             FormulaPrecio = t.FormulaPrecio
             PrecioFijo = t.PrecioFijo
             Volumen = t.Volumen
-    
+       }
+    }
+    |> Seq.map Mappings.transaccionGasJoinToDomain
+    |> Seq.toList
+
+  let loadTransaccionesTransporte () =
+    query {
+      for t in ctx.Dbo.TransaccionTransporte do
+      join c in ctx.Dbo.Contrato on (t.IdContrato = c.IdContrato)
+      join el in ctx.Dbo.EntidadLegal on (c.IdParte = el.IdEntidadLegal)
+      join elcp in ctx.Dbo.EntidadLegal on (c.IdContraparte = elcp.IdEntidadLegal)
+      join r in ctx.Dbo.Ruta on (t.IdRuta = r.IdRuta)
+      join pr in ctx.Dbo.Punto on (r.IdPuntoRecepcion = pr.IdPunto)
+      join pe in ctx.Dbo.Punto on (r.IdPuntoEntrega = pe.IdPunto)
+      join elp in ctx.Dbo.EntidadLegal on (c.IdParte = elp.IdEntidadLegal)
+      select
+        { 
+            TransaccionTransporteJoinRow.Id_TransaccionTransporte = t.IdTransaccionTransporte
+            Contraparte = elcp.Nombre
+            Parte = el.Nombre
+            ContractRef = c.Codigo
+            Id_Parte = c.IdParte
+            Id_Contrato = c.IdContrato
+            Id_Contraparte = c.IdContraparte
+            PuntoEntrega = pe.Codigo
+            PuntoRecepcion = pr.Codigo   
+            Id_PuntoEntrega = r.IdPuntoEntrega
+            Id_PuntoRecepcion = r.IdPuntoRecepcion
+            FuelMode = t.FuelMode
+            Id_Ruta = r.IdRuta
+            Fuel = r.Fuel
+            CMD = t.Cmd
+            UsageRate = t.CargoUso
        }
 
     }
-    |> Seq.map Mappings.transaccionJoinToDomain
+    |> Seq.map Mappings.transaccionTransporteJoinToDomain
     |> Seq.toList
-
 
   let loadCompraGas (diaGas:DateOnly) idFlowDetail =
      let dia = diaGas.ToDateTime(TimeOnly.MinValue)
@@ -82,7 +112,7 @@ module SQL_Data =
             { 
                 CompraGasRow.Id_CompraGas = cg.IdCompraGas
                 DiaGas = diaGas
-                Id_Transaccion = cg.IdTransaccion
+                Id_Transaccion = cg.IdTransaccionGas
                 Id_FlowDetail = cg.IdFlowDetail
                 BuyBack = cg.BuyBack
                 Id_PuntoEntrega = cg.IdPuntoEntrega
@@ -124,10 +154,11 @@ module SQL_Data =
     lazy (loadContratos() |> List.map (fun c -> c.id, c) |> Map.ofList)
 
 
-  let transaccionesById =
-        lazy (loadTransacciones() |> List.map (fun t -> t.id, t) |> Map.ofList)
+  let transaccionesGasById =
+        lazy (loadTransaccionesGas() |> List.map (fun t -> t.id, t) |> Map.ofList)
 
-
+  let transaccionesTransporteById =
+        lazy (loadTransaccionesTransporte() |> List.map (fun t -> t.id, t) |> Map.ofList)
 
   let flowMasterByNombre =
         lazy (ctx.Fm.FlowMaster |> Seq.map (fun fm -> fm.Nombre, fm) |> Map.ofSeq)
@@ -187,5 +218,7 @@ module SQL_Data =
   let dEnt = entidadLegalById.Value
   let dPto = puntoCodigoById.Value
   let dCont = contratosById.Value
-  let dTrans = transaccionesById.Value
+  let dTransGas = transaccionesGasById.Value
+  let dTransTte = transaccionesTransporteById.Value
+
   let dRuta = rutaById.Value

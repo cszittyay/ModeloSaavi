@@ -60,9 +60,11 @@ type EntidadLegalId = int
 
 type LocationId = int
 
-type RouteId = int
+type RutaId = int
 
 type VentaGasId = int
+
+type ContratoId = int   
 
 
 type SupplyParams =
@@ -147,14 +149,13 @@ type TransportParams =
     pipeline    : Pipeline                  // Gasoducto
     entry       : Location
     exit        : Location
-    routeId     : RouteId
+    routeId     : RutaId
     shipper     : Party
     shipperId   : EntidadLegalId
     fuelMode    : FuelMode  
     fuelPct     : decimal
-    usageRate   : EnergyPrice       // $/MMBtu sobre salida
-    reservation : EnergyPrice       // monto fijo (ej. diario o mensual), fuera del qEnergia
-    acaRate     : EnergyPrice       // $/MMBtu es un Adder que se cobra en USA
+    CMD         : Energy
+    usageRate   : EnergyPrice
     meta        : Map<string,obj>
   }
 
@@ -181,6 +182,7 @@ type TradeParams =
 type SellParams =
   { idVentaGas  : IdVentaGas
     flowDetailId : FlowDetailId
+    transactionId : TransactionId
     location    : Location
     locationId  : LocationId
     gasDay      : GasDay

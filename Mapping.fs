@@ -4,11 +4,13 @@ namespace Gnx.Persistence
 
 open System
 open Gnx.Domain
+open Tipos
 
 module Mappings =
+  
 
   let contratoToDomain (r:ContratoRow) : Contrato =
-    { id = ContratoId r.Id_Contrato
+    { id = r.Id_Contrato
       tipo =
         match r.NemonicoTipoContrato with
         | Some nem -> TipoContrato.ofNemonico nem
@@ -29,8 +31,7 @@ module Mappings =
       codigo = r.Codigo }
 
   let contratoToRow (c:Contrato) : ContratoRow =
-    { Id_Contrato =
-        let (ContratoId v) = c.id in v
+    { Id_Contrato = c.id
       Id_TipoContrato = 0uy // si persistís por id, resolvelo desde catálogo
       NemonicoTipoContrato = Some (TipoContrato.toNemonico c.tipo)
       Id_Parte = c.idParte
@@ -47,29 +48,42 @@ module Mappings =
 
 
 
-  let transaccionJoinToDomain (r: TransaccionJoinRow) : Transaccion =
-      { id = r.Id_Transaccion
+  let transaccionGasJoinToDomain (r: TransaccionGasJoinRow) : TransaccionGas =
+      { id = r.Id_TransaccionGas
         tipo =
           match r.TipoTransaccionDescripcion with
           | Some d -> TipoTransaccion.ofDescripcion d
           | None -> TipoTransaccion.Otro (string r.Id_TipoTransaccion)
         contratRef = r.ContractRef
-        idContrato = ContratoId r.Id_Contrato
+        idContrato = r.Id_Contrato
         idBuyer = r.IdParte
         idSeller = r.IdContraparte
         buyer = r.Parte
         seller = r.Contraparte
         puntoEntrega = r.PuntoEntrega
         idPuntoEntrega = r.Id_PuntoEntrega
-        idTipoServicio = r.Id_TipoServicio
-        idIndicePrecio = r.Id_IndicePrecio
         adder = r.Adder
-        fuel = r.Fuel
-        tarifaTransporte = r.TarifaTransporte
-        formulaPrecio = r.FormulaPrecio
-        precioFijo = r.PrecioFijo
-        volumen = r.Volumen
         }
+
+  let transaccionTransporteJoinToDomain (r: TransaccionTransporteJoinRow) : TransaccionTransporte =
+      { id = r.Id_TransaccionTransporte
+        contratRef = r.ContractRef
+        idContrato = r.Id_Contrato
+        idBuyer = r.Id_Parte
+        idSeller = r.Id_Contraparte
+        buyer = r.Parte
+        seller = r.Contraparte
+        puntoEntrega = r.PuntoEntrega
+        puntoRecepcion = r.PuntoRecepcion
+        idPuntoEntrega = r.Id_PuntoEntrega
+        idPuntoRecepcion = r.Id_PuntoRecepcion
+        fuelMode = r.FuelMode
+        idRuta = r.Id_Ruta
+        cmd = r.CMD* 1.0m<MMBTU>
+        usageRate = r.UsageRate * 1.0m<USD/MMBTU>
+        fuel = r.Fuel
+        }
+
 
   let compraGasToDomain (r:CompraGasRow) : CompraGas =
     { id = CompraGasId r.Id_CompraGas

@@ -6,9 +6,6 @@ namespace Gnx.Domain
 open System
 open Tipos
 
-/// IDs (strong types) to evitar mezclar PK/FK accidentalmente.
-[<Struct; >]
-type ContratoId = ContratoId of int
 
 [<Struct>]
 type TransaccionId = TransaccionId of int
@@ -16,11 +13,8 @@ type TransaccionId = TransaccionId of int
 [<Struct; NoEquality; NoComparison>]
 type CompraGasId = CompraGasId of int
 
-[<Struct; NoEquality; NoComparison>]
-type RutaId = RutaId of int
 
-[<Struct; NoEquality; NoComparison>]
-type PuntoId = PuntoId of int
+
 
 [<Struct; NoEquality; NoComparison>]
 type PlantaId = PlantaId of int
@@ -102,7 +96,7 @@ type Contrato =
     observaciones: string option
     codigo: string }
 
-type Transaccion =
+type TransaccionGas =
   { id: int
     contratRef : Contract
     tipo: TipoTransaccion
@@ -113,14 +107,28 @@ type Transaccion =
     seller : Party
     puntoEntrega: string
     idPuntoEntrega: int
-    idTipoServicio: int
-    idIndicePrecio: int option
-    adder: decimal option
+    adder : decimal option
+
+    }
+
+type TransaccionTransporte =
+  { id: int
+    idContrato: ContratoId
+    contratRef : Contract
+    idBuyer : EntidadLegalId
+    idSeller : EntidadLegalId
+    buyer : Party
+    seller : Party
+    idRuta : RutaId
+    puntoEntrega: string
+    puntoRecepcion: string
+    idPuntoEntrega: int
+    idPuntoRecepcion: int
+    cmd : decimal <MMBTU>
+    usageRate  : decimal<USD/MMBTU>
+    fuelMode : string
     fuel: decimal
-    tarifaTransporte: decimal
-    formulaPrecio: string option
-    precioFijo: decimal option
-    volumen: decimal }
+  }
 
 type CompraGas =
   { id: CompraGasId
@@ -172,8 +180,7 @@ module Db =
   [<Struct; NoEquality; NoComparison>]
   type PuntoId = PuntoId of int
 
-  [<Struct; NoEquality; NoComparison>]
-  type RutaId = RutaId of int
+
 
   [<Struct; NoEquality; NoComparison>]
   type TipoCompraSpotId = TipoCompraSpotId of int
@@ -284,7 +291,7 @@ module Db =
     /// SQL: [Id_Moneda] [int] NOT NULL
     idMoneda: int
     /// SQL: [Observaciones] [varchar] (300) NULL
-    observaciones: string option
+    observaciones: string 
     /// SQL: [Codigo] [nvarchar] (30) NOT NULL
     codigo: string
   }

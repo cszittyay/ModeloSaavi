@@ -55,9 +55,8 @@ let buildSupplysDB diaGas (idFlowMaster: int) path : Map<flowId, SupplyParams li
         
         let nominado = cg.nominado 
         let confirmado = None
-        let transact = dTrans.[cg.idTransaccion]
+        let transact = dTransGas.[cg.idTransaccion]
         let contrato = dCont.[transact.idContrato]// .[transact.idContrato]
-        let tradingHubNemo = dTradingHub.[transact.idIndicePrecio |> Option.defaultValue 0]
 
         let sp : SupplyParams =
                 { 
@@ -89,11 +88,11 @@ let buildTradesDB idFlowMaster path  : Map<flowId , TradeParams> =
 
     tradeGas |> List.map(fun  fd ->
         let trade = tradeByFlowDetailId.Value.[fd.IdFlowDetail]
-        let transact = dTrans.[trade.IdTransaccion]
+        let transact = dTransGas.[trade.IdTransaccionGas]
         let tp : TradeParams =
                 {
                   side = if trade.Side = "Sell" then TradeSide.Sell else TradeSide.Buy
-                  transactionId = trade.IdTransaccion
+                  transactionId = trade.IdTransaccionGas
                   flowDetailId = fd.IdFlowDetail
                   buyer      = transact.buyer
                   buyerId    = transact.idBuyer
@@ -126,17 +125,18 @@ let buildSleevesDB idFlowMaster path : Map<flowId, SleeveParams> =
         match dSleeve.TryFind fd.IdFlowDetail with
         | None -> None
         | Some sl ->
-            let transact = dTrans.[sl.IdTransaccion]
+            let transact = dTransGas.[sl.IdTransaccionGas]
             let sp : SleeveParams =
                 { provider    = transact.buyer
-                  transactionId = sl.IdTransaccion
+                  transactionId = sl.IdTransaccionGas
                   flowDetailId = fd.IdFlowDetail
                   locationId  = transact.idPuntoEntrega
                   seller      = transact.seller
                   buyer       = transact.buyer
                   location    = transact.puntoEntrega
                   sleeveSide  = if sl.Side = "Export" then SleeveSide.Export else SleeveSide.Import
-                  index       = transact.idIndicePrecio |> Option.defaultValue 0
+                  // TODO: Indice
+                  index       = 0 // transact.idIndicePrecio |> Option.defaultValue 0
                   adder       = (transact.adder |> Option.defaultValue 0)  * 1.0m<USD/MMBTU>
                   contractRef = transact.contratRef
                   meta        = Map.empty }
@@ -148,18 +148,18 @@ let buildSleevesDB idFlowMaster path : Map<flowId, SleeveParams> =
 let buildTransportsDB idFlowMaster path : Map<flowId, TransportParams> =
     let detalles = getFlowDetailsByTipo idFlowMaster path "Transport"
 
-    let dTransport = ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq
-    
+    let transpFlow = ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq
+
     detalles
     |> List.choose (fun fd ->
-        match dTransport.TryFind fd.IdFlowDetail with
-        | None -> None
-        | Some tr ->
-            let ruta = dRuta.[tr.IdRuta]
-            let cto = dCont.[ContratoId ruta.IdContrato]
+            let tteFlow = transpFlow.[fd.IdFlowDetail]
+            let trTte =  dTransTte.[tteFlow.IdTransaccionTransporte]
+            let x = trTte.idRuta
+            let ruta = dRuta.[trTte.idRuta]
+            let cto = dCont.[trTte.idContrato]
             let tp : TransportParams =
                 { provider    = dEnt.[cto.idContraparte].Nombre
-                  transactionId = tr.IdTransaccion
+                  transactionId = trTte.id
                   flowDetailId = fd.IdFlowDetail
                   providerId  = cto.idParte
                   pipeline    = "Gasoducto"
@@ -167,12 +167,11 @@ let buildTransportsDB idFlowMaster path : Map<flowId, TransportParams> =
                   routeId     = ruta.IdRuta
                   entry       = dPto.[ruta.IdPuntoRecepcion]
                   exit        = dPto.[ruta.IdPuntoEntrega]
-                  acaRate     = tr.AcaRate  * 1.0m<USD/MMBTU>
                   shipper     = dEnt.[cto.idContraparte].Nombre
-                  fuelMode    = if tr.FuelMode = "RxBase" then FuelMode.RxBase else FuelMode.ExBase
+                  fuelMode    = if trTte.fuelMode = "RxBase" then FuelMode.RxBase else FuelMode.ExBase
                   fuelPct     = ruta.Fuel
-                  usageRate   = ruta.CargoUso * 1.0m<USD/MMBTU>
-                  reservation = ruta.CargoReserva * 1.0m<USD/MMBTU>
+                  CMD         = trTte.cmd  
+                  usageRate   = trTte.usageRate 
                   meta        = Map.empty }
             Some (fd.IdFlowDetail, tp)
     )
@@ -214,6 +213,7 @@ let buildSellsDB diaGas idFlowMaster path : Map<flowId, SellParams list> =
                     location      = dPto.[vr.PuntoEntrega]
                     gasDay      = diaGas
                     flowDetailId = vr.IdFlowDetail
+                    transactionId = vr.IdTransaccion
                     seller      = dEnt.[vr.IdVendedor].Nombre
                     sellerId    = vr.IdVendedor
                     buyerId     = vr.IdComprador

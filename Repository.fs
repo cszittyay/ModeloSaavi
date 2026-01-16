@@ -78,6 +78,7 @@ module DetailRepo =
       row.RunId   <- runId
       row.GasDay  <- do2dt r.gasDay
       row.IdFlowDetail <- r.flowDetailId
+      row.IdTransaccion <- r.transactionId
       row.IdVentaGas <- r.ventaGasId
       row.IdBuyer    <- r.buyerId
       row.IdLocation <- r.locationId

@@ -24,8 +24,8 @@ type ContratoRow =
 
 
 
-type TransaccionJoinRow =
-  { Id_Transaccion: int
+type TransaccionGasJoinRow =
+  { Id_TransaccionGas: int
     ContractRef : string 
     Id_IndicePrecio: int option
     Parte : string 
@@ -46,26 +46,26 @@ type TransaccionJoinRow =
     Volumen: decimal
  }
 
-[<CLIMutable>]
-type TransaccionRow =
-  { Id_Transaccion: int
-    Id_IndicePrecio: int option
-    Id_PuntoEntrega: int
-    Id_TipoTransaccion: int
-    Id_TipoServicio: int
+
+ 
+type TransaccionTransporteJoinRow =
+  { Id_TransaccionTransporte: int
     Id_Contrato: int
-    Adder: decimal option           // (18,4)
-    Fuel: decimal                   // (18,6)
-    TarifaTransporte: decimal       // (18,6)
-    FormulaPrecio: string option    // nvarchar(200)
-    PrecioFijo: decimal option      // (18,4)
-    Volumen: decimal                // (18,6)
-    Observaciones: string option    // nvarchar(200)
-    VigenciaDesde: DateOnly
-    VigenciaHasta: DateOnly
-    Id_MonedaPrecioFijo: int option
-    Id_UnidadPrecioEnergiaAdder: int option
-    Id_UnidadEnergiaVolumen: int option }
+    ContractRef : string 
+    Parte : string 
+    Contraparte : string
+    Id_Parte : int
+    Id_Contraparte : int
+    PuntoEntrega : string
+    PuntoRecepcion : string
+    Id_PuntoEntrega: int
+    Id_PuntoRecepcion: int
+    Id_Ruta: int 
+    CMD: decimal 
+    UsageRate: decimal
+    FuelMode: string
+    Fuel: decimal
+ }
 
 
 
