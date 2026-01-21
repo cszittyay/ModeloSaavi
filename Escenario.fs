@@ -19,7 +19,7 @@ let private printQty  (q: Energy) = (decimal q).ToString("0.#####")
 
 
  // Datos comunes del día y hub
-let gasDay     = DateOnly(2025, 12, 19)
+let gasDay     = DateOnly(2026, 1, 20)
 let entryPt = Location "AguaDulce" //  Location "Ramones" // Location "Ehremberg"
 let buyer      = "EAVIII"  // Datos comunes del día y hub
 

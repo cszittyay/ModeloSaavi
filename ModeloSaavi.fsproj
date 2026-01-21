@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <SatelliteResourceLanguages>es</SatelliteResourceLanguages>
   </PropertyGroup>
@@ -22,7 +22,11 @@
     <Compile Include="ErrorLog.fs" />
     <Compile Include="FlowBuilderDB.fs" />
     <Compile Include="Escenario.fs" />
-    <Compile Include="Program.fs" />
+    <!-- <Compile Include="Program.fs" /> -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="ModeloSaavi.Console\README.md" />
   </ItemGroup>
 
   <ItemGroup>

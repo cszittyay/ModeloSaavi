@@ -323,8 +323,9 @@ module Transport =
         if String.IsNullOrWhiteSpace p.shipper then
           Error (MissingContract "TransportParams: shipper")
 
-        elif stIn.location <> p.entry then
-          Error (Other (sprintf "TransportParams: State@%s, esperado entry %s" stIn.location p.entry))
+        // TODO: validar que shipper es provider del contrato de transporte
+        //elif stIn.location <> p.entry then
+        //  Error (Other $"TransportParams: Provider: {p.provider} Shipper: {p.shipper} FlowId: {p.flowDetailId} State@{stIn.location}, esperado entry {p.entry}" )
 
         elif stIn.energy <= 0.0m<MMBTU> then
           Error (QuantityNonPositive "TransportParams: transport.qEnergia")

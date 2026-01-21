@@ -7,8 +7,6 @@ open ErrorLog.RunStages
 open Gnx.Persistence.SQL_Data
 open FlowBuilderDB
 
-let idFlowDetail = 1
-let diaGas = DateOnly(2026, 1, 1)
 
 
 //let t = loadTransacciones()
@@ -99,20 +97,19 @@ let diaGas = DateOnly(2026, 1, 1)
 //    )
 
 
-
+let diaGas = DateOnly(2026, 1, 20)
 
 let runKey = Guid.NewGuid()
 let modo = "CUR"
 let central = "EAX"
-let gasDay = DateOnly(2026,1,1)
 
 init "logs"
-let flowMaster = "CUR EAX"
+let flowMaster = "CUR EBC"
 let path = "Default"
-let flowMasterId = 1
+let flowMasterId = 2
 
 let result =
-    withRunContext runKey flowMaster central gasDay (fun () ->
+    withRunContext runKey flowMaster central diaGas (fun () ->
       logRunStarted()
 
       // Acá llamás tu función real

@@ -203,22 +203,26 @@ let buildConsumeDB diaGas idFlowMaster path: Map<flowId, ConsumeParams> =
 let buildSellsDB diaGas idFlowMaster path : Map<flowId, SellParams list> =
      // Las ventas definidas para el path
     let flowDetail = getFlowDetailsByTipo idFlowMaster path "Sell" 
+    if flowDetail.IsEmpty then
+        Map.empty
+    else
     let fdSellMap = flowDetail|> Seq.map(fun x -> x.IdFlowDetail, x.Referencia) |> Map
     let ventasRegistradas = ctx.Dbo.VentaGas |> Seq.filter (fun vg -> vg.DiaGas = do2dt diaGas )   
    
     let mapVentas = ventasRegistradas  |> Seq.map( fun vr ->
             let ref = fdSellMap.[vr.IdFlowDetail]
+            let transact = dTransGas.[vr.IdTransaccion]
             let sp : SellParams =
                 {   idVentaGas  = vr.IdVentaGas
-                    location      = dPto.[vr.PuntoEntrega]
+                    location      = transact.puntoEntrega
                     gasDay      = diaGas
                     flowDetailId = vr.IdFlowDetail
                     transactionId = vr.IdTransaccion
-                    seller      = dEnt.[vr.IdVendedor].Nombre
-                    sellerId    = vr.IdVendedor
-                    buyerId     = vr.IdComprador
-                    buyer       = dEnt.[vr.IdComprador].Nombre
-                    locationId  = vr.PuntoEntrega
+                    seller      = transact.seller
+                    sellerId    = transact.idSeller
+                    buyerId     = transact.idBuyer
+                    buyer       = transact.buyer
+                    locationId  = transact.idPuntoEntrega
                     qty         = vr.CantidadMmBtu  * 1.0m<MMBTU>
                     price       = vr.PrecioUsd * 1.0m<USD/MMBTU>
                     adder       = 0.0m<USD/MMBTU>
