@@ -19,14 +19,18 @@
     <Compile Include="ProjectOperations.fs" />
     <Compile Include="Repository.fs" />
     <Compile Include="Kleisli.fs" />
-    <Compile Include="ErrorLog.fs" />
     <Compile Include="FlowBuilderDB.fs" />
     <Compile Include="Escenario.fs" />
+    <Compile Include="ErrorLog.fs" />
     <!-- <Compile Include="Program.fs" /> -->
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="INTEROP_GUIDE.md" />
+    <None Include="ModeloSaavi.ConsoleApp\nuget.config" />
+    <None Include="ModeloSaavi.ConsoleApp\README.md" />
     <None Include="ModeloSaavi.Console\README.md" />
+    <None Include="SOLUTION_README.md" />
   </ItemGroup>
 
   <ItemGroup>

@@ -48,9 +48,12 @@ let buildSupplysDB diaGas (idFlowMaster: int) path : Map<flowId, SupplyParams li
     let dTradingHub = ctx.Platts.IndicePrecio |> Seq.map(fun th -> th.IdIndicePrecio, th.Nemonico) |> Map.ofSeq
 
     let flowMaster = flowMasterById.Value.[idFlowMaster]
-    let flowDetail = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Supply" |> List.find(fun fd -> fd.Path = path)
-    let compraGas = loadCompraGas diaGas flowDetail.IdFlowDetail
-  
+    let flowDetail = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Supply" |> List.tryFind(fun fd -> fd.Path = path)
+    if flowDetail.IsNone then Map.empty
+
+    else
+    let idFlowDetail = flowDetail.Value.IdFlowDetail
+    let compraGas = loadCompraGas diaGas idFlowDetail  
     compraGas|> List.map(fun cg ->
         
         let nominado = cg.nominado 
@@ -75,7 +78,7 @@ let buildSupplysDB diaGas (idFlowMaster: int) path : Map<flowId, SupplyParams li
                 price        = (cg.precio |> Option.defaultValue 0.0m) * 1.m<USD/MMBTU>
                 contractRef = contrato.codigo
                 meta         = Map.empty }
-        flowDetail.IdFlowDetail, sp
+        idFlowDetail, sp
         )
         |> List.groupBy fst 
         |> List.map (fun (flId, rows) -> flId, rows |> List.map snd)

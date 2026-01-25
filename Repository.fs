@@ -47,7 +47,7 @@ module DetailRepo =
       row.RunId   <- runId
       row.GasDay  <- r.gasDay.ToDateTime(TimeOnly.MinValue)
       row.IdFlowDetail <- r.flowDetailId
-      row.IdTransaccion <- r.transactionId 
+      row.IdTransaccionGas <- r.transactionId 
       row.Temporalidad <- string r.temporalidad
       row.BuyBack  <- r.buyBack
       row.QtyMmBtu  <- energyToDecimal r.qty
@@ -62,7 +62,7 @@ module DetailRepo =
       row.RunId   <- runId
       row.GasDay  <- do2dt r.gasDay
       row.IdFlowDetail <- r.flowDetailId
-      row.IdTransaccion <- r.transactionId
+      row.IdTransaccionGas <- r.transactionId
       row.IdSeller      <- r.sellerId
       row.IdBuyer       <- r.buyerId
       row.IdLocation    <- r.locationId
@@ -78,7 +78,7 @@ module DetailRepo =
       row.RunId   <- runId
       row.GasDay  <- do2dt r.gasDay
       row.IdFlowDetail <- r.flowDetailId
-      row.IdTransaccion <- r.transactionId
+      row.IdTransaccionGas <- r.transactionId
       row.IdVentaGas <- r.ventaGasId
       row.IdBuyer    <- r.buyerId
       row.IdLocation <- r.locationId
@@ -97,7 +97,7 @@ module DetailRepo =
       row.GasDay  <- do2dt r.gasDay
       row.IdFlowDetail <- r.flowDetailId
       row.IdProvider  <- r.providerId
-      row.IdTransaccion <- r.transactionId
+      row.IdTransaccionGas <- r.transactionId
       row.Pipeline <- string r.pipeline
       row.IdRuta       <- r.routeId
       row.FuelQtyMmBtu <- energyToDecimal r.fuelQty
@@ -112,7 +112,7 @@ module DetailRepo =
       row.RunId   <- runId
       row.GasDay  <- r.gasDay.ToDateTime(TimeOnly.MinValue)
       row.IdFlowDetail <- r.flowDetailId
-      row.IdTransaccion <- r.transactionId
+      row.IdTransaccionGas <- r.transactionId
       row.IdLocation    <- r.locationId
       row.Adder         <- priceToDecimal r.adder
       row.SleeveSide    <- string r.sleeveSide

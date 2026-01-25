@@ -9,8 +9,8 @@ open Repository.DetailRepo
 open Repository.Tx
 open ResultRows
 open Helpers.FlowBuilderUtils
-open FlowBuilderDB
 open Gnx.Persistence.SQL_Data
+open FlowBuilderDB
 
 /// Helpers de impresión (opcionales)
 let private printMoney (m: Money) = (decimal m).ToString("0.#####")
@@ -95,7 +95,7 @@ let persistAll
 
 
 
-let runrFlowAndPersistDB
+let runFlowAndPersistDB
     (flowMasterId : int)
     (path   : string)
     (diaGas    : DateOnly)
