@@ -44,10 +44,9 @@ module Logging =
                 flushToDiskInterval = TimeSpan.FromSeconds(1.0))
             .CreateLogger()
 
-    let withRunContext (runKey: Guid) (modo: string) (central: string) (gasDay: DateOnly) (f: unit -> 'T) : 'T =
-        use _a = LogContext.PushProperty("runKey", runKey)
-        use _b = LogContext.PushProperty("modo", modo)
-        use _c = LogContext.PushProperty("central", central)
+    let withRunContext flowMasterId (gasDay: DateOnly) (f: unit -> 'T) : 'T =
+        //use _a = LogContext.PushProperty("runKey", runKey)
+        use _a = LogContext.PushProperty("FlowMasterId", flowMasterId)
         use _d = LogContext.PushProperty("gasDay", gasDay.ToString("yyyy-MM-dd"))
         f()
 
@@ -96,12 +95,8 @@ module FlowApiModule =
     /// DTO de request (opcional, pero ordena)
     [<CLIMutable>]
     type RunFlowRequest =
-      { RunKey       : Guid
-        Modo         : string
-        Central      : string
-        GasDay       : DateOnly
-        FlowMasterId : int
-        Path         : string }
+      { GasDay       : DateOnly
+        FlowMasterId : int }
 
 
 
@@ -115,14 +110,13 @@ module FlowApiModule =
           static member RunFlowAndPersistAsync(req: RunFlowRequest) : Task<int> =
             task {
               try
-                let flowMasterName = $"{req.Modo} {req.Central}"
                 let st0 = st0
 
                 let r =
-                  withRunContext req.RunKey flowMasterName req.Central req.GasDay (fun () ->
+                  withRunContext req.FlowMasterId req.GasDay (fun () ->
                     logRunStarted()
 
-                    match runFlowAndPersistDB req.FlowMasterId req.Path req.GasDay st0 with
+                    match runFlowAndPersistDB req.FlowMasterId  req.GasDay st0 with
                     | Ok (runId, _finalState, transitions) ->
                         logRunOk (Some runId) transitions.Length
                         Ok runId

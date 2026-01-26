@@ -97,7 +97,7 @@ module DetailRepo =
       row.GasDay  <- do2dt r.gasDay
       row.IdFlowDetail <- r.flowDetailId
       row.IdProvider  <- r.providerId
-      row.IdTransaccionGas <- r.transactionId
+      row.IdTransaccionTransporte <- r.transactionId
       row.Pipeline <- string r.pipeline
       row.IdRuta       <- r.routeId
       row.FuelQtyMmBtu <- energyToDecimal r.fuelQty

@@ -302,7 +302,6 @@ let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnl
 
 let getFlowStepsDB
     (flowMasterId      : FlowMasterId)
-    (path   : string)
     (diaGas    : DateOnly)
     : Map<FlowId, FlowStep list> =
 

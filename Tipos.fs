@@ -308,7 +308,7 @@ let parseTradingHub = function
     | x                 -> failwithf "TradingHub desconocido: %s" x
 
 let parseTemporalidad = function
-    | "DayAhead" -> Temporalidad.DayAhead
+    | "Day Ahead" -> Temporalidad.DayAhead
     | "Intraday" -> Temporalidad.Intraday
     | "Monthly"  -> Temporalidad.Monthly
     | x          -> failwithf "Temporalidad desconocida: %s" x

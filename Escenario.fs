@@ -44,7 +44,6 @@ module FlowRunRepo =
       (tx     : IDbTransaction)
       (gasDay : DateOnly)
       (flowMasterId   : int)
-      (central: string)
       : Result<int, DomainError> =
 
     try
@@ -53,8 +52,6 @@ module FlowRunRepo =
       // Crear fila FlowRun
       let fr = ctx.Fm.FlowRun.Create()
       fr.GasDay  <- gasDay.ToDateTime(TimeOnly.MinValue)
-      fr.Modo    <- fm.Codigo
-      fr.Central <- central
       // fr.CreatedAt lo setea el DEFAULT de SQL Server
 
       // Persistir
@@ -97,13 +94,12 @@ let persistAll
 
 let runFlowAndPersistDB
     (flowMasterId : int)
-    (path   : string)
     (diaGas    : DateOnly)
     (initial   : State)
     : Result<int * State * Transition list, DomainError> =
 
   // 1) Leer Excel -> paths
-  let paths : Map<FlowId, FlowStep list> = getFlowStepsDB   flowMasterId path diaGas 
+  let paths : Map<FlowId, FlowStep list> = getFlowStepsDB   flowMasterId  diaGas 
 
   // 2) Topología (Linear/Join) + PathRole
   buildFlowDef paths
@@ -117,7 +113,7 @@ let runFlowAndPersistDB
           withTransaction  (fun conn tx ->
 
               // 4.1) Insert header FlowRun -> RunId (IDENTITY)
-              FlowRunRepo.insertAndGetRunId conn tx diaGas flowMasterId path
+              FlowRunRepo.insertAndGetRunId conn tx diaGas flowMasterId 
               |> Result.bind (fun runId ->
 
                   // 4.2) Proyección post-ejecución
