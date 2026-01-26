@@ -1,5 +1,7 @@
 ﻿module ErrorLog
 open System
+open System.Threading.Tasks
+
 open Serilog
 open Serilog.Events
 open Serilog.Context
@@ -104,39 +106,50 @@ module FlowApiModule =
     /// Excepción de dominio para que C# la capture fácil
     type FlowRunException(message: string, ?inner: exn) =
       inherit Exception(message, defaultArg inner null)
-
+    
     type FlowApi() =
-          /// Devuelve runId; si falla lanza FlowRunException
-          static member RunFlowAndPersistAsync(req: RunFlowRequest) : Task<int> =
-            task {
-              try
-                let st0 = st0
+      /// No lanza excepciones. Devuelve Outcome {Ok=true; RunId=...} o {Ok=false; Error=...}
+      static member RunFlowAndPersistSafeAsync(req: RunFlowRequest) : Task<RunFlowOutcome> =
+        task {
+          let st0 = st0
 
-                let r =
-                  withRunContext req.FlowMasterId req.GasDay (fun () ->
-                    logRunStarted()
+          // helper local para armar errores
+          let mkErr code msg details =
+            { Ok = false
+              RunId = None
+              Error = Some { Code = code; Message = msg; Details = details } }
 
-                    match runFlowAndPersistDB req.FlowMasterId  req.GasDay st0 with
-                    | Ok (runId, _finalState, transitions) ->
-                        logRunOk (Some runId) transitions.Length
-                        Ok runId
-                    | Error e ->
-                        logRunFailed e
-                        Error e
-                  )
+          try
+            // withRunContext puede retornar Result<_,_> o directamente algo.
+            // Asumo que lo que ya tenías retorna el resultado de la lambda.
+            let r =
+              withRunContext req.FlowMasterId req.GasDay (fun () ->
+                logRunStarted()
 
-                match r with
-                | Ok runId ->
-                    return runId
+                match runFlowAndPersistDB req.FlowMasterId req.GasDay st0 with
+                | Ok (runId, _finalState, transitions) ->
+                    logRunOk (Some runId) transitions.Length
+                    Ok runId
                 | Error e ->
-                    let msg = $"Flow failed: {e}"
-                    return! Task.FromException<int>(FlowRunException(msg))
+                    logRunFailed e
+                    Error e
+              )
 
-              with ex ->
-                // si ya es FlowRunException, propagala; si no, envolvé
-                match ex with
-                | :? FlowRunException ->
-                    return! Task.FromException<int>(ex)
-                | _ ->
-                    return! Task.FromException<int>(FlowRunException("Unexpected error running flow", ex))
-            }
+            match r with
+            | Ok runId ->
+                return
+                  { Ok = true
+                    RunId = Some runId
+                    Error = None }
+
+            | Error e ->
+                // e es tu DomainError (o similar). Lo convertimos a DTO.
+                // Si querés, acá podés mapear por caso y asignar Code más específico.
+                return mkErr "FlowFailed" $"Flow failed: {e}" None
+
+          with ex ->
+            // Importante: NO relanzar.
+            // Log interno si corresponde:
+            // logUnexpected ex
+            return mkErr "Unexpected" "Unexpected error running flow" (Some ex.Message)
+        }

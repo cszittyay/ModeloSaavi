@@ -3,6 +3,20 @@
 open System
 
 
+
+[<CLIMutable>]
+type FlowRunErrorDto =
+  { Code: string
+    Message: string
+    Details: string option }
+
+[<CLIMutable>]
+type RunFlowOutcome =
+  { Ok: bool
+    RunId: int option
+    Error: FlowRunErrorDto option }
+
+
 // ===== Unidades (Units of Measure) =====
 [<Measure>] type MMBTU
 [<Measure>] type GJ
