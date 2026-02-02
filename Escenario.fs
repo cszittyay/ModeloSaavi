@@ -2,6 +2,7 @@
 
 open System
 open System.Data
+open FsToolkit.ErrorHandling
 open Tipos              // State, Transition, DomainError, SupplierLeg, SupplyParams, CostKind, etc.
 open ProjectOperations
 open DbContext
@@ -52,6 +53,8 @@ module FlowRunRepo =
       // Crear fila FlowRun
       let fr = ctx.Fm.FlowRun.Create()
       fr.GasDay  <- gasDay.ToDateTime(TimeOnly.MinValue)
+      fr.Modo <- Some "ModoX"  // TODO: parámetro"
+      fr.Central <- Some "CentralX" // TODO: parámetro"
       // fr.CreatedAt lo setea el DEFAULT de SQL Server
 
       // Persistir
@@ -94,40 +97,30 @@ let persistAll
 
 let runFlowAndPersistDB
     (flowMasterId : int)
-    (diaGas    : DateOnly)
-    (initial   : State)
+    (diaGas       : DateOnly)
+    (initial      : State)
     : Result<int * State * Transition list, DomainError> =
 
-  // 1) Leer Excel -> paths
-  let paths : Map<FlowId, FlowStep list> = getFlowStepsDB   flowMasterId  diaGas 
+  result {
+    // 1) Leer paths
+    let! paths = getFlowStepsDB flowMasterId diaGas
 
-  // 2) Topología (Linear/Join) + PathRole
-  buildFlowDef paths
-  |> Result.bind (fun flowDef ->
+    // 2) Topología
+    let! flowDef = buildFlowDef paths
 
-      // 3) Ejecutar Flow (puro) -> transitions
-      runFlow flowDef initial 0.0m<MMBTU> (+) runSteps
-      |> Result.bind (fun (finalState, transitions) ->
+    // 3) Ejecutar
+    let! (finalState, transitions) = runFlow flowDef initial 0.0m<MMBTU> (+) runSteps
 
-          // 4) Persistir en 1 transacción
-          withTransaction  (fun conn tx ->
+    // 4) Persistir
+    let! runId, finalState, transitions =
+      withTransaction (fun conn tx ->
+        result {
+          let! runId = FlowRunRepo.insertAndGetRunId conn tx diaGas flowMasterId
+          let! rows = projectRows runId transitions
+          do! persistAll conn tx runId rows
+          return (runId, finalState, transitions)
+        })
 
-              // 4.1) Insert header FlowRun -> RunId (IDENTITY)
-              FlowRunRepo.insertAndGetRunId conn tx diaGas flowMasterId 
-              |> Result.bind (fun runId ->
+    return (runId, finalState, transitions)
+  }
 
-                  // 4.2) Proyección post-ejecución
-                  projectRows runId transitions
-                  |> Result.bind (fun rows ->
-
-                      // 4.3) Inserts detalle (SQLProvider) dentro de conn/tx
-                      persistAll conn tx runId rows
-                      |> Result.map (fun () ->
-                          // devolvemos runId + resultados en memoria (útil para logs/UI)
-                          (runId, finalState, transitions)
-                      )
-                  )
-              )
-          )
-      )
-  )

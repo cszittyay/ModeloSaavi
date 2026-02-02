@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Remove="ModeloSaavi.ConsoleApp\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="Tipos.fs" />
     <Compile Include="DbContext.fs" />
     <Compile Include="Persistence.fs" />
@@ -27,8 +31,6 @@
 
   <ItemGroup>
     <None Include="INTEROP_GUIDE.md" />
-    <None Include="ModeloSaavi.ConsoleApp\nuget.config" />
-    <None Include="ModeloSaavi.ConsoleApp\README.md" />
     <None Include="ModeloSaavi.Console\README.md" />
     <None Include="SOLUTION_README.md" />
   </ItemGroup>

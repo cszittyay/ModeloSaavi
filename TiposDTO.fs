@@ -124,7 +124,7 @@ type TransaccionTransporte =
     puntoRecepcion: string
     idPuntoEntrega: int
     idPuntoRecepcion: int
-    cmd : decimal <MMBTU>
+    cmd : decimal<MMBTU>
     usageRate  : decimal<USD/MMBTU>
     fuelMode : string
     fuel: decimal

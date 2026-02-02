@@ -7,7 +7,7 @@ open FSharp.Data.Sql
 // Base de datos: GNX_Develop_Local
 // 
 [<Literal>]
-let connectionString = "Server=DESKTOP-8GOI1HK\MSSQLSERVER04;Database=GNX_Develop_Local;Trusted_Connection=True;TrustServerCertificate=True;"
+let connectionString = "Server=DESKTOP-8GOI1HK\MSSQLSERVER04;Database=GNX_Develop_local;Trusted_Connection=True;TrustServerCertificate=True;"
 
 [<Literal>]
 let useOptionTypes = FSharp.Data.Sql.Common.NullableColumnType.OPTION

@@ -330,13 +330,14 @@ module Transport =
         elif stIn.energy <= 0.0m<MMBTU> then
           Error (QuantityNonPositive "TransportParams: transport.qEnergia")
 
-        elif p.fuelPct < 0m || p.fuelPct >= 1m then
+        elif p.fuelPct < 0m || p.fuelPct >= 100m then
           Error (InvalidUnits "TransportParams: transport.fuelPct debe estar en [0,1)")
         else
           // Cálculos: shrink por fuel y costo de uso
           let qtyIn  : Energy = stIn.energy
           // La cantiad de Fuel expresada segun el qtyIn (recibido) y el fuelPct y segun el fuelMode
-          let fuel   : Energy = if p.fuelMode = FuelMode.RxBase then qtyIn * p.fuelPct else qtyIn * p.fuelPct /(1.0m+p.fuelPct) 
+          let fuelPU = p.fuelPct / 100.0m
+          let fuel   : Energy = if p.fuelMode = FuelMode.RxBase then qtyIn *fuelPU else qtyIn * fuelPU /(1.0m+fuelPU) 
           let qtyOut : Energy = qtyIn - fuel
 
           // Líneas de costo: USAGE y RESERVATION

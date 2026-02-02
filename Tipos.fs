@@ -46,7 +46,16 @@ type DomainError =
   | MissingContract of id:string
   | CapacityExceeded of what:string
   | InvalidUnits of detail:string
+  | MissingTradeForFlowDetail of flowMaster: string * flowDetailId:int * path:string
+  | MissingTransportFlowDetail of flowMaster: string * flowDetailId:int * path:string
+  | MissingFlowMaster of idFlowMaster:int
+  | MissingConsumoForFlowDetail of flowMaster: string * gasDay:DateOnly * path:string
+  | MissingSellFlowDetail of flowDetailId:int * gasDay:DateOnly * path:string
+  | MissingSupplyFlowDetail of flowMaster: string * gasDay:DateOnly * path:string
+  | MissingSleeveFlowDetail of flowMaster: string * flowDetailId:int * path:string
+  | MissingFlowType of operationType: string
   | Other of string
+
 
 
 type CostKind = Gas | Transport | Storage | Tax | Fee | Sleeve |Sell |  Nulo
