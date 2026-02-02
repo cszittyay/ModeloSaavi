@@ -443,6 +443,8 @@ let getFlowStepsDB
                 |> Seq.distinct
                 |> Seq.toList
 
+            if paths.Length = 0 then Error (MissingFlowDetail (fm.Nombre.Value))
+            else
             let result =
                 paths
                 |> List.map (fun path ->

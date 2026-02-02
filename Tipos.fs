@@ -54,8 +54,9 @@ type DomainError =
   | MissingSupplyFlowDetail of flowMaster: string * gasDay:DateOnly * path:string
   | MissingSleeveFlowDetail of flowMaster: string * flowDetailId:int * path:string
   | MissingFlowType of operationType: string
+  | MissingFlowDetail of flowMaster:string
   | Other of string
-
+  
 
 
 type CostKind = Gas | Transport | Storage | Tax | Fee | Sleeve |Sell |  Nulo
