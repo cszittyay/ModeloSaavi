@@ -54,7 +54,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
           runId = runId
           gasDay = t.state.gasDay
           transactionId = p.transactionId
-          flowDetailId = 1 // placeholder
+          flowDetailId = p.flowDetailId
           sellerId = p.sellerId
           buyerId = p.buyerId
           locationId = p.locationId

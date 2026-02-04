@@ -76,9 +76,9 @@ module Consume =
     let consume (p: ConsumeParams) : Operation =
       fun stIn ->
         // Validaciones de dominio
-        if stIn.location <> p.location then
-          Error (Other (sprintf "Consume: State@%s, esperado location=%s" stIn.location p.location))
-        elif p.measured < 0.0m<MMBTU> then
+        //if stIn.location <> p.location then
+        //  Error (Other (sprintf "Consume: State@%s, esperado location=%s" stIn.location p.location))
+        if p.measured < 0.0m<MMBTU> then
           Error (InvalidUnits (sprintf "Consume.consume: measured=%M < 0" (decimal p.measured)))
         else
           // Cantidad "a la salida" del sistema (lo que se va a consumir)
