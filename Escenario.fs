@@ -41,6 +41,7 @@ module FlowRunRepo =
   open Gnx.Persistence.SQL_Data
   
   let insertAndGetRunId
+      (ctx: FlowDB.Ctx)
       (conn   : IDbConnection)
       (tx     : IDbTransaction)
       (gasDay : DateOnly)
@@ -68,6 +69,7 @@ module FlowRunRepo =
 
 
 let persistAll
+    (ctx: FlowDB.Ctx)
     (conn: IDbConnection)
     (tx  : IDbTransaction)
     (runId: int)
@@ -79,12 +81,13 @@ let persistAll
 
     // IMPORTANTE: usar ctxTx para Create() y para SubmitUpdates()
     // (no el ctx global)
-    addSupplyRows   runId rows.supplies
-    addTradeRows    runId rows.trades
-    addSellRows     runId rows.sells
-    addTransportRows runId rows.transports
-    addSleeveRows   runId rows.sleeves
-    addConsumeRows  runId rows.consumes
+    addSupplyRows   ctx runId rows.supplies
+    addTradeRows    ctx runId rows.trades
+    addSellRows     ctx runId rows.sells
+    addTransportRows ctx runId rows.transports
+    addSleeveRows   ctx runId rows.sleeves
+    addConsumeRows  ctx runId rows.consumes
+
 
     ctx.SubmitUpdates()
     Ok ()
@@ -96,10 +99,14 @@ let persistAll
 
 
 let runFlowAndPersistDB
+    (connStr: string)
     (flowMasterId : int)
     (diaGas       : DateOnly)
     (initial      : State)
     : Result<int * State * Transition list, DomainError> =
+
+
+  let ctx = FlowDB.createCtx connStr
 
   result {
     // 1) Leer paths
@@ -115,9 +122,9 @@ let runFlowAndPersistDB
     let! runId, finalState, transitions =
       withTransaction (fun conn tx ->
         result {
-          let! runId = FlowRunRepo.insertAndGetRunId conn tx diaGas flowMasterId
+          let! runId = FlowRunRepo.insertAndGetRunId ctx conn tx diaGas flowMasterId
           let! rows = projectRows runId transitions
-          do! persistAll conn tx runId rows
+          do! persistAll ctx conn tx runId rows
           return (runId, finalState, transitions)
         })
 

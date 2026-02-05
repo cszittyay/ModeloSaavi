@@ -11,32 +11,31 @@ open DbContext
 open Gnx.Persistence.SQL_Data
 open Gnx.Domain
 open Gnx.Persistence
+open DbContext
 
 
-// =====================================================================================
-// Caches (lazy) - evitamos pegarle a la DB al cargar el módulo y permitimos reuso.
-// =====================================================================================
 
+
+
+
+// ********************************************************************************
 
 type flowId = int
-
-
-  
 
 // =====================================================================================
 // Helpers
 // =====================================================================================
 
-let private tryFindFlowMaster flowMasterId =
+let private tryFindFlowMaster (ctx: FlowDB.Ctx) flowMasterId =
     ctx.Fm.FlowMaster |> Seq.tryFind (fun fm -> fm.IdFlowMaster = flowMasterId)
 
 let private getFlowDetails (idFlowMaster: int) (path: string) =
-    match flowDetailsByMasterPath.Value.TryFind (idFlowMaster, path) with
+    match repo.flowDetailsByMasterPath.Value.TryFind (idFlowMaster, path) with
     | None -> Seq.empty
     | Some s -> s
 
 let private getFlowDetailsByTipo (idFlowMaster: int) (path: string) (tipoOpDesc: string) =
-    match tipoOperacionByDesc.Value.TryFind tipoOpDesc with
+    match repo.tipoOperacionByDesc.Value.TryFind tipoOpDesc with
     | None -> []
     | Some idTipo ->
         getFlowDetails idFlowMaster path
@@ -63,7 +62,7 @@ let buildSupplysDB
     (path: string)
     : Result<Map<flowId, SupplyParams list>, DomainError> =
 
-    match Map.tryFind idFlowMaster flowMasterById.Value with
+    match Map.tryFind idFlowMaster repo.flowMasterById.Value with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
         let fmNombre = flowMaster.Nombre.Value
@@ -71,7 +70,7 @@ let buildSupplysDB
         | None -> Error (MissingSupplyFlowDetail (fmNombre, diaGas, path))
         | Some fdSupply ->
             let idFlowDetail = fdSupply.IdFlowDetail
-            let compraGas = loadCompraGas diaGas idFlowDetail
+            let compraGas = repo.loadCompraGas diaGas idFlowDetail
             if compraGas.Length = 0 then Error (MissingSupplyFlowDetail (fmNombre, diaGas, path))
             else
             compraGas
@@ -109,7 +108,7 @@ let buildSupplysDB
 
 
 let buildTradesDB idFlowMaster path : Result<Map<flowId, TradeParams>, DomainError> =
-    match Map.tryFind idFlowMaster flowMasterById.Value with
+    match Map.tryFind idFlowMaster repo.flowMasterById.Value with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
         let tradeGas = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Trade"
@@ -118,7 +117,7 @@ let buildTradesDB idFlowMaster path : Result<Map<flowId, TradeParams>, DomainErr
         |> List.fold (fun acc fd ->
             acc
             |> Result.bind (fun m ->
-                match Map.tryFind fd.IdFlowDetail tradeByFlowDetailId.Value with
+                match Map.tryFind fd.IdFlowDetail repo.tradeByFlowDetailId.Value with
                 | None ->  Error (MissingTradeForFlowDetail (flowMaster.Nombre.Value, fd.IdFlowDetail,  path))
                 | Some trade ->
 
@@ -147,15 +146,12 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
 
     // Si idFlowMaster acá es el IdFlowMaster “real”, ok.
     // Si en otros módulos usás flowMasterById, mantené consistencia.
-    match Map.tryFind idFlowMaster flowMasterById.Value with
+    match Map.tryFind idFlowMaster repo.flowMasterById.Value with
     | None ->  Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
 
         let detalles = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Sleeve"
-        let dSleeve =
-            ctx.Fm.Sleeve
-            |> Seq.map (fun s -> s.IdFlowDetail, s)
-            |> Map.ofSeq
+        let dSleeve = repo.sleeveByFlowDetailId.Value
 
         detalles
         |> List.fold (fun acc fd ->
@@ -192,12 +188,12 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
 
 let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, DomainError> =
 
-    match Map.tryFind idFlowMaster flowMasterById.Value with
+    match Map.tryFind idFlowMaster repo.flowMasterById.Value with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
 
         let detalles   = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Transport"
-        let transpFlow = ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq
+        let transpFlow = repo.transportByFlowDetailId.Value
 
         detalles
         |> List.fold (fun acc fd ->
@@ -252,32 +248,19 @@ let buildConsumeDB
     (path: string)
     : Result<Map<flowId, ConsumeParams>, DomainError> =
 
-    // 1) Resolver IdTipoOperacion "Consume" sin indexador
-    match Map.tryFind "Consume" tipoOperacionByDesc.Value with
-    | None -> Error (MissingFlowType "Consume")   // <- agregá este caso o mapealo a uno existente
-    | Some idTipoConsume ->
-
         let fmNombre = dFlowMaster.[idFlowMaster].Nombre.Value
-
-        match ctx.Fm.FlowDetail |> Seq.tryFind (fun fd -> fd.IdFlowMaster = idFlowMaster && fd.IdTipoOperacion = idTipoConsume) with
-        | None -> Error (MissingConsumoForFlowDetail (fmNombre, diaGas, path))  // <- o el error que uses para "no existe Consume"
-
-        | Some fdConsumo ->
-
-            // 3) Cargar consumo (puede venir vacío)
-            match loadConsumo diaGas fdConsumo.IdFlowDetail |> Seq.tryHead with
-            | None -> Error (MissingConsumoForFlowDetail (fmNombre, diaGas, path))
-            | Some (idPunto, consumo) ->
-
+        match repo.getConsumoPunto idFlowMaster  diaGas with
+        | [] ->  Error (MissingConsumoForFlowDetail (fmNombre, diaGas, path))
+        | (idFlowDetail, idPunto, demanda) ::_ -> 
 
                     let consumeParams : ConsumeParams =
                         { gasDay      = diaGas
-                          flowDetailId = fdConsumo.IdFlowDetail
+                          flowDetailId = idFlowDetail
                           location     = dPto.[idPunto]
                           locationId   = idPunto
-                          measured     = (consumo |> Option.defaultValue 0.0m) * 1.0m<MMBTU> }
+                          measured     = (demanda |> Option.defaultValue 0.0m) * 1.0m<MMBTU> }
 
-                    Ok (Map.ofList [ (fdConsumo.IdFlowDetail, consumeParams) ])
+                    Ok (Map.ofList [ (idFlowDetail, consumeParams) ])
 
 
 let buildSellsDB
@@ -299,9 +282,7 @@ let buildSellsDB
             |> Seq.map (fun x -> x.IdFlowDetail, x.Referencia)
             |> Map.ofSeq
 
-        let ventasRegistradas =
-            ctx.Dbo.VentaGas
-            |> Seq.filter (fun vg -> vg.DiaGas = do2dt diaGas)
+        let ventasRegistradas = repo.ventasRegistradas diaGas
 
         ventasRegistradas
         |> Seq.fold (fun acc vr ->
@@ -347,7 +328,7 @@ let buildSellsDB
 
 let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnly) : FlowStep list =
     let fm =
-        match tryFindFlowMaster flowMasterId  with
+        match Map.tryFind flowMasterId repo.flowMasterById.Value with
         | Some fm -> fm
         | None -> failwithf "No se encontró FlowMaster para el Id='%d'" flowMasterId
 
@@ -370,7 +351,7 @@ let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnl
         let flowId = { flowMasterId = flowMasterId; path = path }
 
         let tipoDesc =
-            tipoOperacionById.Value
+            repo.tipoOperacionById.Value
             |> Map.tryFind fd.IdTipoOperacion
             |> Option.defaultValue "<unknown>"
 
@@ -428,21 +409,17 @@ let getFlowStepsDB
     : Result<Map<FlowId, FlowStep list>, DomainError> =
 
 
-
-    match ctx.Fm.FlowMaster |> Seq.tryFind (fun fm -> fm.IdFlowMaster = flowMasterId) with
+    match  Map.tryFind flowMasterId repo.flowMasterById.Value with 
         | None ->
             Error (MissingFlowMaster flowMasterId)
         | Some fm ->
-            let fm = ctx.Fm.FlowMaster |> Seq.find (fun fm -> fm.IdFlowMaster = flowMasterId)
-        
+            
+            let paths = repo.flowDetailsByMasterFlowId fm.IdFlowMaster
+                        |> Seq.map (fun fd -> fd.Path)
+                        |> Seq.distinct
+                        |> Seq.toList
 
-            let paths =
-                ctx.Fm.FlowDetail
-                |> Seq.filter (fun fd -> fd.IdFlowMaster = fm.IdFlowMaster)
-                |> Seq.map (fun fd -> fd.Path)
-                |> Seq.distinct
-                |> Seq.toList
-
+           
             if paths.Length = 0 then Error (MissingFlowDetail (fm.Nombre.Value))
             else
             let result =

@@ -10,7 +10,9 @@ module Tx =
       (f: IDbConnection -> IDbTransaction -> Result<'T, DomainError>)
       : Result<'T, DomainError> =
 
-    use conn = ctx.CreateConnection()
+
+    let ctx = sqlGnx.GetDataContext(connectionString) 
+    use conn = ctx.CreateConnection()    
     conn.Open()
     use tx = conn.BeginTransaction()
 
@@ -41,7 +43,7 @@ module DetailRepo =
   let inline priceToDecimal (p: EnergyPrice) : decimal = decimal p
 
   // ============ SUPPLY ============
-  let addSupplyRows (runId:int) (rows: SupplyResultRow list) =
+  let addSupplyRows (ctx:FlowDB.Ctx) (runId:int) (rows: SupplyResultRow list) =
     rows |> List.iter (fun r ->
       let row = ctx.Fm.FlowSupplyResult.Create()
       row.RunId   <- runId
@@ -56,7 +58,7 @@ module DetailRepo =
     )
 
   // ============ TRADE ============
-  let addTradeRows (runId:int) (rows: TradeResultRow list) =
+  let addTradeRows (ctx:FlowDB.Ctx) (runId:int) (rows: TradeResultRow list) =
     rows |> List.iter (fun r ->
       let row =  ctx.Fm.FlowTradeResult.Create()
       row.RunId   <- runId
@@ -72,7 +74,7 @@ module DetailRepo =
     )
 
   // ============ SELL ============
-  let addSellRows (runId:int) (rows: SellResultRow list) =
+  let addSellRows (ctx:FlowDB.Ctx) (runId:int) (rows: SellResultRow list) =
     rows |> List.iter (fun r ->
       let row = ctx.Fm.FlowSellResult.Create()
       row.RunId   <- runId
@@ -90,7 +92,7 @@ module DetailRepo =
     )
 
   // ============ TRANSPORT ============
-  let addTransportRows (runId:int) (rows: TransportResultRow list) =
+  let addTransportRows (ctx:FlowDB.Ctx) (runId:int) (rows: TransportResultRow list) =
     rows |> List.iter (fun r ->
       let row = ctx.Fm.FlowTransportResult.Create()
       row.RunId   <- runId
@@ -106,7 +108,7 @@ module DetailRepo =
 
     )
   // ============ SLEEVE ============
-  let addSleeveRows (runId:int) (rows: SleeveResultRow list) =
+  let addSleeveRows (ctx:FlowDB.Ctx) (runId:int) (rows: SleeveResultRow list) =
     rows |> List.iter (fun r ->
       let row = ctx.Fm.FlowSleeveResult.Create()
       row.RunId   <- runId
@@ -123,7 +125,7 @@ module DetailRepo =
 
 
   // ============ CONSUME ============
-  let addConsumeRows (runId:int) (rows: ConsumeResultRow list) =
+  let addConsumeRows (ctx:FlowDB.Ctx) (runId:int) (rows: ConsumeResultRow list) =
     rows |> List.iter (fun r ->
       let row = ctx.Fm.FlowConsumeResult.Create()
       row.RunId   <- runId
@@ -135,17 +137,18 @@ module DetailRepo =
     )
 
   let persistAll
+      (ctx:FlowDB.Ctx)
       (tx: IDbTransaction)
       (runId: int)
       (rows: ProjectedRows)
       : Result<unit, DomainError> =
     try
-      addSupplyRows runId rows.supplies
-      addTradeRows runId rows.trades
-      addSellRows runId rows.sells
-      addTransportRows runId rows.transports
-      addSleeveRows runId rows.sleeves
-      addConsumeRows runId rows.consumes
+      addSupplyRows ctx runId rows.supplies
+      addTradeRows ctx runId rows.trades
+      addSellRows ctx runId rows.sells
+      addTransportRows ctx runId rows.transports
+      addSleeveRows ctx runId rows.sleeves
+      addConsumeRows ctx runId rows.consumes
 
       // SubmitUpdates usando la MISMA transacción
       ctx.SubmitUpdates()

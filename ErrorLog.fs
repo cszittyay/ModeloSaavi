@@ -97,7 +97,8 @@ module FlowApiModule =
     /// DTO de request (opcional, pero ordena)
     [<CLIMutable>]
     type RunFlowRequest =
-      { GasDay       : DateOnly
+      { conn: string
+        GasDay : DateOnly
         FlowMasterId : int }
 
 
@@ -126,7 +127,7 @@ module FlowApiModule =
               withRunContext req.FlowMasterId req.GasDay (fun () ->
                 logRunStarted()
 
-                match runFlowAndPersistDB req.FlowMasterId req.GasDay st0 with
+                match runFlowAndPersistDB req.conn req.FlowMasterId req.GasDay st0 with
                 | Ok (runId, _finalState, transitions) ->
                     logRunOk (Some runId) transitions.Length
                     Ok runId
