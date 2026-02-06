@@ -185,7 +185,7 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
             )
         ) (Ok Map.empty)
 
-
+        
 
 
 
@@ -198,6 +198,7 @@ let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, D
 
         let detalles   = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Transport"
         let transpFlow = ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq
+        let dRuta = rutaById()
 
         detalles
         |> List.fold (fun acc fd ->

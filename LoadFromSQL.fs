@@ -184,8 +184,11 @@ module SQL_Data =
             )
 
 
-  let rutaById =
-            lazy (ctx.Dbo.Ruta |> Seq.map (fun r -> r.IdRuta, r) |> Map.ofSeq)
+  let rutaById () =
+            query {
+             for r in ctx.Dbo.Ruta do
+                 select (r.IdRuta, r)
+            }|> Seq.toList |> Map.ofList
 
 
 
@@ -221,4 +224,3 @@ module SQL_Data =
   let dTransGas = transaccionesGasById.Value
   let dTransTte = transaccionesTransporteById.Value
 
-  let dRuta = rutaById.Value
