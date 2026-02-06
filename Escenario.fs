@@ -110,7 +110,7 @@ let runFlowAndPersistDB
 
   result {
     // 1) Leer paths
-    let! paths = getFlowStepsDB flowMasterId diaGas
+    let! paths = getFlowStepsDB flowMasterId diaGas ctx
 
     // 2) Topología
     let! flowDef = buildFlowDef paths

@@ -30,12 +30,12 @@ let private tryFindFlowMaster (ctx: FlowDB.Ctx) flowMasterId =
     ctx.Fm.FlowMaster |> Seq.tryFind (fun fm -> fm.IdFlowMaster = flowMasterId)
 
 let private getFlowDetails (idFlowMaster: int) (path: string) =
-    match repo.flowDetailsByMasterPath.Value.TryFind (idFlowMaster, path) with
+    match repo.flowDetailsByMasterPath.TryFind (idFlowMaster, path) with
     | None -> Seq.empty
     | Some s -> s
 
 let private getFlowDetailsByTipo (idFlowMaster: int) (path: string) (tipoOpDesc: string) =
-    match repo.tipoOperacionByDesc.Value.TryFind tipoOpDesc with
+    match repo.tipoOperacionByDesc.TryFind tipoOpDesc with
     | None -> []
     | Some idTipo ->
         getFlowDetails idFlowMaster path
@@ -62,7 +62,7 @@ let buildSupplysDB
     (path: string)
     : Result<Map<flowId, SupplyParams list>, DomainError> =
 
-    match Map.tryFind idFlowMaster repo.flowMasterById.Value with
+    match Map.tryFind idFlowMaster repo.flowMasterById with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
         let fmNombre = flowMaster.Nombre.Value
@@ -108,7 +108,7 @@ let buildSupplysDB
 
 
 let buildTradesDB idFlowMaster path : Result<Map<flowId, TradeParams>, DomainError> =
-    match Map.tryFind idFlowMaster repo.flowMasterById.Value with
+    match Map.tryFind idFlowMaster repo.flowMasterById with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
         let tradeGas = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Trade"
@@ -117,7 +117,7 @@ let buildTradesDB idFlowMaster path : Result<Map<flowId, TradeParams>, DomainErr
         |> List.fold (fun acc fd ->
             acc
             |> Result.bind (fun m ->
-                match Map.tryFind fd.IdFlowDetail repo.tradeByFlowDetailId.Value with
+                match Map.tryFind fd.IdFlowDetail repo.tradeByFlowDetailId with
                 | None ->  Error (MissingTradeForFlowDetail (flowMaster.Nombre.Value, fd.IdFlowDetail,  path))
                 | Some trade ->
 
@@ -146,12 +146,12 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
 
     // Si idFlowMaster acá es el IdFlowMaster “real”, ok.
     // Si en otros módulos usás flowMasterById, mantené consistencia.
-    match Map.tryFind idFlowMaster repo.flowMasterById.Value with
+    match Map.tryFind idFlowMaster repo.flowMasterById with
     | None ->  Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
 
         let detalles = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Sleeve"
-        let dSleeve = repo.sleeveByFlowDetailId.Value
+        let dSleeve = repo.sleeveByFlowDetailId
 
         detalles
         |> List.fold (fun acc fd ->
@@ -186,14 +186,15 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
 
 
 
-let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, DomainError> =
+let buildTransportsDB idFlowMaster path (ctx: FlowDB.Ctx) : Result<Map<flowId, TransportParams>, DomainError> =
 
-    match Map.tryFind idFlowMaster repo.flowMasterById.Value with
+    let repo = repos ctx
+    match Map.tryFind idFlowMaster repo.flowMasterById with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
 
         let detalles   = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Transport"
-        let transpFlow = repo.transportByFlowDetailId.Value
+        let transpFlow = repo.transportByFlowDetailId
 
         detalles
         |> List.fold (fun acc fd ->
@@ -326,9 +327,11 @@ let buildSellsDB
 // FlowSteps (equivalente a buildFlowSteps / getFlowSteps de Excel)
 // =====================================================================================
 
-let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnly) : FlowStep list =
+let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnly) (ctx: FlowDB.Ctx) : FlowStep list =
+
+    let repo = repos ctx
     let fm =
-        match Map.tryFind flowMasterId repo.flowMasterById.Value with
+        match Map.tryFind flowMasterId repo.flowMasterById with
         | Some fm -> fm
         | None -> failwithf "No se encontró FlowMaster para el Id='%d'" flowMasterId
 
@@ -351,7 +354,7 @@ let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnl
         let flowId = { flowMasterId = flowMasterId; path = path }
 
         let tipoDesc =
-            repo.tipoOperacionById.Value
+            repo.tipoOperacionById
             |> Map.tryFind fd.IdTipoOperacion
             |> Option.defaultValue "<unknown>"
 
@@ -406,10 +409,12 @@ let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnl
 let getFlowStepsDB
     (flowMasterId      : FlowMasterId)
     (diaGas    : DateOnly)
+    (ctx: FlowDB.Ctx)
     : Result<Map<FlowId, FlowStep list>, DomainError> =
 
+    let repo = repos ctx
 
-    match  Map.tryFind flowMasterId repo.flowMasterById.Value with 
+    match  Map.tryFind flowMasterId repo.flowMasterById with 
         | None ->
             Error (MissingFlowMaster flowMasterId)
         | Some fm ->

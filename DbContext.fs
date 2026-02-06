@@ -13,8 +13,6 @@ let connectionString = "Server=DESKTOP-8GOI1HK\MSSQLSERVER04;Database=GNX_Develo
 let useOptionTypes = FSharp.Data.Sql.Common.NullableColumnType.OPTION
 type sqlGnx = SqlDataProvider<Common.DatabaseProviderTypes.MSSQLSERVER, connectionString, UseOptionTypes = useOptionTypes>
 
-let xxx = sqlGnx.GetDataContext(connectionString) 
-let con = xxx.CreateConnection()
 
 module FlowDB =
 
@@ -22,7 +20,9 @@ module FlowDB =
 
     type Ctx = sqlGnx.dataContext
 
-    let createCtx (connectionString: string) = sqlGnx.GetDataContext(connectionString)
+
+    let createCtx(con:string)  = sqlGnx.GetDataContext(con)
+
 
     type FlowMaster = Ctx.``fm.FlowMasterEntity``
     type FlowDetail = Ctx.``fm.FlowDetailEntity``   

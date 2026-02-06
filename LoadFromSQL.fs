@@ -144,31 +144,31 @@ module SQL_Data =
 
 
   let private entidadLegalById' (ctx: FlowDB.Ctx) =
-    lazy (ctx.Dbo.EntidadLegal |> Seq.map (fun e -> e.IdEntidadLegal, e) |> Map.ofSeq)
+     (ctx.Dbo.EntidadLegal |> Seq.map (fun e -> e.IdEntidadLegal, e) |> Map.ofSeq)
 
 
   let private puntoCodigoById' (ctx: FlowDB.Ctx) =
-    lazy (ctx.Dbo.Punto |> Seq.map (fun p -> p.IdPunto, p.Codigo) |> Map.ofSeq)
+     (ctx.Dbo.Punto |> Seq.map (fun p -> p.IdPunto, p.Codigo) |> Map.ofSeq)
 
   let private contratoById'  (ctx: FlowDB.Ctx)=
-    lazy (loadContratos(ctx) |> List.map (fun c -> c.id, c) |> Map.ofList)
+     (loadContratos(ctx) |> List.map (fun c -> c.id, c) |> Map.ofList)
 
 
   let private transaccionesGasById'  (ctx: FlowDB.Ctx)=
-        lazy (loadTransaccionesGas(ctx) |> List.map (fun t -> t.id, t) |> Map.ofList)
+     (loadTransaccionesGas(ctx) |> List.map (fun t -> t.id, t) |> Map.ofList)
 
   let private transaccionesTransporteById'  (ctx: FlowDB.Ctx)=
-        lazy (loadTransaccionesTransporte(ctx) |> List.map (fun t -> t.id, t) |> Map.ofList)
+     (loadTransaccionesTransporte(ctx) |> List.map (fun t -> t.id, t) |> Map.ofList)
 
   let private flowMasterByNombre' (ctx: FlowDB.Ctx) =
-        lazy (ctx.Fm.FlowMaster |> Seq.map (fun fm -> fm.Nombre, fm) |> Map.ofSeq)
+     (ctx.Fm.FlowMaster |> Seq.map (fun fm -> fm.Nombre, fm) |> Map.ofSeq)
 
   let private flowMasterById' (ctx: FlowDB.Ctx)=
-            lazy (ctx.Fm.FlowMaster |> Seq.map (fun fm -> fm.IdFlowMaster, fm) |> Map.ofSeq)
+     (ctx.Fm.FlowMaster |> Seq.map (fun fm -> fm.IdFlowMaster, fm) |> Map.ofSeq)
 
 
   let private tipoOperacionByDesc' (ctx: FlowDB.Ctx) =
-            lazy (
+      (
                 ctx.Fm.TipoOperacion
                 |> Seq.map (fun top -> top.Descripcion, top.IdTipoOperacion)
                 |> Seq.toList
@@ -176,7 +176,7 @@ module SQL_Data =
             )
 
   let private tipoOperacionById' (ctx: FlowDB.Ctx) =
-            lazy (
+      (
                 ctx.Fm.TipoOperacion
                 |> Seq.map (fun top -> top.IdTipoOperacion, top.Descripcion)
                 |> Seq.toList
@@ -185,13 +185,13 @@ module SQL_Data =
 
 
   let private rutaById'  (ctx: FlowDB.Ctx)=
-            lazy (ctx.Dbo.Ruta |> Seq.map (fun r -> r.IdRuta, r) |> Map.ofSeq)
+       (ctx.Dbo.Ruta |> Seq.map (fun r -> r.IdRuta, r) |> Map.ofSeq)
 
 
 
   // (IdFlowMaster, Path) -> seq FlowDetail
   let  private flowDetailsByMasterPath'  (ctx: FlowDB.Ctx) =
-    lazy (
+     (
         ctx.Fm.FlowDetail
         |> Seq.groupBy (fun fd -> (fd.IdFlowMaster, fd.Path))
         |> Seq.map (fun (k, v) -> k, v)
@@ -207,12 +207,12 @@ module SQL_Data =
     } |> Seq.toList
   
   let private tradeByFlowDetailId' (ctx: FlowDB.Ctx) =
-    lazy (ctx.Fm.Trade |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq)
+     (ctx.Fm.Trade |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq)
 
 
   // Obtener el consumo por punto para un FlowMaster y díaGas
   let getConsumoPunto' (ctx: FlowDB.Ctx) idFlowMaster (diaGas:DateOnly) =
-    let idTipoConsumo = (tipoOperacionByDesc' ctx).Value |> Map.find "Consume"
+    let idTipoConsumo = (tipoOperacionByDesc' ctx) |> Map.find "Consume"
     match ctx.Fm.FlowDetail |> Seq.tryFind (fun fd -> fd.IdFlowMaster = idFlowMaster && fd.IdTipoOperacion = idTipoConsumo) with
     | Some fd -> 
         let dg = diaGas.ToDateTime(TimeOnly.MinValue)
@@ -236,35 +236,35 @@ module SQL_Data =
 
 // NOTE: estas tablas pueden o no existir en tu schema `Fm`. Si existen, descomentá.
   let private sleeveByFlowDetailId' (ctx: FlowDB.Ctx)=
-    lazy (ctx.Fm.Sleeve |> Seq.map (fun s -> s.IdFlowDetail, s) |> Map.ofSeq)
+     (ctx.Fm.Sleeve |> Seq.map (fun s -> s.IdFlowDetail, s) |> Map.ofSeq)
 //
   let private transportByFlowDetailId' (ctx: FlowDB.Ctx)=
-    lazy (ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq)
+     (ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq)
 //
 
   let private tradingHubNemonicoById' (ctx: FlowDB.Ctx) =
-    lazy (ctx.Platts.IndicePrecio |> Seq.map (fun th -> th.IdIndicePrecio, th.Nemonico) |> Map.ofSeq)
+     (ctx.Platts.IndicePrecio |> Seq.map (fun th -> th.IdIndicePrecio, th.Nemonico) |> Map.ofSeq)
 
 
   type Repos = {
-     entidadLegalById : Lazy<Map<int, FlowDB.EntidadLegal>> 
-     contratoById : Lazy<Map<int, Contrato>>
-     puntoCodigoById : Lazy<Map<int, string>>
-     flowDetailsByMasterPath : Lazy<Map<(int*string), FlowDB.FlowDetail seq>>
-     tradeByFlowDetailId : Lazy<Map<int,FlowDB.FlowTrade >> 
+     entidadLegalById : Map<int, FlowDB.EntidadLegal> 
+     contratoById : Map<int, Contrato>
+     puntoCodigoById : Map<int, string>
+     flowDetailsByMasterPath : Map<(int*string), FlowDB.FlowDetail seq>
+     tradeByFlowDetailId : Map<int,FlowDB.FlowTrade > 
      flowDetailsByMasterFlowId : int -> FlowDB.FlowDetail list
-     transportByFlowDetailId : Lazy<Map<int,FlowDB.FlowTransport >>
-     tradingHubNemonicoById: Lazy<Map<int,string>>
-     rutaById : Lazy<Map<int, FlowDB.Ruta>>
-     tipoOperacionByDesc : Lazy<Map<string,int>>
-     tipoOperacionById : Lazy<Map<int,string>>
-     flowMasterById : Lazy<Map<int, FlowDB.FlowMaster>>
-     flowMasterByNombre : Lazy<Map<string option, FlowDB.FlowMaster>>
-     transaccionGasById : Lazy<Map<int, TransaccionGas>>
-     transaccionTransporteById : Lazy<Map<int, TransaccionTransporte>>
+     transportByFlowDetailId : Map<int,FlowDB.FlowTransport >
+     tradingHubNemonicoById: Map<int,string>
+     rutaById : Map<int, FlowDB.Ruta>
+     tipoOperacionByDesc : Map<string,int>
+     tipoOperacionById : Map<int,string>
+     flowMasterById : Map<int, FlowDB.FlowMaster>
+     flowMasterByNombre : Map<string option, FlowDB.FlowMaster>
+     transaccionGasById : Map<int, TransaccionGas>
+     transaccionTransporteById : Map<int, TransaccionTransporte>
      loadConsumo : DateOnly -> int -> Linq.IQueryable<int * decimal option>
      loadCompraGas : DateOnly -> int -> CompraGas list
-     sleeveByFlowDetailId : Lazy<Map<int,FlowDB.FlowSleeve >>
+     sleeveByFlowDetailId : Map<int,FlowDB.FlowSleeve >
      getConsumoPunto :int ->DateOnly  -> (int * int * decimal option) list
      ventasRegistradas : DateOnly -> FlowDB.VentaGas list
     }
@@ -295,14 +295,13 @@ module SQL_Data =
     }
 
 
-  let repo = repos (DbContext.FlowDB.createCtx DbContext.connectionString)
+  //let repo = repos (FlowDB.createCtx DbContext.connectionString)
 
 
-  let dFlowMaster = repo.flowMasterById.Value
-  let dEnt = repo.entidadLegalById.Value
-  let dPto = repo.puntoCodigoById.Value
-  let dCont = repo.contratoById.Value
-  let dTransGas = repo.transaccionGasById.Value
-  let dTransTte = repo.transaccionTransporteById.Value
-
-  let dRuta = repo.rutaById.Value
+  //let dFlowMaster = repo.flowMasterById
+  //let dEnt = repo.entidadLegalById
+  //let dPto = repo.puntoCodigoById
+  //let dCont = repo.contratoById
+  //let dTransGas = repo.transaccionGasById
+  //let dTransTte = repo.transaccionTransporteById
+  //let dRuta = repo.rutaById
