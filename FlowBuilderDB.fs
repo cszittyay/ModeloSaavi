@@ -87,6 +87,7 @@ let buildSupplysDB
                         transactionId  = transact.id
                         buyerId        = transact.idBuyer
                         sellerId       = transact.idSeller
+                        flowDetailId   = idFlowDetail
                         buyer          = transact.buyer
                         seller         = transact.seller
                         temporalidad   = parseTemporalidad cg.temporalidad
