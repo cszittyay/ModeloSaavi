@@ -289,9 +289,10 @@ let buildSellsDB
     : Result<Map<flowId, SellParams list>, DomainError> =
 
     let flowDetails = getFlowDetailsByTipo idFlowMaster path "Sell"
+    let ventas = ventasByFlowDetailId diaGas (flowDetails |> List.map (fun fd -> fd.IdFlowDetail))
 
     // Si no hay sells definidos para ese path, esto puede ser válido:
-    if List.isEmpty flowDetails then
+    if List.isEmpty flowDetails || List.isEmpty ventas then
         Ok Map.empty
     else
 
@@ -301,12 +302,9 @@ let buildSellsDB
             |> Seq.map (fun x -> x.IdFlowDetail, x.Referencia)
             |> Map.ofSeq
 
-        let ventasRegistradas =
-            ctx.Dbo.VentaGas
-            |> Seq.filter (fun vg -> vg.DiaGas = do2dt diaGas)
 
-        ventasRegistradas
-        |> Seq.fold (fun acc vr ->
+        ventas
+        |> List.fold (fun acc vr ->
             acc
             |> Result.bind (fun m ->
 

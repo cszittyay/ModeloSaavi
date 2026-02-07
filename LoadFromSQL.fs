@@ -1,6 +1,8 @@
 ﻿namespace Gnx.Persistence
 
 open System
+open System.Collections.Generic
+open System.Linq
 open FSharp.Data.Sql
 open DbContext
 open Gnx.Domain
@@ -200,6 +202,17 @@ module SQL_Data =
         |> Seq.map (fun (k, v) -> k, v)
         |> Map.ofSeq
     )
+
+
+
+  let ventasByFlowDetailId (diaGas:DateOnly) (flowDetailIds:int list) =
+    let dia = diaGas.ToDateTime(TimeOnly.MinValue)
+    let ids = flowDetailIds |> List.toArray
+    query {
+      for v in ctx.Dbo.VentaGas do
+      where (v.DiaGas = dia && (ids.Contains(v.IdFlowDetail)))
+      select  v
+    } |> Seq.toList
 
 // Operaciones “master data” por IdFlowDetail (las transaccionales suelen requerir diaGas)
   let tradeByFlowDetailId =
