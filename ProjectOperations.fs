@@ -33,7 +33,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
                   { runId = runId
                     gasDay = t.state.gasDay
                     transactionId = sp.transactionId
-                    flowDetailId = 1 + i // placeholder
+                    flowDetailId = sp.flowDetailId
                     temporalidad = sp.temporalidad
                     buyBack = sp.qEnergia < 0.0m<MMBTU>    
                     seller = sp.seller

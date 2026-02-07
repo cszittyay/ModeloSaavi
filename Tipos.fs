@@ -95,6 +95,7 @@ type SupplyParams =
   { transactionId: TransactionId
     buyerId    : EntidadLegalId
     sellerId   : EntidadLegalId
+    flowDetailId : FlowDetailId
     buyer         : Party
     seller        : Party
     gasDay       : GasDay

@@ -295,13 +295,13 @@ module SQL_Data =
     }
 
 
-  //let repo = repos (FlowDB.createCtx DbContext.connectionString)
+  let repo = repos (FlowDB.createCtx DbContext.connectionString)
 
 
-  //let dFlowMaster = repo.flowMasterById
-  //let dEnt = repo.entidadLegalById
-  //let dPto = repo.puntoCodigoById
-  //let dCont = repo.contratoById
-  //let dTransGas = repo.transaccionGasById
-  //let dTransTte = repo.transaccionTransporteById
-  //let dRuta = repo.rutaById
+  let dFlowMaster = repo.flowMasterById
+  let dEnt = repo.entidadLegalById
+  let dPto = repo.puntoCodigoById
+  let dCont = repo.contratoById
+  let dTransGas = repo.transaccionGasById
+  let dTransTte = repo.transaccionTransporteById
+  let dRuta = repo.rutaById

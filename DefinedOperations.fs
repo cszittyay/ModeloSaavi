@@ -245,9 +245,7 @@ module Sell =
         if stIn.energy <= s.qty then Error (Other $"Sell: La cantidad a vender {s.qty} es mayor a la disponible: {stIn.energy}")
         else
           let stOut =
-              { stIn with
-                  energy   = stIn.energy - s.qty
-                   }
+              { stIn with energy   = stIn.energy - s.qty }
           
           let amount = s.qty * s.price
           let fee =
@@ -331,7 +329,7 @@ module Transport =
           Error (QuantityNonPositive "TransportParams: transport.qEnergia")
 
         elif p.fuelPct < 0m || p.fuelPct >= 100m then
-          Error (InvalidUnits "TransportParams: transport.fuelPct debe estar en [0,1)")
+          Error (InvalidUnits "TransportParams: transport.fuelPct debe estar en [0,100)")
         else
           // Cálculos: shrink por fuel y costo de uso
           let qtyIn  : Energy = stIn.energy

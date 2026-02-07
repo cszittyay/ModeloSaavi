@@ -54,8 +54,8 @@ module FlowRunRepo =
       // Crear fila FlowRun
       let fr = ctx.Fm.FlowRun.Create()
       fr.GasDay  <- gasDay.ToDateTime(TimeOnly.MinValue)
-      fr.Modo <- Some "ModoX"  // TODO: parámetro"
-      fr.Central <- Some "CentralX" // TODO: parámetro"
+      fr.Modo <- Some fm.Nombre.Value 
+      fr.Central <- Some fm.Codigo
       // fr.CreatedAt lo setea el DEFAULT de SQL Server
 
       // Persistir

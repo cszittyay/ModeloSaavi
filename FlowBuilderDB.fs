@@ -86,6 +86,7 @@ let buildSupplysDB
                         transactionId  = transact.id
                         buyerId        = transact.idBuyer
                         sellerId       = transact.idSeller
+                        flowDetailId   = idFlowDetail
                         buyer          = transact.buyer
                         seller         = transact.seller
                         temporalidad   = parseTemporalidad cg.temporalidad
@@ -222,7 +223,7 @@ let buildTransportsDB idFlowMaster path (ctx: FlowDB.Ctx) : Result<Map<flowId, T
                           transactionId = trTte.id
                           flowDetailId  = fd.IdFlowDetail
                           providerId    = cto.idParte
-                          pipeline      = "Gasoducto"
+                          pipeline      = "S/D"
                           shipperId     = cto.idContraparte
                           routeId       = ruta.IdRuta
                           entry         = entryPto
@@ -339,7 +340,7 @@ let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnl
     let supplies   = buildSupplysDB diaGas fm.IdFlowMaster path
     let trades     = buildTradesDB fm.IdFlowMaster path
     let sleeves    = buildSleevesDB fm.IdFlowMaster path
-    let transports = buildTransportsDB fm.IdFlowMaster path
+    let transports = buildTransportsDB fm.IdFlowMaster path ctx
     let consumes   = buildConsumeDB diaGas fm.IdFlowMaster path
     let sells      = buildSellsDB diaGas fm.IdFlowMaster path
 
@@ -431,7 +432,7 @@ let getFlowStepsDB
                 paths
                 |> List.map (fun path ->
                     let fid = { flowMasterId = flowMasterId; path = path }
-                    fid, buildFlowStepsDb flowMasterId path diaGas)
+                    fid, buildFlowStepsDb flowMasterId path diaGas ctx)
                 |> Map.ofList
             Ok result
 
