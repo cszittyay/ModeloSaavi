@@ -346,11 +346,15 @@ let buildSellsDB
 // =====================================================================================
 
 let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnly) : FlowStep list =
+   
     let fm =
         match tryFindFlowMaster flowMasterId  with
         | Some fm -> fm
         | None -> failwithf "No se encontró FlowMaster para el Id='%d'" flowMasterId
 
+
+    let tryFindOr (defaultValue:'a) (fdId:int) (r: Result<Map<int,'a>, 'e>) : Result<'a,'e> =
+        r |> Result.map (fun m -> Map.tryFind fdId m |> Option.defaultValue defaultValue)
 
     let supplies   = buildSupplysDB diaGas fm.IdFlowMaster path
     let trades     = buildTradesDB fm.IdFlowMaster path
@@ -390,6 +394,7 @@ let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnl
 
             | "Transport" ->
                 let tp = transports |> Result.map(Map.find fd.IdFlowDetail)
+                 
                 match tp with
                 | Ok tp -> Transport tp
                 | Error e -> failwithf "Error building Transport block: %A" e
@@ -400,17 +405,20 @@ let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnl
                 | Ok sl -> Sleeve sl
                 | Error  e  -> failwithf "Errror Sleeve not defined %A" e
 
+           
+            | "Sell" ->
+                // let sp = sells |> Result.map(Map.find fd.IdFlowDetail)
+                let! sp = tryFindOr [] fd.IdFlowDetail sells
+                match sp with
+                | Ok sp -> SellMany sp
+                | Error e -> failwithf "Error Sell block: %A" e
+
             | "Consume" ->
                 let cp = consumes |> Result.map( Map.find fd.IdFlowDetail)
                 match cp with
                 | Ok cp -> Consume cp
                 | Error e -> failwithf "Error Consume not defined %A" e
 
-            | "Sell" ->
-                let sp = sells |> Result.map(Map.find fd.IdFlowDetail)
-                match sp with
-                | Ok sp -> SellMany sp
-                | Error e -> failwithf "Error Sell block: %A" e
             | other ->
                 failwithf "TipoOperacion '%s' no soportado para FlowSteps DB" other
 
