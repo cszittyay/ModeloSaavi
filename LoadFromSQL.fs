@@ -43,7 +43,7 @@ module SQL_Data =
       join tt in ctx.Dbo.TipoTransaccion on (t.IdTipoTransaccion = tt.IdTipoTransaccion)
       join c in ctx.Dbo.Contrato on (t.IdContrato = c.IdContrato)
       join el in ctx.Dbo.EntidadLegal on (c.IdContraparte = el.IdEntidadLegal)
-      join p in ctx.Dbo.Punto on (t.IdPuntoEntrega = p.IdPunto)
+      join p in ctx.Dbo.Punto on (t.IdPuntoRecepcion = p.IdPunto)
       join elp in ctx.Dbo.EntidadLegal on (c.IdParte = elp.IdEntidadLegal)
       select
         { 
@@ -55,7 +55,7 @@ module SQL_Data =
             IdContraparte = c.IdContraparte
             PuntoEntrega = p.Codigo
             Id_IndicePrecio = t.IdIndicePrecio
-            Id_PuntoEntrega = t.IdPuntoEntrega
+            Id_PuntoEntrega = t.IdPuntoRecepcion
             Id_TipoTransaccion = t.IdTipoTransaccion
             TipoTransaccionDescripcion = Some tt.Descripcion
             Id_TipoServicio = t.IdTipoServicio
@@ -156,10 +156,10 @@ module SQL_Data =
     lazy (loadContratos() |> List.map (fun c -> c.id, c) |> Map.ofList)
 
 
-  let transaccionesGasById =
+  let transaccionesGasById() =
         lazy (loadTransaccionesGas() |> List.map (fun t -> t.id, t) |> Map.ofList)
 
-  let transaccionesTransporteById =
+  let transaccionesTransporteById()=
         lazy (loadTransaccionesTransporte() |> List.map (fun t -> t.id, t) |> Map.ofList)
 
   let flowMasterByNombre =
@@ -234,6 +234,5 @@ module SQL_Data =
   let dEnt = entidadLegalById.Value
   let dPto = puntoCodigoById.Value
   let dCont = contratosById.Value
-  let dTransGas = transaccionesGasById.Value
-  let dTransTte = transaccionesTransporteById.Value
+  
 

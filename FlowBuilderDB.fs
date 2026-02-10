@@ -63,6 +63,8 @@ let buildSupplysDB
     (path: string)
     : Result<Map<flowId, SupplyParams list>, DomainError> =
 
+    let dTransGas = transaccionesGasById().Value
+
     match Map.tryFind idFlowMaster flowMasterById.Value with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
@@ -114,7 +116,7 @@ let buildTradesDB idFlowMaster path : Result<Map<flowId, TradeParams>, DomainErr
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
         let tradeGas = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Trade"
-
+        let dTransGas = transaccionesGasById().Value
         tradeGas
         |> List.fold (fun acc fd ->
             acc
@@ -148,6 +150,7 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
 
     // Si idFlowMaster acá es el IdFlowMaster “real”, ok.
     // Si en otros módulos usás flowMasterById, mantené consistencia.
+    let dTransGas = transaccionesGasById().Value
     match Map.tryFind idFlowMaster flowMasterById.Value with
     | None ->  Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
@@ -193,6 +196,7 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
 
 let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, DomainError> =
 
+
     match Map.tryFind idFlowMaster flowMasterById.Value with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
@@ -200,6 +204,7 @@ let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, D
         let detalles   = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Transport"
         let transpFlow = ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq
         let dRuta = rutaById()
+        let dTransTte = transaccionesTransporteById().Value
 
         detalles
         |> List.fold (fun acc fd ->
@@ -290,6 +295,7 @@ let buildSellsDB
 
     let flowDetails = getFlowDetailsByTipo idFlowMaster path "Sell"
     let ventas = ventasByFlowDetailId diaGas (flowDetails |> List.map (fun fd -> fd.IdFlowDetail))
+    let dTransGas = transaccionesGasById().Value
 
     // Si no hay sells definidos para ese path, esto puede ser válido:
     if List.isEmpty flowDetails || List.isEmpty ventas then
