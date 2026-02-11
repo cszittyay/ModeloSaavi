@@ -39,8 +39,6 @@ type TransaccionGasJoinRow =
     Id_TipoServicio: int
     Id_Contrato: int
     Adder: decimal option
-    Fuel: decimal
-    TarifaTransporte: decimal
     FormulaPrecio: string option
     PrecioFijo: decimal option
     Volumen: decimal
