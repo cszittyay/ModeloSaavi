@@ -56,6 +56,7 @@ type DomainError =
   | MissingFlowType of operationType: string
   | MissingFlowDetail of flowMaster:string
   | MissingInterruptibleTransport of tfTransaccion:int * excess:decimal
+  | MissingTransportTransaction of flowMaster: string * flowDetailId:int * path:string
   | Other of string
   
 
@@ -167,26 +168,10 @@ type FuelMode = |RxBase | ExBase
 
 type TransportTransaccionId = int
 
-type TransportConfig =
-  { transaccionTF : TransportTransaccionId
-    transaccionTI : TransportTransaccionId option }
-
-type TransportResultKind =
-  | TF
-  | TI
-
-type TransportResult =
-  { kind        : TransportResultKind
-    transaccion : TransportTransaccionId
-    qtyIn       : decimal
-    qtyOut      : decimal
-    fuelQty     : decimal }
-
-
 
 
 type TransportParams =
-  { transactionTF : TransactionId
+  { transactionTF : TransactionId option
     transactionTI : TransactionId option
     flowDetailId : FlowDetailId
     provider    : Party

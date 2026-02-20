@@ -147,6 +147,9 @@ module SQL_Data =
     lazy (ctx.Dbo.EntidadLegal |> Seq.map (fun e -> e.IdEntidadLegal, e) |> Map.ofSeq)
 
 
+  let gasoductoById =
+    lazy (ctx.Dbo.Gasoducto |> Seq.map (fun g -> g.IdGasoducto, g) |> Map.ofSeq)    
+
   let puntoCodigoById =
     lazy (ctx.Dbo.Punto |> Seq.map (fun p -> p.IdPunto, p.Codigo) |> Map.ofSeq)
 
@@ -232,5 +235,6 @@ module SQL_Data =
   let dEnt = entidadLegalById.Value
   let dPto = puntoCodigoById.Value
   let dCont = contratosById.Value
+  let dGasoducto = gasoductoById.Value
   
 

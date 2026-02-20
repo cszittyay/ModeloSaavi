@@ -9,7 +9,7 @@ type TransportResultRow = {
   runId     : int
   gasDay    : DateOnly
   flowDetailId : FlowDetailId
-  transactionId :TransactionId
+  transactionId :TransactionId option
   providerId   : EntidadLegalId
   pipeline  : Pipeline
   fuelMode  : FuelMode

@@ -192,136 +192,71 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
         
 
 
-
-
-//let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, DomainError> =
-
-//    let tryFindOrError err key (m: Map<_,_>) =
-//        match Map.tryFind key m with
-//        | Some v -> Ok v
-//        | None -> Error err
-
-//    match Map.tryFind idFlowMaster flowMasterById.Value with
-//    | None -> Error (MissingFlowMaster idFlowMaster)
-//    | Some flowMaster ->
-
-//        let detalles   = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Transport"
-
-//        // Map por FlowDetailId -> fm.Transport row
-//        let transpFlow =
-//            ctx.Fm.Transport
-//            |> Seq.map (fun t -> t.IdFlowDetail, t)
-//            |> Map.ofSeq
-
-//        let dRuta     = rutaById()
-//        let dTransTte = transaccionesTransporteById().Value
-
-//        detalles
-//        |> List.fold (fun acc fd ->
-//            acc
-//            |> Result.bind (fun m ->
-
-//                result {
-//                    let! tteFlow =
-//                        transpFlow
-//                        |> tryFindOrError (MissingTransportFlowDetail (flowMaster.Nombre.Value, fd.IdFlowDetail, path)) fd.IdFlowDetail
-
-//                    let idTF = tteFlow.Id_TransaccionTF
-//                    let idTI = tteFlow.Id_TransaccionTI
-
-//                    // Buscar transacción TF
-//                    let! trTteTF =
-//                        dTransTte
-//                        |> tryFindOrError (MissingTransaccionTransporte (flowMaster.Nombre.Value, idTF, path)) idTF
-
-//                    // Ruta y contrato a partir de TF
-//                    let! ruta =
-//                        dRuta
-//                        |> tryFindOrError (MissingRuta (flowMaster.Nombre.Value, trTteTF.idRuta, path)) trTteTF.idRuta
-
-//                    let! cto =
-//                        dCont
-//                        |> tryFindOrError (MissingContrato (flowMaster.Nombre.Value, trTteTF.idContrato, path)) trTteTF.idContrato
-
-//                    let! contraparte =
-//                        dEnt
-//                        |> tryFindOrError (MissingEntidad (flowMaster.Nombre.Value, cto.idContraparte, path)) cto.idContraparte
-
-//                    let! entryPto =
-//                        dPto
-//                        |> tryFindOrError (MissingPunto (flowMaster.Nombre.Value, ruta.IdPuntoRecepcion, path)) ruta.IdPuntoRecepcion
-
-//                    let! exitPto =
-//                        dPto
-//                        |> tryFindOrError (MissingPunto (flowMaster.Nombre.Value, ruta.IdPuntoEntrega, path)) ruta.IdPuntoEntrega
-
-//                    // Meta: adjuntamos TI si está configurado
-//                    let meta =
-//                        match idTI with
-//                        | None -> Map.empty
-//                        | Some ti -> Map.empty |> Map.add "tiTransactionId" (box ti)
-
-//                    let tp : TransportParams =
-//                        { provider      = contraparte.Nombre
-//                          transactionId = trTteTF.id              // TF
-//                          flowDetailId  = fd.IdFlowDetail
-//                          providerId    = cto.idParte
-//                          pipeline      = "Gasoducto"
-//                          shipperId     = cto.idContraparte
-//                          routeId       = ruta.IdRuta
-//                          entry         = entryPto
-//                          exit          = exitPto
-//                          shipper       = contraparte.Nombre
-//                          fuelMode      = if trTteTF.fuelMode = "RxBase" then FuelMode.RxBase else FuelMode.ExBase
-//                          fuelPct       = ruta.Fuel
-//                          CMD           = trTteTF.cmd
-//                          usageRate     = trTteTF.usageRate
-//                          meta          = meta }
-
-//                    return Map.add fd.IdFlowDetail tp m
-
-
 let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, DomainError> =
 
+  match Map.tryFind idFlowMaster flowMasterById.Value with
+  | None -> Error (MissingFlowMaster idFlowMaster)
+  | Some flowMaster ->
 
-    match Map.tryFind idFlowMaster flowMasterById.Value with
-    | None -> Error (MissingFlowMaster idFlowMaster)
-    | Some flowMaster ->
+      let detalles   = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Transport"
+      let transpFlow = ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq
+      let dRuta      = rutaById()
+      let dTransTte  = transaccionesTransporteById().Value
 
-        let detalles   = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Transport"
-        let transpFlow = ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq
-        let dRuta = rutaById()
-        let dTransTte = transaccionesTransporteById().Value
+      detalles
+      |> List.fold (fun acc fd ->
+          acc
+          |> Result.bind (fun m ->
 
-        detalles
-        |> List.fold (fun acc fd ->
-            acc
-            |> Result.bind (fun m ->
+              match Map.tryFind fd.IdFlowDetail transpFlow with
+              | None ->
+                  Error (MissingTransportFlowDetail (flowMaster.Nombre.Value, fd.IdFlowDetail, path))
 
-                match Map.tryFind fd.IdFlowDetail transpFlow with
-                | None ->
-                    Error (MissingTransportFlowDetail (flowMaster.Nombre.Value, fd.IdFlowDetail,  path))
+              | Some tteFlow ->
 
-                | Some tteFlow ->
+                  // trTF : TransaccionTransporte option
+                  let trTF =
+                    tteFlow.IdTransaccionTf
+                    |> Option.map (fun id -> dTransTte.[id])
 
-                    // Si estos diccionarios/mapas pueden faltar, conviene tryFind también.
-                    // Dejo indexadores como en tu código original.
-                    let trTte = dTransTte.[tteFlow.IdTransaccionTf]
-                    let trTI  = if tteFlow.IdTransaccionTi.IsSome then Some dTransTte.[tteFlow.IdTransaccionTi.Value] else None
-                    let ruta  = dRuta.[trTte.idRuta]
-                    let cto   = dCont.[trTte.idContrato]
+                  // trTI : TransaccionTransporte option
+                  let trTI =
+                    tteFlow.IdTransaccionTi
+                    |> Option.map (fun id -> dTransTte.[id])
 
-                    let contraparte = dEnt.[cto.idContraparte]
-                    let entryPto    = dPto.[ruta.IdPuntoRecepcion]
-                    let exitPto     = dPto.[ruta.IdPuntoEntrega]
 
-                    let tp : TransportParams =
+                // helper (si querés local)
+                  let pickTransaccion trTF trTI =
+                    match trTF, trTI with
+                    | Some tf, _     -> Ok tf
+                    | None, Some ti  -> Ok ti
+                    | None, None     -> Error (MissingTransportTransaction (flowMaster.Nombre.Value, fd.IdFlowDetail, path)) // <-- OJO: fd no existe acá
+
+      
+                  // Elegir una transacción “base” para ruta/contrato, o error si faltan ambas
+                  let pickTransaccion trTF trTI =
+                    match trTF, trTI with
+                    | Some tf, _     -> Ok tf
+                    | None, Some ti  -> Ok ti
+                    | None, None     -> Error (MissingTransportTransaction (flowMaster.Nombre.Value, fd.IdFlowDetail, path))
+
+                  pickTransaccion trTF trTI
+                  |> Result.bind (fun trTte ->
+
+                      let ruta  = dRuta.[trTte.idRuta]
+                      let cto   = dCont.[trTte.idContrato]
+
+                      let contraparte = dEnt.[cto.idContraparte]
+                      let entryPto    = dPto.[ruta.IdPuntoRecepcion]
+                      let exitPto     = dPto.[ruta.IdPuntoEntrega]
+
+                      let tp : TransportParams =
                         { provider      = contraparte.Nombre
-                          transactionTF = trTte.id
-                          transactionTI = if trTI.IsSome then Some (trTI.Value.id) else None
+                          transactionTF = trTF |> Option.map (fun x -> x.id)
+                          transactionTI = trTI |> Option.map (fun x -> x.id)
                           flowDetailId  = fd.IdFlowDetail
                           providerId    = cto.idParte
-                          pipeline      = "Gasoducto"
+                          pipeline      = if ruta.IdGasoducto.IsSome then dGasoducto.[ruta.IdGasoducto.Value].Nombre else "S/D"
                           shipperId     = cto.idContraparte
                           routeId       = ruta.IdRuta
                           entry         = entryPto
@@ -333,9 +268,10 @@ let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, D
                           usageRate     = trTte.usageRate
                           meta          = Map.empty }
 
-                    Ok (Map.add fd.IdFlowDetail tp m)
-            )
-        ) (Ok Map.empty)
+                      Ok (Map.add fd.IdFlowDetail tp m)
+                  )
+          )
+      ) (Ok Map.empty)
 
 
 

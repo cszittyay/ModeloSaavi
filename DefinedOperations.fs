@@ -293,7 +293,7 @@ module Trade =
         if stIn.energy <= 0.0m<MMBTU> then Error (Other "Trade: qEnergia <= 0")
         else
           
-          let stOut = { stIn with owner = p.buyer; ownerId = p.buyerId }
+          let stOut = { stIn with owner = p.buyer; ownerId = p.sellerId }
           // TODO: calcular price desde indice + adder si price = 0
           let amount = 0.m<USD> // tIn.energy * p.adder
           let fee =
@@ -314,7 +314,12 @@ module Trade =
 
 module Transport = 
 /// Operación de transporte de gasd
+  type TransportTxnMode =
+          | OnlyTF of tf: TransactionId          // poné TransactionId si querés
+          | OnlyTI of ti: TransactionId
+          | TFandTI of tf: TransactionId * ti: TransactionId
 
+  
   let transport (p: TransportParams) : Operation =
     fun stIn ->
 
@@ -329,16 +334,57 @@ module Transport =
         Error (InvalidUnits "TransportParams: transport.fuelPct debe estar en [0,100)")
       else
 
-        
-        let cdcTF = p.CDC 
+      // Logica para casos que: 1. Hay solo TF, 2: Solo TI, y 3: TF+TI
+      // Normalizamos el “modo” de transporte según transacciones disponibles
+      
+
+        let mode =
+          match p.transactionTF, p.transactionTI with
+          | Some tf, Some ti -> TFandTI (tf, ti)
+          | Some tf, None    -> OnlyTF (tf)
+          | None,    Some ti -> OnlyTI (ti)
+          | None,    None    ->
+              // No existe ningún contrato/transacción configurado => error de dominio
+              // Usá tu DomainError real; acá pongo Other como placeholder
+              // (si tenés MissingContract para esto, mejor)
+              // return early:
+              // Error (MissingContract "TransportParams: transactionTF/transactionTI")
+              // pero como estás en expresión, hacemos:
+              // (ver más abajo: early return)
+              failwith "unreachable" // lo reemplazamos con early-return abajo
 
         let qtyIn : Energy = stIn.energy
 
-        // Split TF/TI en base a CDC (si cdcTF=0 => todo TF, no TI)
-        let qtyTF =
-          if cdcTF > 0.0m<MMBTU> then min qtyIn cdcTF else qtyIn
+        // CDC “aplicable” a TF: si no hay TF, CDC no tiene sentido
+        let cdcTF : Energy =
+          match mode with
+          | OnlyTI _ -> 0.0m<MMBTU>
+          | OnlyTF _ -> p.CDC
+          | TFandTI _ -> p.CDC
 
-        let qtyTI = qtyIn - qtyTF
+        // Split TF/TI según modo
+        let qtyTF, qtyTI =
+          match mode with
+          | OnlyTF _ -> 
+              qtyIn, 0.0m<MMBTU>
+
+          | OnlyTI _ ->
+              // Todo por TI, TF=0
+              0.0m<MMBTU>, qtyIn
+
+          | TFandTI _ ->
+              // Primero TF hasta CDC, resto TI
+              let qtf =
+                if cdcTF > 0.0m<MMBTU> then min qtyIn cdcTF else qtyIn
+              let qti = qtyIn - qtf
+              qtf, qti
+
+        // Early-return: caso None/None y validación de excedente sin TI
+        match p.transactionTF, p.transactionTI with
+        | None, None ->
+            Error (MissingContract "TransportParams: transactionTF/transactionTI")  // <- usá tu error
+        | _ ->
+
 
         // Validación TI: si hay excedente y no hay transacción TI configurada => error (todo-o-nada)
         if qtyTI > 0.0m<MMBTU> && p.transactionTI.IsNone then

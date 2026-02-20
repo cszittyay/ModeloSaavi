@@ -115,41 +115,46 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
     Meta.require<Energy> "transport.fuelTF" t.notes >>= fun fuelTF ->
     Meta.require<Energy> "transport.fuelTI" t.notes >>= fun fuelTI ->
     
-    let trTFrow = 
+    let mutable result = []
+
+    if p.transactionTF.IsSome then
+        let trTFrow = 
   
-        { runId = runId
-          gasDay = t.state.gasDay
-          flowDetailId = p.flowDetailId
-          providerId = p.providerId
-          transactionId = p.transactionTF
-          routeId = p.routeId
-          pipeline = p.pipeline
-          fuelMode = p.fuelMode
+            { runId = runId
+              gasDay = t.state.gasDay
+              flowDetailId = p.flowDetailId
+              providerId = p.providerId
+              transactionId = p.transactionTF
+              routeId = p.routeId
+              pipeline = p.pipeline
+              fuelMode = p.fuelMode
 
-          qtyIn = qtyTFin
-          qtyOut = qtyTFout
-          fuelQty = fuelTF
-        }
-    if p.transactionTI.IsNone then
-        Ok [trTFrow]
-    else
-    let trTIrow = 
+              qtyIn = qtyTFin
+              qtyOut = qtyTFout
+              fuelQty = fuelTF
+            }
+        result <- result @ [trTFrow]
+    
+    if p.transactionTI.IsSome then
+        let trTIrow = 
   
-        { runId = runId
-          gasDay = t.state.gasDay
-          flowDetailId = p.flowDetailId
-          providerId = p.providerId
-          transactionId = p.transactionTI.Value
-          routeId = p.routeId
-          pipeline = p.pipeline
-          fuelMode = p.fuelMode
+            { runId = runId
+              gasDay = t.state.gasDay
+              flowDetailId = p.flowDetailId
+              providerId = p.providerId
+              transactionId = p.transactionTI
+              routeId = p.routeId
+              pipeline = p.pipeline
+              fuelMode = p.fuelMode
 
-          qtyIn = qtyTIin
-          qtyOut = qtyTIout
-          fuelQty = fuelTI
-     }
-    Ok  [trTFrow; trTIrow]
+              qtyIn = qtyTIin
+              qtyOut = qtyTIout
+              fuelQty = fuelTI
+         }
+        result <- result @ [trTIrow]
 
+    Ok result
+  
   // -------- Sleeve --------
   let projectSleeve (t: Transition) : Result<SleeveResultRow, DomainError> =
     getCommon t >>= fun (refOpt) ->
