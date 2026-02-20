@@ -55,6 +55,7 @@ type DomainError =
   | MissingSleeveFlowDetail of flowMaster: string * flowDetailId:int * path:string
   | MissingFlowType of operationType: string
   | MissingFlowDetail of flowMaster:string
+  | MissingInterruptibleTransport of tfTransaccion:int * excess:decimal
   | Other of string
   
 
@@ -164,10 +165,29 @@ type Operation = State -> Result<Transition, DomainError>
 // ExBase: se calcula sobre la qEnergia entregada
 type FuelMode = |RxBase | ExBase
 
+type TransportTransaccionId = int
+
+type TransportConfig =
+  { transaccionTF : TransportTransaccionId
+    transaccionTI : TransportTransaccionId option }
+
+type TransportResultKind =
+  | TF
+  | TI
+
+type TransportResult =
+  { kind        : TransportResultKind
+    transaccion : TransportTransaccionId
+    qtyIn       : decimal
+    qtyOut      : decimal
+    fuelQty     : decimal }
+
+
 
 
 type TransportParams =
-  { transactionId : TransactionId
+  { transactionTF : TransactionId
+    transactionTI : TransactionId option
     flowDetailId : FlowDetailId
     provider    : Party
     providerId  : EntidadLegalId
@@ -179,7 +199,7 @@ type TransportParams =
     shipperId   : EntidadLegalId
     fuelMode    : FuelMode  
     fuelPct     : decimal
-    CMD         : Energy
+    CDC         : Energy
     usageRate   : EnergyPrice
     meta        : Map<string,obj>
   }

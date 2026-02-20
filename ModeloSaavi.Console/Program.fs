@@ -16,7 +16,7 @@ let rec loop () =
         printfn "Ejecutando..."
         let modo = "CUR"
         let central = "EBC"
-        let gasDay = DateOnly(2026,2,3)
+        let gasDay = DateOnly(2026,2,11)
 
         let conn =  DbContext.connectionString
 

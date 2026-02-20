@@ -315,97 +315,138 @@ module Trade =
 module Transport = 
 /// Operación de transporte de gasd
 
-    let transport (p: TransportParams) : Operation =
-      fun stIn ->
-        // Validaciones de dominio
-        if String.IsNullOrWhiteSpace p.shipper then
-          Error (MissingContract "TransportParams: shipper")
+  let transport (p: TransportParams) : Operation =
+    fun stIn ->
 
-        // TODO: validar que shipper es provider del contrato de transporte
-        //elif stIn.location <> p.entry then
-        //  Error (Other $"TransportParams: Provider: {p.provider} Shipper: {p.shipper} FlowId: {p.flowDetailId} State@{stIn.location}, esperado entry {p.entry}" )
+      // Validaciones de dominio (igual que antes)
+      if String.IsNullOrWhiteSpace p.shipper then
+        Error (MissingContract "TransportParams: shipper")
 
-        elif stIn.energy <= 0.0m<MMBTU> then
-          Error (QuantityNonPositive "TransportParams: transport.qEnergia")
+      elif stIn.energy <= 0.0m<MMBTU> then
+        Error (QuantityNonPositive "TransportParams: transport.qEnergia")
 
-        elif p.fuelPct < 0m || p.fuelPct >= 100m then
-          Error (InvalidUnits "TransportParams: transport.fuelPct debe estar en [0,100)")
+      elif p.fuelPct < 0m || p.fuelPct >= 100m then
+        Error (InvalidUnits "TransportParams: transport.fuelPct debe estar en [0,100)")
+      else
+
+        
+        let cdcTF = p.CDC 
+
+        let qtyIn : Energy = stIn.energy
+
+        // Split TF/TI en base a CDC (si cdcTF=0 => todo TF, no TI)
+        let qtyTF =
+          if cdcTF > 0.0m<MMBTU> then min qtyIn cdcTF else qtyIn
+
+        let qtyTI = qtyIn - qtyTF
+
+        // Validación TI: si hay excedente y no hay transacción TI configurada => error (todo-o-nada)
+        if qtyTI > 0.0m<MMBTU> && p.transactionTI.IsNone then
+          Error (Other $"Exceso sobre CDC firme sin TI configurado. FlowDetail={p.flowDetailId}, excedente={qtyTI}, TF={p.transactionTF}")
         else
-          // Cálculos: shrink por fuel y costo de uso
-          let qtyIn  : Energy = stIn.energy
-          // La cantiad de Fuel expresada segun el qtyIn (recibido) y el fuelPct y segun el fuelMode
+
+          // Cálculos fuel sobre el total del tramo (si vos querés fuel distinto para TI,
+          // entonces tenés que calcular fuel por componente según los params de cada transacción.
+          // Este cambio requiere que la operación conozca params de TI también.)
           let fuelPU = p.fuelPct / 100.0m
-          let fuel   : Energy = if p.fuelMode = FuelMode.RxBase then qtyIn *fuelPU else qtyIn * fuelPU /(1.0m+fuelPU) 
+          let fuelFactor =  if p.fuelMode = FuelMode.RxBase
+                                then fuelPU
+                                else fuelPU / (1.0m + fuelPU)
+
+
+          let fuel : Energy = qtyIn * fuelFactor
           let qtyOut : Energy = qtyIn - fuel
 
-          // Líneas de costo: USAGE y RESERVATION
+          // Costos (se mantienen sobre qtyOut como antes)
           let usageAmount : Money = qtyOut * p.usageRate
+          let reservationAmount : Money = 1.0m<USD/MMBTU> * p.CDC
 
-          // Reservation: registramos como “fijo” (basis=reservation_fixed).
-          // Para materializar a USD respetando unidades, multiplicamos por 1<MMBTU>.
-          let reservationAmount : Money = 1.0m<USD/MMBTU> * p.CMD
+          // Persistencia de las cantidades TF y TI
+          let fuelTF = qtyTF * fuelFactor
+          let fuelTI = qtyTI * fuelFactor
+          let qtyTFOut = qtyTF - fuelTF
+          let qtyTIOut = qtyTI - fuelTI
 
           let costUsage : ItemCost =
             { kind     = CostKind.Transport
               provider = p.provider
               qEnergia = qtyOut
-              //TODO: incluir acaRate en el rate?
-              rate     = 0.m<USD/MMBTU>   // p.usageRate + p.acaRate
+              rate     = 0.m<USD/MMBTU>
               amount   = usageAmount
               meta     =
-                [ "component",  box "usage"
-                  "pipeline",   box p.pipeline
-                  "shipper",    box p.shipper
-                  "entry",      box p.entry
-                  "exit",       box p.exit ]
+                [ "component", box "usage"
+                  "pipeline",  box p.pipeline
+                  "shipper",   box p.shipper
+                  "entry",     box p.entry
+                  "exit",      box p.exit ]
                 |> Map.ofList }
 
           let costReservation : ItemCost =
             { provider = p.provider
               kind     = CostKind.Transport
-              qEnergia = 1.0m<MMBTU>            // basis sintético para obtener USD
+              qEnergia = 1.0m<MMBTU>
               rate     = p.usageRate
               amount   = reservationAmount
               meta     =
-                [ "component",  box "reservation"
-                  "basis",      box "reservation_fixed"
-                  "shipper",    box p.shipper
-                  // TODO: incluir acaRate en el rate?
-                  "ACA",        0.0m<USD> // box p.acaRate
-                  "entry",      box p.entry
-                  "exit",       box p.exit ]
+                [ "component", box "reservation"
+                  "basis",     box "reservation_fixed"
+                  "shipper",   box p.shipper
+                  "entry",     box p.entry
+                  "exit",      box p.exit ]
                 |> Map.ofList }
 
           let costs =
-            if p.CMD > 0.0m<MMBTU> then [ costUsage; costReservation ]
+            if p.CDC > 0.0m<MMBTU> then [ costUsage; costReservation ]
             else [ costUsage ]
 
+          // NOTES: agregamos el split para que el writer persista TF/TI
           let notes =
-            [ "op",          box "transport"
+            [ "op",              box "transport"
               "transportParams", box p
-              "fuelPct",     box (Math.Round(decimal p.fuelPct * 100.0m, 3))
-              "qtyIn",      box (Math.Round(decimal qtyIn, 2))
-              "fuelQty",    box (Math.Round(decimal fuel, 2))
-              "qtyOut",     box (Math.Round(decimal qtyOut,2))
-              "usageRate",   box (Math.Round(decimal p.usageRate, 3))
-              "reservation", box (decimal p.CMD)
-              "shipper",     box p.shipper
-              "entry",       box p.entry
-              "exit",        box p.exit ]
+
+              // split TF/TI
+              "transport.transactionTF", box p.transactionTF
+              "transport.transactionTI", box (p.transactionTI |> Option.map box |> Option.defaultValue (box null))
+              "transport.qtyTFin",       box (decimal qtyTF)
+              "transport.qtyTIin",       box (decimal qtyTI)
+              "transport.cdcTF",         box (decimal cdcTF)
+              "transport.fuelTF",        box (decimal fuelTF)
+              "transport.fuelTI",        box (decimal fuelTI)
+              "transport.qtyTFOut",      box (decimal qtyTFOut)
+              "transport.qtyTIOut",      box (decimal qtyTIOut)
+                
+
+
+              // totales
+              "fuelPct",          box (Math.Round(decimal p.fuelPct, 3))
+              "qtyIn",            box (Math.Round(decimal qtyIn, 2))
+              "fuelTFQty",        box (Math.Round(decimal fuel, 2))
+              "qtyOut",           box (Math.Round(decimal qtyOut, 2))
+              "usageRate",        box (Math.Round(decimal p.usageRate, 3))
+              "reservation",      box (decimal p.CDC)
+              "shipper",          box p.shipper
+              "entry",            box p.entry
+              "exit",             box p.exit ]
             |> Map.ofList
 
+          // State out (igual, pero guardamos también split para downstream/persist)
           let stOut : State =
             { stIn with
-                energy = qtyOut
+                energy   = qtyOut
                 location = p.exit
                 meta     =
                   stIn.meta
-                  |> Map.add "transport.entry"   (box p.entry)
-                  |> Map.add "transport.exit"    (box p.exit)
-                  |> Map.add "transport.shipper" (box p.shipper)
-                  |> Map.add "transport.fuelPct" (box p.fuelPct)
-                  |> Map.add "transport.usage"   (box (decimal p.usageRate))
-                  |> Map.add "transport.resv"    (box (decimal p.CMD)) }
+                  |> Map.add "transport.entry"         (box p.entry)
+                  |> Map.add "transport.exit"          (box p.exit)
+                  |> Map.add "transport.shipper"       (box p.shipper)
+                  |> Map.add "transport.fuelPct"       (box p.fuelPct)
+                  |> Map.add "transport.usage"         (box (decimal p.usageRate))
+                  |> Map.add "transport.resv"          (box (decimal p.CDC))
+                  |> Map.add "transport.transactionTF" (box p.transactionTF)
+                  |> Map.add "transport.qtyTF"         (box (decimal qtyTF))
+                  |> Map.add "transport.transactionTI" (box (p.transactionTI |> Option.map box |> Option.defaultValue (box null)))
+                  |> Map.add "transport.qtyTI"         (box (decimal qtyTI))
+                  |> Map.add "transport.cdcTF"         (box (decimal cdcTF)) }
 
           Ok { state = stOut; costs = costs; notes = notes }
 

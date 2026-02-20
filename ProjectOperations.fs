@@ -105,27 +105,50 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
 
 
   // -------- Transport --------
-  let projectTransport (t: Transition) : Result<TransportResultRow, DomainError> =
+  let projectTransport runId (t: Transition) : Result<TransportResultRow list , DomainError> =
     getCommon t >>= fun (refOpt) ->
     Meta.require<TransportParams> "transportParams" t.notes >>= fun p ->
-    Meta.require<Energy> "qtyIn"   t.notes >>= fun qtyIn ->
-    Meta.require<Energy> "qtyOut"  t.notes >>= fun qtyOut ->
-    Meta.require<Energy> "fuelQty" t.notes >>= fun fuelQty ->
-    Ok {
-      runId = runId
-      gasDay = t.state.gasDay
-      flowDetailId = p.flowDetailId
-      providerId = p.providerId
-      transactionId = p.transactionId
-      routeId = p.routeId
-      pipeline = p.pipeline
-      fuelMode = p.fuelMode
+    Meta.require<Energy> "transport.qtyTFin"   t.notes >>= fun qtyTFin ->
+    Meta.require<Energy> "transport.qtyTIin"   t.notes >>= fun qtyTIin ->
+    Meta.require<Energy> "transport.qtyTFOut" t.notes >>= fun qtyTFout ->
+    Meta.require<Energy> "transport.qtyTIOut" t.notes >>= fun qtyTIout ->
+    Meta.require<Energy> "transport.fuelTF" t.notes >>= fun fuelTF ->
+    Meta.require<Energy> "transport.fuelTI" t.notes >>= fun fuelTI ->
+    
+    let trTFrow = 
+  
+        { runId = runId
+          gasDay = t.state.gasDay
+          flowDetailId = p.flowDetailId
+          providerId = p.providerId
+          transactionId = p.transactionTF
+          routeId = p.routeId
+          pipeline = p.pipeline
+          fuelMode = p.fuelMode
 
-      qtyIn = qtyIn
-      qtyOut = qtyOut
-      fuelQty = fuelQty
+          qtyIn = qtyTFin
+          qtyOut = qtyTFout
+          fuelQty = fuelTF
+        }
+    if p.transactionTI.IsNone then
+        Ok [trTFrow]
+    else
+    let trTIrow = 
+  
+        { runId = runId
+          gasDay = t.state.gasDay
+          flowDetailId = p.flowDetailId
+          providerId = p.providerId
+          transactionId = p.transactionTI.Value
+          routeId = p.routeId
+          pipeline = p.pipeline
+          fuelMode = p.fuelMode
 
-    }
+          qtyIn = qtyTIin
+          qtyOut = qtyTIout
+          fuelQty = fuelTI
+     }
+    Ok  [trTFrow; trTIrow]
 
   // -------- Sleeve --------
   let projectSleeve (t: Transition) : Result<SleeveResultRow, DomainError> =
@@ -185,7 +208,10 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
 
 
       | Some "transport" ->
-          projectTransport t <!> fun row -> { acc with transports = row :: acc.transports }
+           projectTransport runId t
+             |> Result.map (fun rows -> { acc with transports = rows @ acc.transports })
+
+          // projectTransport t <!> fun row -> { acc with transports = row :: acc.transports }
 
       | Some "sleeve" ->
           projectSleeve t <!> fun row -> { acc with sleeves = row :: acc.sleeves }
