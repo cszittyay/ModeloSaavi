@@ -81,6 +81,7 @@ module SQL_Data =
       join elp in ctx.Dbo.EntidadLegal on (c.IdParte = elp.IdEntidadLegal)
       select
         { 
+           
             TransaccionTransporteJoinRow.Id_TransaccionTransporte = t.IdTransaccionTransporte
             Contraparte = elcp.Nombre
             Parte = el.Nombre
