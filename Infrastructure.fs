@@ -5,14 +5,16 @@ open DbContext
 
 
 type StableCatalogs =
-    { PuntosById            : Map<int, PuntoEntity>
-      ClientesById          : Map<int, ClienteEntity>
-      EntidadLegalById      : Map<int, EntidadLegalEntity>
-      TiposServicioById     : Map<int, TipoServicioEntity>
-      TiposContratoById     : Map<int, TipoContratoEntity>
-      GasoductosById        : Map<int, GasoductoEntity >
-      TiposTransaccionById  : Map<int, TipoTransaccionEntity>
-      MonedasById           : Map<int, MonedaEntity> }
+    {   
+    ClientesById          : Map<int, ClienteEntity>
+    EntidadLegalById      : Map<int, EntidadLegalEntity>
+    GasoductosById        : Map<int, GasoductoEntity >
+    MonedasById           : Map<int, MonedaEntity>
+    PuntosById            : Map<int, PuntoEntity>
+    RutasById             : Map<int, RutaEntity>
+    TiposContratoById     : Map<int, TipoContratoEntity>
+    TiposServicioById     : Map<int, TipoServicioEntity>
+    TiposTransaccionById  : Map<int, TipoTransaccionEntity> }
 
 type RunSnapshot =
     { ContratosById               : Map<int, ContratoEntity>
@@ -86,7 +88,14 @@ module StableCatalogs =
           MonedasById =
             ctx.Dbo.Moneda
             |> Seq.toList
-            |> Lookup.byId (fun x -> x.IdMoneda) }
+            |> Lookup.byId (fun x -> x.IdMoneda) 
+
+
+          RutasById =
+            ctx.Dbo.Ruta
+            |> Seq.toList
+            |> Lookup.byId (fun x -> x.IdRuta) }
+
 
 
 

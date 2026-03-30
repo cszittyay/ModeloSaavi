@@ -16,28 +16,29 @@ module SQL_Data =
   open ModeloSaavi.Infrastructure
 
   /// Ejemplo: traer contratos + tipo (join) y mapear a Domain.
-  let loadContratos () =
-    query {
-      for c in ctx.Dbo.Contrato do
-      join tc in ctx.Dbo.TipoContrato on (c.IdTipoContrato = tc.IdTipoContrato)
-      select
-        { ContratoRow.Id_Contrato = c.IdContrato
-          Id_TipoContrato = c.IdTipoContrato
-          NemonicoTipoContrato = Some tc.Nemonico
-          Id_Parte = c.IdParte
-          Id_Contraparte = c.IdContraparte
-          VigenciaDesde =  DateOnly.FromDateTime c.VigenciaDesde
-          VigenciaHasta = DateOnly.FromDateTime c.VigenciaHasta
-          Id_EstadoContrato = c.IdEstadoContrato
-          LeyAplicable = c.LeyAplicable
-          FechaDePago = c.FechaDePago
-          FechaDeFirma = Option.bind (DateOnly.FromDateTime >> Some) c.FechaDeFirma
-          Id_Moneda = c.IdMoneda
-          Observaciones = c.Observaciones
-          Codigo = c.Codigo }
-    }
-    |> Seq.map Mappings.contratoToDomain
-    |> Seq.toList
+  let loadContratos (lc:LoadContext) =
+        lc.Run.ContratosById
+          |> Map.values
+          |> Seq.map (fun c ->
+            let tipoCto = lc.Catalogs.TiposContratoById.[int c.IdTipoContrato]
+
+            { ContratoRow.Id_Contrato = c.IdContrato
+              Id_TipoContrato = c.IdTipoContrato
+              NemonicoTipoContrato = Some tipoCto.Nemonico
+              Id_Parte = c.IdParte
+              Id_Contraparte = c.IdContraparte
+              VigenciaDesde =  DateOnly.FromDateTime c.VigenciaDesde
+              VigenciaHasta = DateOnly.FromDateTime c.VigenciaHasta
+              Id_EstadoContrato = c.IdEstadoContrato
+              LeyAplicable = c.LeyAplicable
+              FechaDePago = c.FechaDePago
+              FechaDeFirma = Option.bind (DateOnly.FromDateTime >> Some) c.FechaDeFirma
+              Id_Moneda = c.IdMoneda
+              Observaciones = c.Observaciones
+              Codigo = c.Codigo 
+            })
+          |> Seq.map Mappings.contratoToDomain
+          |> Seq.toList
 
 
   let loadTransaccionesGas (lc: LoadContext) =
@@ -74,41 +75,43 @@ module SQL_Data =
         |> Seq.toList
 
   
+  let loadTransaccionesTransporte (lc: LoadContext) =
+            lc.Run.TransaccionesTransporteById
+            |> Map.values
+            |> Seq.map (fun t ->
 
-  let loadTransaccionesTransporte () =
-    query {
-      for t in ctx.Dbo.TransaccionTransporte do
-      join c in ctx.Dbo.Contrato on (t.IdContrato = c.IdContrato)
-      join el in ctx.Dbo.EntidadLegal on (c.IdParte = el.IdEntidadLegal)
-      join elcp in ctx.Dbo.EntidadLegal on (c.IdContraparte = elcp.IdEntidadLegal)
-      join r in ctx.Dbo.Ruta on (t.IdRuta = r.IdRuta)
-      join pr in ctx.Dbo.Punto on (r.IdPuntoRecepcion = pr.IdPunto)
-      join pe in ctx.Dbo.Punto on (r.IdPuntoEntrega = pe.IdPunto)
-      join elp in ctx.Dbo.EntidadLegal on (c.IdParte = elp.IdEntidadLegal)
-      select
-        { 
-           
-            TransaccionTransporteJoinRow.Id_TransaccionTransporte = t.IdTransaccionTransporte
-            Contraparte = elcp.Nombre
-            Parte = el.Nombre
-            ContractRef = c.Codigo
-            Id_Parte = c.IdParte
-            Id_Contrato = c.IdContrato
-            Id_Contraparte = c.IdContraparte
-            PuntoEntrega = pe.Codigo
-            PuntoRecepcion = pr.Codigo   
-            Id_PuntoEntrega = r.IdPuntoEntrega
-            Id_PuntoRecepcion = r.IdPuntoRecepcion
-            FuelMode = t.FuelMode
-            Id_Ruta = r.IdRuta
-            Fuel = r.Fuel
-            CMD = t.Cmd
-            UsageRate = t.CargoUso
-       }
+                   let c = lc.Run.ContratosById[t.IdContrato]
+                   let r = lc.Catalogs.RutasById[t.IdRuta]
+                   let puntoEntrada = lc.Catalogs.PuntosById[r.IdPuntoRecepcion]
+                   let puntoSalida = lc.Catalogs.PuntosById[r.IdPuntoEntrega]
+                   let elcp = lc.Catalogs.EntidadLegalById.[c.IdContraparte]
+                   let elp = lc.Catalogs.EntidadLegalById.[c.IdParte]
 
-    }
-    |> Seq.map Mappings.transaccionTransporteJoinToDomain
-    |> Seq.toList
+
+                   {TransaccionTransporteJoinRow.Id_TransaccionTransporte = t.IdTransaccionTransporte
+                    Parte = elp.Nombre
+                    Contraparte = elcp.Nombre
+                    ContractRef = c.Codigo
+                    Id_Parte = c.IdParte
+                    Id_Contrato = c.IdContrato
+                    Id_Contraparte = c.IdContraparte
+                    PuntoEntrega = puntoEntrada.Codigo
+                    PuntoRecepcion = puntoSalida.Codigo  
+                    Id_PuntoEntrega = r.IdPuntoEntrega
+                    Id_PuntoRecepcion = r.IdPuntoRecepcion
+                    FuelMode = t.FuelMode
+                    Id_Ruta = r.IdRuta
+                    Fuel = r.Fuel
+                    CMD = t.Cmd
+                    UsageRate = t.CargoUso
+               })
+
+            |> Seq.map Mappings.transaccionTransporteJoinToDomain
+            |> Seq.toList
+
+
+
+
 
   let loadCompraGas (diaGas:DateOnly) idFlowDetail =
      let dia = diaGas.ToDateTime(TimeOnly.MinValue)
@@ -160,15 +163,15 @@ module SQL_Data =
   let puntoCodigoById =
     lazy (ctx.Dbo.Punto |> Seq.map (fun p -> p.IdPunto, p.Codigo) |> Map.ofSeq)
 
-  let  contratosById =
-    lazy (loadContratos() |> List.map (fun c -> c.id, c) |> Map.ofList)
+  let  contratosById lc =
+    lazy (loadContratos(lc:LoadContext) |> List.map (fun c -> c.id, c) |> Map.ofList)
 
 
   let transaccionesGasById(lc: LoadContext) =
         lazy (loadTransaccionesGas(lc) |> List.map (fun t -> t.id, t) |> Map.ofList)
 
-  let transaccionesTransporteById()=
-        lazy (loadTransaccionesTransporte() |> List.map (fun t -> t.id, t) |> Map.ofList)
+  let transaccionesTransporteById(lc)=
+        lazy (loadTransaccionesTransporte(lc) |> List.map (fun t -> t.id, t) |> Map.ofList)
 
   let flowMasterByNombre =
         lazy (ctx.Fm.FlowMaster |> Seq.map (fun fm -> fm.Nombre, fm) |> Map.ofSeq)
@@ -239,9 +242,7 @@ module SQL_Data =
 
 
   let dFlowMaster = flowMasterById.Value
-  let dEnt = entidadLegalById.Value
   let dPto = puntoCodigoById.Value
-  let dCont = contratosById.Value
   let dGasoducto = gasoductoById.Value
   
 

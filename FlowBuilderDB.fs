@@ -82,7 +82,7 @@ let buildSupplysDB
                 acc
                 |> Result.bind (fun m ->
                     let transact = dTransGas.[cg.idTransaccion]
-                    let contrato = dCont.[transact.idContrato]
+                    let contrato = lc.Run.ContratosById[transact.idContrato]
 
                     let sp : SupplyParams =
                         { 
@@ -100,7 +100,7 @@ let buildSupplysDB
                         index          = cg.idIndicePrecio |> Option.defaultValue 0
                         adder          = (cg.adder  |> Option.defaultValue 0.0m) * 1.0m<USD/MMBTU>
                         price          = (cg.precio |> Option.defaultValue 0.0m) * 1.0m<USD/MMBTU>
-                        contractRef    = contrato.codigo
+                        contractRef    = contrato.Codigo
                         meta           = Map.empty }
 
                     // acumular lista por FlowId
@@ -193,7 +193,7 @@ let buildSleevesDB lc idFlowMaster path : Result<Map<flowId, SleeveParams>, Doma
         
 
 
-let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, DomainError> =
+let buildTransportsDB lc idFlowMaster path : Result<Map<flowId, TransportParams>, DomainError> =
 
   match Map.tryFind idFlowMaster flowMasterById.Value with
   | None -> Error (MissingFlowMaster idFlowMaster)
@@ -202,7 +202,7 @@ let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, D
       let detalles   = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Transport"
       let transpFlow = ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq
       let dRuta      = rutaById()
-      let dTransTte  = transaccionesTransporteById().Value
+      let dTransTte  = transaccionesTransporteById(lc).Value
 
       detalles
       |> List.fold (fun acc fd ->
@@ -245,23 +245,23 @@ let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, D
                   |> Result.bind (fun trTte ->
 
                       let ruta  = dRuta.[trTte.idRuta]
-                      let cto   = dCont.[trTte.idContrato]
-
-                      let contraparte = dEnt.[cto.idContraparte]
-                      let entryPto    = dPto.[ruta.IdPuntoRecepcion]
-                      let exitPto     = dPto.[ruta.IdPuntoEntrega]
+                      let cto   = lc.Run.ContratosById.[trTte.idContrato]
+                      
+                      let contraparte = lc.Catalogs.EntidadLegalById.[cto.IdContraparte]
+                      let entryPto    = lc.Catalogs.PuntosById.[ruta.IdPuntoRecepcion]
+                      let exitPto     = lc.Catalogs.PuntosById.[ruta.IdPuntoEntrega]
 
                       let tp : TransportParams =
                         { provider      = contraparte.Nombre
                           transactionTF = trTF |> Option.map (fun x -> x.id)
                           transactionTI = trTI |> Option.map (fun x -> x.id)
                           flowDetailId  = fd.IdFlowDetail
-                          providerId    = cto.idParte
+                          providerId    = cto.IdParte
                           pipeline      = if ruta.IdGasoducto.IsSome then dGasoducto.[ruta.IdGasoducto.Value].Nombre else "S/D"
-                          shipperId     = cto.idContraparte
+                          shipperId     = cto.IdContraparte
                           routeId       = ruta.IdRuta
-                          entry         = entryPto
-                          exit          = exitPto
+                          entry         = entryPto.Codigo
+                          exit          = exitPto.Codigo
                           shipper       = contraparte.Nombre
                           fuelMode      = if trTte.fuelMode = "RxBase" then FuelMode.RxBase else FuelMode.ExBase
                           fuelPct       = ruta.Fuel
@@ -392,7 +392,7 @@ let buildFlowStepsDb (lc:LoadContext) (flowMasterId:FlowMasterId) (path: string)
     let supplies   = buildSupplysDB lc diaGas fm.IdFlowMaster path
     let trades     = buildTradesDB lc fm.IdFlowMaster path
     let sleeves    = buildSleevesDB lc fm.IdFlowMaster path
-    let transports = buildTransportsDB fm.IdFlowMaster path
+    let transports = buildTransportsDB lc fm.IdFlowMaster path
     let consumes   = buildConsumeDB  diaGas fm.IdFlowMaster path
     let sells      = buildSellsDB lc diaGas fm.IdFlowMaster path
 

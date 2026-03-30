@@ -23,23 +23,21 @@ let createCtx () : DataContext =   sqlGnx.GetDataContext()
 
 let createCtxWithConnectionString (connectionString:string) : DataContext =  sqlGnx.GetDataContext(connectionString)
 
+type ClienteEntity = sqlGnx.dataContext.``dbo.ClienteEntity``
 type CompraGasEntity = sqlGnx.dataContext.``dbo.CompraGasEntity``
 type ConsumoEntity = sqlGnx.dataContext.``dbo.ConsumoEntity``
 type ContratoEntity = sqlGnx.dataContext.``dbo.ContratoEntity``
-
-type TransaccionGasEntity = sqlGnx.dataContext.``dbo.TransaccionGasEntity``
-type TransaccionTransporteEntity = sqlGnx.dataContext.``dbo.TransaccionTransporteEntity``
-type ClienteEntity = sqlGnx.dataContext.``dbo.ClienteEntity``
 type EntidadLegalEntity = sqlGnx.dataContext.``dbo.EntidadLegalEntity``
 type GasoductoEntity = sqlGnx.dataContext.``dbo.GasoductoEntity``
 type MonedaEntity = sqlGnx.dataContext.``dbo.MonedaEntity``
 type PuntoEntity = sqlGnx.dataContext.``dbo.PuntoEntity``
+type RutaEntity = sqlGnx.dataContext.``dbo.RutaEntity``
 type TipoContratoEntity = sqlGnx.dataContext.``dbo.TipoContratoEntity``
 type TipoServicioEntity = sqlGnx.dataContext.``dbo.TipoServicioEntity``
 type TipoTransaccionEntity = sqlGnx.dataContext.``dbo.TipoTransaccionEntity``
+type TransaccionGasEntity = sqlGnx.dataContext.``dbo.TransaccionGasEntity``
+type TransaccionTransporteEntity = sqlGnx.dataContext.``dbo.TransaccionTransporteEntity``
 type VentaGasEntity = sqlGnx.dataContext.``dbo.VentaGasEntity``
-
-
 
 
 
