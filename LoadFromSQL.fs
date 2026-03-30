@@ -113,29 +113,29 @@ module SQL_Data =
 
 
 
-  let loadCompraGas (diaGas:DateOnly) idFlowDetail =
-     let dia = diaGas.ToDateTime(TimeOnly.MinValue)
-     query {
-      for cg in ctx.Dbo.CompraGas do
-      where (cg.DiaGas = dia && cg.IdFlowDetail = idFlowDetail)
-      select
-            { 
-                CompraGasRow.Id_CompraGas = cg.IdCompraGas
-                DiaGas = diaGas
-                Id_Transaccion = cg.IdTransaccionGas
-                Id_FlowDetail = cg.IdFlowDetail
-                BuyBack = cg.BuyBack
-                Id_PuntoEntrega = cg.IdPuntoEntrega
-                Temporalidad = cg.Temporalidad
-                Id_IndicePrecio = cg.IdIndicePrecio
-                Adder = cg.Adder
-                Precio = cg.Precio
-                Nominado = cg.Nominado
-                Confirmado = cg.Confirmado
-            }
-     }
-     |> Seq.map Mappings.compraGasToDomain
-     |> Seq.toList
+  let loadCompraGas (diaGas: DateOnly) idFlowDetail =
+        let dia = diaGas.ToDateTime(TimeOnly.MinValue)
+
+        query {
+            for cg in ctx.Dbo.CompraGas do
+            where (cg.DiaGas = dia && cg.IdFlowDetail = idFlowDetail)
+            select cg
+        }
+        |> Seq.toList
+        |> List.map (fun cg ->
+            { CompraGasRow.Id_CompraGas = cg.IdCompraGas
+              DiaGas = diaGas
+              Id_Transaccion = cg.IdTransaccionGas
+              Id_FlowDetail = cg.IdFlowDetail
+              BuyBack = cg.BuyBack
+              Id_PuntoEntrega = cg.IdPuntoEntrega
+              Temporalidad = cg.Temporalidad
+              Id_IndicePrecio = cg.IdIndicePrecio
+              Adder = cg.Adder
+              Precio = cg.Precio
+              Nominado = cg.Nominado
+              Confirmado = cg.Confirmado })
+        |> List.map Mappings.compraGasToDomain
 
 
   // Convierte para un día Gas  un idFlowDetail  devuelve el consumo en MMBtu y el punto de entrega
@@ -144,12 +144,14 @@ module SQL_Data =
      
       let dia = diaGas.ToDateTime(TimeOnly.MinValue)
   
-      let result = query {
-              for cg in ctx.Dbo.Consumo do
-              where (cg.DiaGas = dia && cg.IdFlowDetail.Value = idFlowDetail)
-              select
-                    (cg.IdPunto, cg.Demanda)
-            }
+      let result = 
+           query {
+                  for cg in ctx.Dbo.Consumo do
+                  where (cg.DiaGas = dia && cg.IdFlowDetail.Value = idFlowDetail)
+                  select (cg)
+              }
+              |> Seq.toList
+              |> List.map(fun c -> c.IdPunto, c.Demanda)
       result
 
 
