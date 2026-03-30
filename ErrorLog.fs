@@ -7,6 +7,7 @@ open Serilog.Events
 open Serilog.Context
 open Tipos
 open Escenario
+open ModeloSaavi.Infrastructure
 
 module Logging =
 
@@ -109,7 +110,7 @@ module FlowApiModule =
     
     type FlowApi() =
       /// No lanza excepciones. Devuelve Outcome {Ok=true; RunId=...} o {Ok=false; Error=...}
-      static member RunFlowAndPersistSafeAsync(req: RunFlowRequest) : Task<RunFlowOutcome> =
+      static member RunFlowAndPersistSafeAsync (lc: LoadContext) (req: RunFlowRequest) : Task<RunFlowOutcome> =
         task {
           let st0 = st0
 
@@ -126,7 +127,7 @@ module FlowApiModule =
               withRunContext req.FlowMasterId req.GasDay (fun () ->
                 logRunStarted()
 
-                match runFlowAndPersistDB req.FlowMasterId req.GasDay st0 with
+                match runFlowAndPersistDB lc req.FlowMasterId req.GasDay st0 with
                 | Ok (runId, _finalState, transitions) ->
                     logRunOk (Some runId) transitions.Length
                     Ok runId

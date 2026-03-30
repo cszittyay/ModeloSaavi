@@ -8,7 +8,7 @@ open ErrorLog.Logging
 open ErrorLog.RunStages
 open DbContext
 open ModeloSaavi.Infrastructure
-
+open Gnx.Persistence
 
 // Hola
 
@@ -17,14 +17,10 @@ let ctxFactory () = DbContext.createCtxWithConnectionString connectionString
 let diaGas = DateOnly(2026,2,11)
 let r = LoadContext.create ctxFactory diaGas
 
-let k = ctx.Dbo.EntidadLegal |> Seq.head
+let tg = SQL_Data.loadTransaccionesGas r
 
+tg |> List.iter (fun t -> printfn ("%A") t)
 
-let y = r.Catalogs.EntidadLegalById.[54]
-
-
-
-printfn "%s" y.RazonSocial
 
 //let rec loop () =
 //    // --- tu función a ejecutar ---

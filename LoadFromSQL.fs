@@ -8,9 +8,12 @@ open DbContext
 open Gnx.Domain
 /// Ejemplo de “mapping” desde SqlProvider a Rows.
 /// Ajustá connection string y el provider a tu entorno.
+
+
+
 module SQL_Data =
 
-  
+  open ModeloSaavi.Infrastructure
 
   /// Ejemplo: traer contratos + tipo (join) y mapear a Domain.
   let loadContratos () =
@@ -36,38 +39,41 @@ module SQL_Data =
     |> Seq.map Mappings.contratoToDomain
     |> Seq.toList
 
-  /// Ejemplo: transacciones + tipo (join) -> Domain
-  let loadTransaccionesGas () =
-    query {
-      for t in ctx.Dbo.TransaccionGas do
-      join tt in ctx.Dbo.TipoTransaccion on (t.IdTipoTransaccion = tt.IdTipoTransaccion)
-      join c in ctx.Dbo.Contrato on (t.IdContrato = c.IdContrato)
-      join el in ctx.Dbo.EntidadLegal on (c.IdContraparte = el.IdEntidadLegal)
-      join p in ctx.Dbo.Punto on (t.IdPuntoRecepcion = p.IdPunto)
-      join elp in ctx.Dbo.EntidadLegal on (c.IdParte = elp.IdEntidadLegal)
-      select
-        { 
-            TransaccionGasJoinRow.Id_TransaccionGas = t.IdTransaccionGas
-            Parte = elp.Nombre
-            Contraparte = el.Nombre
-            ContractRef = c.Codigo
-            IdParte = c.IdParte
-            IdContraparte = c.IdContraparte
-            PuntoEntrega = p.Codigo
-            Id_IndicePrecio = t.IdIndicePrecio
-            Id_PuntoEntrega = t.IdPuntoRecepcion
-            Id_TipoTransaccion = t.IdTipoTransaccion
-            TipoTransaccionDescripcion = Some tt.Descripcion
-            Id_TipoServicio = t.IdTipoServicio
-            Id_Contrato = t.IdContrato
-            Adder = t.Adder
-            FormulaPrecio = t.FormulaPrecio
-            PrecioFijo = t.PrecioFijo
-            Volumen = t.Volumen
-       }
-    }
-    |> Seq.map Mappings.transaccionGasJoinToDomain
-    |> Seq.toList
+
+  let loadTransaccionesGas (lc: LoadContext) =
+        lc.Run.TransaccionesGasById
+        |> Map.values
+        |> Seq.map (fun t ->
+
+            let c = lc.Run.ContratosById[t.IdContrato]
+            let tt = lc.Catalogs.TiposTransaccionById[t.IdTipoTransaccion]
+            let p = lc.Catalogs.PuntosById[t.IdPuntoRecepcion]
+            let elcp = lc.Catalogs.EntidadLegalById.[c.IdContraparte]
+            let elp = lc.Catalogs.EntidadLegalById.[c.IdParte]
+
+            { TransaccionGasJoinRow.Id_TransaccionGas  = t.IdTransaccionGas
+              Parte = elp.Nombre
+              Contraparte = elcp.Nombre
+              ContractRef = c.Codigo
+              IdParte = c.IdParte
+              IdContraparte = c.IdContraparte
+              PuntoEntrega = p.Codigo
+              Id_IndicePrecio = t.IdIndicePrecio
+              Id_PuntoEntrega = t.IdPuntoRecepcion
+              Id_TipoTransaccion = t.IdTipoTransaccion
+              TipoTransaccionDescripcion = Some tt.Descripcion
+              Id_TipoServicio = t.IdTipoServicio
+              Id_Contrato = t.IdContrato
+              Adder = t.Adder
+              FormulaPrecio = t.FormulaPrecio
+              PrecioFijo = t.PrecioFijo
+              Volumen = t.Volumen
+              })
+
+        |> Seq.map Mappings.transaccionGasJoinToDomain
+        |> Seq.toList
+
+  
 
   let loadTransaccionesTransporte () =
     query {
@@ -158,8 +164,8 @@ module SQL_Data =
     lazy (loadContratos() |> List.map (fun c -> c.id, c) |> Map.ofList)
 
 
-  let transaccionesGasById() =
-        lazy (loadTransaccionesGas() |> List.map (fun t -> t.id, t) |> Map.ofList)
+  let transaccionesGasById(lc: LoadContext) =
+        lazy (loadTransaccionesGas(lc) |> List.map (fun t -> t.id, t) |> Map.ofList)
 
   let transaccionesTransporteById()=
         lazy (loadTransaccionesTransporte() |> List.map (fun t -> t.id, t) |> Map.ofList)

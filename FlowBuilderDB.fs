@@ -11,7 +11,7 @@ open DbContext
 open Gnx.Persistence.SQL_Data
 open Gnx.Domain
 open Gnx.Persistence
-
+open ModeloSaavi.Infrastructure
 
 // =====================================================================================
 // Caches (lazy) - evitamos pegarle a la DB al cargar el módulo y permitimos reuso.
@@ -58,12 +58,13 @@ let toErrorDto (e: DomainError) : FlowRunErrorDto =
 // =====================================================================================
 // Para un FlowMaster y un path: sólo un idFlowDetail de tipo "Supply" (asumido)
 let buildSupplysDB
+    (lc: LoadContext)
     (diaGas: DateOnly)
     (idFlowMaster: int)
     (path: string)
     : Result<Map<flowId, SupplyParams list>, DomainError> =
 
-    let dTransGas = transaccionesGasById().Value
+    let dTransGas = transaccionesGasById(lc: LoadContext).Value
 
     match Map.tryFind idFlowMaster flowMasterById.Value with
     | None -> Error (MissingFlowMaster idFlowMaster)
@@ -111,12 +112,12 @@ let buildSupplysDB
             |> Result.map (Map.map (fun _ lst -> List.rev lst))
 
 
-let buildTradesDB idFlowMaster path : Result<Map<flowId, TradeParams>, DomainError> =
+let buildTradesDB lc idFlowMaster path : Result<Map<flowId, TradeParams>, DomainError> =
     match Map.tryFind idFlowMaster flowMasterById.Value with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
         let tradeGas = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Trade"
-        let dTransGas = transaccionesGasById().Value
+        let dTransGas = transaccionesGasById(lc: LoadContext).Value
         tradeGas
         |> List.fold (fun acc fd ->
             acc
@@ -146,11 +147,11 @@ let buildTradesDB idFlowMaster path : Result<Map<flowId, TradeParams>, DomainErr
         ) (Ok Map.empty)
 
 
-let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainError> =
+let buildSleevesDB lc idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainError> =
 
     // Si idFlowMaster acá es el IdFlowMaster “real”, ok.
     // Si en otros módulos usás flowMasterById, mantené consistencia.
-    let dTransGas = transaccionesGasById().Value
+    let dTransGas = transaccionesGasById(lc).Value
     match Map.tryFind idFlowMaster flowMasterById.Value with
     | None ->  Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
@@ -313,6 +314,7 @@ let buildConsumeDB
 
 
 let buildSellsDB
+    (lc: LoadContext)
     (diaGas: DateOnly)
     (idFlowMaster: int)
     (path: string)
@@ -320,7 +322,7 @@ let buildSellsDB
 
     let flowDetails = getFlowDetailsByTipo idFlowMaster path "Sell"
     let ventas = ventasByFlowDetailId diaGas (flowDetails |> List.map (fun fd -> fd.IdFlowDetail))
-    let dTransGas = transaccionesGasById().Value
+    let dTransGas = transaccionesGasById(lc).Value
 
     // Si no hay sells definidos para ese path, esto puede ser válido:
     if List.isEmpty flowDetails || List.isEmpty ventas then
@@ -376,7 +378,7 @@ let buildSellsDB
 // FlowSteps (equivalente a buildFlowSteps / getFlowSteps de Excel)
 // =====================================================================================
 
-let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnly) : FlowStep list =
+let buildFlowStepsDb (lc:LoadContext) (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnly) : FlowStep list =
    
     let fm =
         match tryFindFlowMaster flowMasterId  with
@@ -387,12 +389,12 @@ let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnl
     let tryFindOr (defaultValue:'a) (fdId:int) (r: Result<Map<int,'a>, 'e>) : Result<'a,'e> =
         r |> Result.map (fun m -> Map.tryFind fdId m |> Option.defaultValue defaultValue)
 
-    let supplies   = buildSupplysDB diaGas fm.IdFlowMaster path
-    let trades     = buildTradesDB fm.IdFlowMaster path
-    let sleeves    = buildSleevesDB fm.IdFlowMaster path
+    let supplies   = buildSupplysDB lc diaGas fm.IdFlowMaster path
+    let trades     = buildTradesDB lc fm.IdFlowMaster path
+    let sleeves    = buildSleevesDB lc fm.IdFlowMaster path
     let transports = buildTransportsDB fm.IdFlowMaster path
-    let consumes   = buildConsumeDB diaGas fm.IdFlowMaster path
-    let sells      = buildSellsDB diaGas fm.IdFlowMaster path
+    let consumes   = buildConsumeDB  diaGas fm.IdFlowMaster path
+    let sells      = buildSellsDB lc diaGas fm.IdFlowMaster path
 
     // Orden: preferimos fd.Orden si existe; si no, IdFlowDetail (estable).
     let flowDetails =
@@ -462,6 +464,7 @@ let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnl
     )
 
 let getFlowStepsDB
+    (lc: LoadContext)
     (flowMasterId      : FlowMasterId)
     (diaGas    : DateOnly)
     : Result<Map<FlowId, FlowStep list>, DomainError> =
@@ -488,7 +491,7 @@ let getFlowStepsDB
                 paths
                 |> List.map (fun path ->
                     let fid = { flowMasterId = flowMasterId; path = path }
-                    fid, buildFlowStepsDb flowMasterId path diaGas)
+                    fid, buildFlowStepsDb lc flowMasterId path diaGas)
                 |> Map.ofList
             Ok result
 

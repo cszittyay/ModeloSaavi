@@ -12,6 +12,7 @@ open ResultRows
 open Helpers.FlowBuilderUtils
 open Gnx.Persistence.SQL_Data
 open FlowBuilderDB
+open ModeloSaavi.Infrastructure
 
 /// Helpers de impresión (opcionales)
 let private printMoney (m: Money) = (decimal m).ToString("0.#####")
@@ -96,6 +97,7 @@ let persistAll
 
 
 let runFlowAndPersistDB
+    (lc: LoadContext)
     (flowMasterId : int)
     (diaGas       : DateOnly)
     (initial      : State)
@@ -103,7 +105,7 @@ let runFlowAndPersistDB
 
   result {
     // 1) Leer paths
-    let! paths = getFlowStepsDB flowMasterId diaGas
+    let! paths = getFlowStepsDB lc flowMasterId diaGas
 
     // 2) Topología
     let! flowDef = buildFlowDef paths
