@@ -190,7 +190,11 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
         ) (Ok Map.empty)
 
         
-
+let tryGetPoolFromCtx (ctx: SharedTransportContext) : TryGetCapacityPool =
+  fun tfId ->
+    match Map.tryFind tfId ctx.Pools with
+    | Some pool -> Ok pool
+    | None -> Error (Other $"No existe pool para TF={tfId}")
 
 let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, DomainError> =
 

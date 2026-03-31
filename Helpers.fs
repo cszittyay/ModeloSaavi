@@ -77,79 +77,54 @@ let do2dt (dateOnly:DateOnly) = dateOnly.ToDateTime(TimeOnly.MinValue)
 module FlowBuilderUtils =
     open DefinedOperations
 
-    let opOfBlock (b: Block) : Operation =
+    let opOfBlock (tryGetPool: TryGetCapacityPool) (b: Block) : Operation =
         match b with
         | Supply sp       -> Supply.supply sp
         | SupplyMany sps  -> Supply.supplyMany sps
         | Sell sp         -> Sell.sell sp
-        | Transport p     -> Transport.transport p
+        | Transport p     -> Transport.transport tryGetPool p
         | Trade p         -> Trade.trade p
-        | Sleeve p        -> Sleeve.sleeve p  
+        | Sleeve p        -> Sleeve.sleeve p
         | Consume p       -> Consume.consume p
         | SellMany sp     -> Sell.sellMany sp
-    
+
     let withStepMeta (step: FlowStep) (tr: Transition) =
-      let fid = step.flowId
-      let opName =
-        match step.block with
-        | Supply _      -> "supply"
-        | SupplyMany _  -> "supplyMany"
-        | Sell _        -> "sell"
-        | SellMany _    -> "sellMany"
-        | Trade _       -> "trade"
-        | Transport _   -> "transport"
-        | Sleeve _      -> "sleeve"
-        | Consume _     -> "consume"
+        let fid = step.flowId
+        let opName =
+            match step.block with
+            | Supply _      -> "supply"
+            | SupplyMany _  -> "supplyMany"
+            | Sell _        -> "sell"
+            | SellMany _    -> "sellMany"
+            | Trade _       -> "trade"
+            | Transport _   -> "transport"
+            | Sleeve _      -> "sleeve"
+            | Consume _     -> "consume"
 
-      let notes =
-        tr.notes
-        |> Map.add "op"     (box opName)
-        |> Map.add "path"   (box fid.path)
-        |> Map.add "order"  (box step.order)
-        |> Map.add "ref"    (box step.ref)
-      { tr with notes = notes }
+        let notes =
+            tr.notes
+            |> Map.add "op"    (box opName)
+            |> Map.add "path"  (box fid.path)
+            |> Map.add "order" (box step.order)
+            |> Map.add "ref"   (box step.ref)
 
+        { tr with notes = notes }
 
-    /// Ejecuta secuencialmente un path lineal de `FlowStep`, aplicando el `Block` de cada step
-    /// sobre un `State` y acumulando las `Transition` producidas.
-    ///
-    /// Contrato:
-    /// - Entrada: lista ordenada de steps (por `order`) + estado inicial.
-    /// - Salida: estado final + lista de transiciones (una por step ejecutado) o un DomainError.
-    ///
-    /// Responsabilidad:
-    /// - Motor puro de ejecución lineal (no conoce topología Join/Linear).
-    /// - No persiste en DB. No interpreta Excel. No clasifica roles.
-    /// - Devuelve suficiente información (`Transition list`) para proyecciones posteriores
-    ///   (auditoría, valorización, persistencia en SQL Server, etc).
-    ///
-    /// Observabilidad:
-    /// - Puede imprimir trazas (printfn) durante la ejecución, pero esas trazas no son un “resultado”.
-    /// - Para persistencia robusta, se recomienda enriquecer `Transition.notes` con metadatos del step
-    ///   (flowId/order/ref/op) y con resultados operativos (qtyIn/qtyOut/fuel, etc) desde cada `op`.
-    let runSteps (steps: FlowStep list) (initial: State)
+    let runSteps
+        (tryGetPool: TryGetCapacityPool)
+        (steps: FlowStep list)
+        (initial: State)
         : Result<State * Transition list, DomainError> =
 
-        // Estado acumulador: Result con (State actual, lista de transiciones ya generadas)
-        // Comienza con Ok(initial, []) y va “encadenando” cada step.
         let flowStateList = (Ok (initial, []), steps)
 
-        // (||>) = pipe-backward de 2 argumentos:
-        // (state0, steps) ||> List.fold f  ==  List.fold f state0 steps
-        flowStateList ||> List.fold (fun acc step ->
-
-            // 1) Cortocircuito de error:
-            //    Si acc = Error e, no ejecuta más steps.
-            //    Si acc = Ok(st, ts), ejecuta el step actual.
+        flowStateList
+        ||> List.fold (fun acc step ->
             acc
             |> Result.bind (fun (st, ts) ->
 
-                // 2) Resolver el “operador” (función de negocio) a partir del Block.
-                //    op : State -> Result<Transition, DomainError>
-                let op = opOfBlock step.block
+                let op = opOfBlock tryGetPool step.block
 
-                // 3) Logging/tracing (no afecta el resultado):
-                //    Muestra estado previo + tipo de operación.
                 printfn $"Energy:{Display.qtyStr st.energy}MMBTU\tOwner: {st.owner}\tLocation: {st.location}\n\n"
 
                 match step.block with
@@ -162,18 +137,12 @@ module FlowBuilderUtils =
                 | Consume p       -> printfn $"Consume {p}"
                 | SellMany sp     -> printfn $"SellMany {sp}"
 
-                // 4) Ejecutar la operación sobre el estado actual.
-                //    Si falla: Error -> se corta el fold.
-                //    Si ok: produce Transition (tr) con state nuevo + costos/notas.
-                op st |> Result.map (fun tr ->
-                                let tr = withStepMeta step tr
-                                tr.state, ts @ [tr]
-                         )
-
-                
+                op st
+                |> Result.map (fun tr ->
+                    let tr = withStepMeta step tr
+                    tr.state, ts @ [ tr ])
             )
         )
-
 
 
     /// Ejecuta un Flow de topología JOIN a partir de paths ya clasificados

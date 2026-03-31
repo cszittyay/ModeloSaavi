@@ -4,11 +4,38 @@ open System
 open System.Collections.Generic
 open System.Linq
 open FSharp.Data.Sql
+open FSharp.Data.Sql
 open DbContext
 open Gnx.Domain
+open Tipos
 /// Ejemplo de “mapping” desde SqlProvider a Rows.
 /// Ajustá connection string y el provider a tu entorno.
 module SQL_Data =
+
+
+  let buildCapacityPoolsFromTransactions
+        (gasDay: DateOnly)
+        : Map<int, CapacityPool> =
+        // Obtener las transacciones de Transporte Firme vigentes
+
+        let dtDiaGas = gasDay.ToDateTime(TimeOnly.MinValue)
+        let idTipoServicioTF = ctx.Dbo.TipoServicioTransporte |> Seq.find(fun t -> t.Descripcion = "Firme") |> fun x -> x.IdTipoServicioTransporte 
+        let resources = 
+                query {
+                    for tt in ctx.Dbo.TransaccionTransporte do
+                    where (tt.IdTipoServicioTransporte = idTipoServicioTF && tt.VigenciaDesde <= dtDiaGas && dtDiaGas <= tt.VigenciaHasta)
+                    select ({Key = tt.IdTransaccionTransporte; CdcOriginal = tt.Cmd * 1.m<MMBTU>;  Remaining = tt.Cmd * 1.m<MMBTU>})
+                }
+                |> Seq.toList
+        resources
+         |> List.map (fun (cp) ->
+            cp.Key, {
+                Key = cp.Key
+                CdcOriginal = cp.CdcOriginal
+                Remaining = cp.Remaining
+            })
+        |> Map.ofList
+
 
   
 

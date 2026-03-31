@@ -342,3 +342,37 @@ let parseTemporalidad = function
     | "Intraday" -> Temporalidad.Intraday
     | "Monthly"  -> Temporalidad.Monthly
     | x          -> failwithf "Temporalidad desconocida: %s" x
+
+
+
+
+// Para los casos en que un TF se comprate entre mas de un flow
+
+type Tf_Transact_id = int
+
+type CapacityPool = {
+    Key : Tf_Transact_id
+    CdcOriginal : decimal<MMBTU>
+    mutable Remaining : decimal<MMBTU>
+}
+
+type SharedTransportContext = {
+    Pools : Map<Tf_Transact_id, CapacityPool>
+}
+
+
+type TransportTxnMode =
+    | OnlyTF of tf: TransactionId
+    | OnlyTI of ti: TransactionId
+    | TFandTI of tf: TransactionId * ti: TransactionId
+
+type TryGetCapacityPool = TransactionId -> Result<CapacityPool, DomainError>
+
+
+
+type FlowBatchItemResult = {
+    FlowMasterId : int
+    RunId : int
+    FinalState : State
+    Transitions : Transition list
+}
