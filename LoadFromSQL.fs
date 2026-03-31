@@ -138,7 +138,7 @@ module SQL_Data =
               for cg in ctx.Dbo.Consumo do
               where (cg.DiaGas = dia && cg.IdFlowDetail.Value = idFlowDetail)
               select
-                    (cg.IdPunto, cg.Demanda)
+                    (cg.IdPunto, cg.DemandaMmbtu)
             }
       result
 

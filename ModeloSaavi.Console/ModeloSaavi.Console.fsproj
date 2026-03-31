@@ -14,4 +14,8 @@
     <ProjectReference Include="..\ModeloSaavi.fsproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="10.0.105" />
+  </ItemGroup>
+
 </Project>

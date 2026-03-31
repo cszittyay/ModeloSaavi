@@ -5,9 +5,11 @@ open FSharp.Data.Sql
 
 //let connectionString = "Server=LAPTOP-9EH9CLGC\MSSQLSERVER03;Database=GNX.Core.local;Trusted_Connection=True;TrustServerCertificate=True;"
 // Base de datos: GNX_Develop_Local
+// (localdb)\MSSQLLocalDB
+// Testing_GNX_Saavi
 // 
 [<Literal>]
-let connectionString = "Server=LAPTOP-9EH9CLGC\MSSQLSERVER04;Database=GNX_Develop_local;Trusted_Connection=True;TrustServerCertificate=True;"
+let connectionString = "Server=(localdb)\MSSQLLocalDB;Database=Testing_GNX_Saavi;Trusted_Connection=True;TrustServerCertificate=True;"
 
 [<Literal>]
 let useOptionTypes = FSharp.Data.Sql.Common.NullableColumnType.OPTION

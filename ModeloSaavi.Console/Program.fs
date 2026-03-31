@@ -16,13 +16,13 @@ let rec loop () =
         printfn "Ejecutando..."
         let modo = "CUR"
         let central = "EBC"
-        let gasDay = DateOnly(2026,2,11)
+        let gasDay = DateOnly(2026,3,26)
 
         let conn =  DbContext.connectionString
 
         init "logs"
   
-        let flowMasterId = 1
+        let flowMasterId = 12
 
         let result =
             withRunContext flowMasterId  gasDay (fun () ->

@@ -44,4 +44,8 @@
     <PackageReference Include="SQLProvider" Version="1.5.17" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="10.0.105" />
+  </ItemGroup>
+
 </Project>
