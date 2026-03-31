@@ -8,58 +8,54 @@ open ErrorLog.Logging
 open ErrorLog.RunStages
 
 
-// Hola
+open System
 
-//let rec loop () =
-//    // --- tu función a ejecutar ---
-//    do
-//        printfn "Ejecutando..."
-//        let modo = "CUR"
-//        let central = "EBC"
-//        let gasDay = DateOnly(2026,3,26)
+[<EntryPoint>]
+let main argv =
 
-//        let conn =  DbContext.connectionString
 
-//        init "logs"
-  
-//        let flowMasterId = 12
+    let gasDay  = DateOnly(2026, 3, 26)
+    let entryPt = Location "AguaDulce"
+    let buyer   = "EAVIII"
 
-//        let result =
-//            withRunContext flowMasterId  gasDay (fun () ->
-//            logRunStarted()
-
-//            // Acá llamás tu función real
-//            match runFlowAndPersistDB  flowMasterId gasDay st0 with
-//            | Ok (runId, finalState, transitions) ->
-//                logRunOk (Some runId) transitions.Length
-//                Ok runId
-//            | Error e ->
-//                logRunFailed e
-//                Error e
-//        )
-
-//    // --- esperar comando ---
-//        let rec ask () =
-//            printf "Re-ejecutar? (S/N): "
-//            let key = Console.ReadKey(intercept = true).Key
-//            Console.WriteLine()
-
-//            match key with
-//            | ConsoleKey.S ->
-//                loop ()
-//            | ConsoleKey.N ->
-//                printfn "Fin."
-//            | _ ->
-//                printfn "Tecla inválida. Use S o N."
-//                ask ()
-
-//        ask ()
-
-//// Entry point
-//[<EntryPoint>]
-//let main _argv =
-//    loop ()
-//    0
+    let st0 : State =
+        { energy        = 0.0m<MMBTU>
+          owner         = buyer
+          ownerId       = 1001
+          transactionId = 0
+          location      = entryPt
+          locationId    = 501
+          gasDay        = gasDay
+          meta          = Map.empty }
 
 
 
+    // Orden explícito de ejecución
+    let flowMasterIds = [ 12 ]
+
+    // Estado inicial por flow
+    let initialByFlow : Map<int, State> =
+        [
+            12, st0
+        ]
+        |> Map.ofList
+
+    match Escenario.runFlowsAndPersistDB flowMasterIds gasDay initialByFlow with
+    | Ok results ->
+        printfn ""
+        printfn "Corrida batch OK"
+        printfn "================"
+
+        for r in results do
+            printfn $"FlowMasterId : {r.FlowMasterId}"
+            printfn $"RunId        : {r.RunId}"
+            printfn $"Transitions  : {r.Transitions.Length}"
+            printfn $"Final energy : {r.FinalState.energy}"
+            printfn ""
+
+        0
+
+    | Error e ->
+        printfn ""
+        printfn $"Error en corrida batch: {e}"
+        1
