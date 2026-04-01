@@ -46,10 +46,7 @@ type SharedTransportContext = {
 }
 
 type FlowBatchItemResult = {
-    FlowMasterId : int
     RunId : int
-    FinalState : State
-    Transitions : Transition list
 }
 
 
@@ -121,109 +118,106 @@ module FlowRunRepo =
         with ex ->
             Error (DomainError.Other ex.Message)
 
-let persistAll
-    (conn : IDbConnection)
-    (tx   : IDbTransaction)
-    (runId: int)
-    (rows : ProjectedRows)
-    : Result<unit, DomainError> =
-  try
-    addSupplyRows    runId rows.supplies
-    addTradeRows     runId rows.trades
-    addSellRows      runId rows.sells
-    addTransportRows runId rows.transports
-    addSleeveRows    runId rows.sleeves
-    addConsumeRows   runId rows.consumes
-
-    ctx.SubmitUpdates()
-    Ok ()
-  with ex ->
-    Error (DomainError.Other ex.Message)
-
-let runFlowAndPersistDB
-    (tryGetPool  : TryGetCapacityPool)
-    (flowMasterId: int)
-    (diaGas      : DateOnly)
-    (initial     : State)
-    : Result<int * State * Transition list, DomainError> =
-
-  result {
-    let! paths = getFlowStepsDB flowMasterId diaGas
-    let! flowDef = buildFlowDef paths
-
-    let stepRunner = runSteps tryGetPool
-
-    let! (finalState, transitions) =
-      runFlow flowDef initial 0.0m<MMBTU> (+) stepRunner
-
-    let! runId, finalState, transitions =
-      withTransaction (fun conn tx ->
+    let persistAll
+        (conn : IDbConnection)
+        (tx   : IDbTransaction)
+        (runId: int)
+        (rows : ProjectedRows)
+        : Result<unit, DomainError> =
+      try
+        addSupplyRows    runId rows.supplies
+        addTradeRows     runId rows.trades
+        addSellRows      runId rows.sells
+        addTransportRows runId rows.transports
+        addSleeveRows    runId rows.sleeves
+        addConsumeRows   runId rows.consumes
+    
+        ctx.SubmitUpdates()
+        Ok ()
+      with ex ->
+        Error (DomainError.Other ex.Message)
+    
+    let runFlowAndPersistDB
+        (tryGetPool  : TryGetCapacityPool)
+        (flowMasterId: int)
+        (diaGas      : DateOnly)
+        (initial     : State)
+        : Result<int * State * Transition list, DomainError> =
+    
+      result {
+        let! paths = getFlowStepsDB flowMasterId diaGas
+        let! flowDef = buildFlowDef paths
+    
+        let stepRunner = runSteps tryGetPool
+    
+        let! (finalState, transitions) =
+          runFlow flowDef initial 0.0m<MMBTU> (+) stepRunner
+    
+        let! runId, finalState, transitions =
+          withTransaction (fun conn tx ->
+            result {
+              let! runId = insertAndGetRunId conn tx diaGas flowMasterId
+              let! rows = projectRows runId transitions
+              do! persistAll conn tx runId rows
+              return (runId, finalState, transitions)
+            })
+    
+        return (runId, finalState, transitions)
+      }
+    
+    let runFlowsAndPersistDB
+        (flowMasterIds : int list)
+        (diaGas        : DateOnly)
+        (initialByFlow : Map<int, State>)
+        : Result<FlowBatchItemResult list, DomainError> =
+    
         result {
-          let! runId = FlowRunRepo.insertAndGetRunId conn tx diaGas flowMasterId
-          let! rows = projectRows runId transitions
-          do! persistAll conn tx runId rows
-          return (runId, finalState, transitions)
-        })
-
-    return (runId, finalState, transitions)
-  }
-
-let runFlowsAndPersistDB
-    (flowMasterIds : int list)
-    (diaGas        : DateOnly)
-    (initialByFlow : Map<int, State>)
-    : Result<FlowBatchItemResult list, DomainError> =
-
-    result {
-        let! sharedTransportCtx = initSharedTransportContext diaGas
-        let tryGetPool = mkTryGetPool sharedTransportCtx
-
-        let mutable resultsRev : FlowBatchItemResult list = []
-
-        for flowMasterId in flowMasterIds do
-            let! currentInitial =
-                match Map.tryFind flowMasterId initialByFlow with
-                | Some st -> Ok st
-                | None -> Error (Other $"No existe initial state para FlowMasterId={flowMasterId}")
-
-            let! runId, finalState, transitions =
-                runFlowAndPersistDB tryGetPool flowMasterId diaGas currentInitial
-
-            let item =
-                { FlowMasterId = flowMasterId
-                  RunId = runId
-                  FinalState = finalState
-                  Transitions = transitions }
-
-            resultsRev <- item :: resultsRev
-
-        return List.rev resultsRev
-    }
-let runFlowsAndPersistDBByPlanta
-    (idPlanta: int)
-    (gasDay: DateOnly)
-    : Result<FlowBatchItemResult list, DomainError> =
-
-    result {
-        let! flowMasterIds =
-            getFlowMasterIdsByPlanta idPlanta gasDay
-
-        if List.isEmpty flowMasterIds then
-            return! Error (Other $"No se encontraron FlowMaster vigentes para IdPlanta={idPlanta} en GasDay={gasDay}")
-
-        let initialByFlow =
-            buildInitialByFlow flowMasterIds gasDay
-
-        return! runFlowsAndPersistDB flowMasterIds gasDay initialByFlow
-    }
-
-
-let runFlowBatchIdsByPlanta
-    (idPlanta: int)
-    (gasDay: DateOnly)
-    : Result<int list, DomainError> =
-
-    result {
-        let! results = runFlowsAndPersistDBByPlanta idPlanta gasDay
-        return results |> List.map (fun x -> x.RunId)
-    }
+            let! sharedTransportCtx = initSharedTransportContext diaGas
+            let tryGetPool = mkTryGetPool sharedTransportCtx
+    
+            let mutable resultsRev : FlowBatchItemResult list = []
+    
+            for flowMasterId in flowMasterIds do
+                let! currentInitial =
+                    match Map.tryFind flowMasterId initialByFlow with
+                    | Some st -> Ok st
+                    | None -> Error (Other $"No existe initial state para FlowMasterId={flowMasterId}")
+    
+                let! runId, finalState, transitions =
+                    runFlowAndPersistDB tryGetPool flowMasterId diaGas currentInitial
+    
+                let item =
+                    {RunId = runId}
+    
+                resultsRev <- item :: resultsRev
+    
+            return List.rev resultsRev
+        }
+    let runFlowsAndPersistDBByPlanta
+        (idPlanta: int)
+        (gasDay: DateOnly)
+        : Result<FlowBatchItemResult list, DomainError> =
+    
+        result {
+            let! flowMasterIds =
+                getFlowMasterIdsByPlanta idPlanta gasDay
+    
+            if List.isEmpty flowMasterIds then
+                return! Error (Other $"No se encontraron FlowMaster vigentes para IdPlanta={idPlanta} en GasDay={gasDay}")
+    
+            let initialByFlow =
+                buildInitialByFlow flowMasterIds gasDay
+    
+            return! runFlowsAndPersistDB flowMasterIds gasDay initialByFlow
+        }
+    
+    
+    let runFlowBatchIdsByPlanta
+        (idPlanta: int)
+        (gasDay: DateOnly)
+        : Result<int list, DomainError> =
+    
+        result {
+            let! results = runFlowsAndPersistDBByPlanta idPlanta gasDay
+            return results |> List.map (fun x -> x.RunId)
+        }

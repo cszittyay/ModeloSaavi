@@ -111,7 +111,7 @@ module FlowApiModule =
                   Logging.withRunContext req.FlowMasterId req.GasDay (fun () ->
                     Logging.logRunStarted()
 
-                    match Escenario.runFlowAndPersistDB tryGetPool req.FlowMasterId req.GasDay initialState with
+                    match FlowRunRepo.runFlowAndPersistDB tryGetPool req.FlowMasterId req.GasDay initialState with
                     | Ok (runId, _finalState, transitions) ->
                         Logging.logRunOk (Some runId) transitions.Length
                         Ok runId
