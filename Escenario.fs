@@ -17,19 +17,29 @@ let private printMoney (m: Money) = (decimal m).ToString("0.#####")
 let private printRate (r: EnergyPrice) = (decimal r).ToString("0.#####")
 let private printQty  (q: Energy) = (decimal q).ToString("0.#####")
 
-let gasDay  = DateOnly(2026, 1, 20)
-let entryPt = Location "AguaDulce"
-let buyer   = "EAVIII"
 
-let st0 : State =
+
+
+let buildInitialFlowState gasDay: State =
     { energy        = 0.0m<MMBTU>
-      owner         = buyer
+      owner         = "EAX"
       ownerId       = 1001
       transactionId = 0
-      location      = entryPt
+      location      = Location "AguaDulce"
       locationId    = 501
       gasDay        = gasDay
       meta          = Map.empty }
+
+let buildInitialByFlow
+    (flowMasterIds: int list)
+    (gasDay: DateOnly)
+    : Map<int, State> =
+
+    let initialState = buildInitialFlowState gasDay
+
+    flowMasterIds
+    |> List.map (fun flowMasterId -> flowMasterId, initialState)
+    |> Map.ofList
 
 type SharedTransportContext = {
     Pools : Map<int, CapacityPool>
@@ -41,6 +51,37 @@ type FlowBatchItemResult = {
     FinalState : State
     Transitions : Transition list
 }
+
+
+  
+
+let getFlowMasterIdsByPlanta
+        (idPlanta: int)
+        (gasDay: DateOnly)
+        : Result<int list, DomainError> =
+        try
+            let dtGasDay = gasDay.ToDateTime(TimeOnly.MinValue)
+
+            let flowMasterIds =
+                query {
+                    for fm in ctx.Fm.FlowMaster do
+                    join k in ctx.Dbo.Cliente on (fm.IdCliente = k.IdCliente)
+                    join p in ctx.Dbo.Punto on (k.IdPunto.Value = p.IdPunto)
+                    where (
+                        p.IdPlanta .Value= idPlanta
+                        && fm.VigenciaDesde <= dtGasDay
+                        && dtGasDay <= fm.VigenciaHasta
+                    )
+                    sortBy k.Interno
+                    select fm.IdFlowMaster
+                }
+                |> Seq.toList
+
+            Ok flowMasterIds
+
+        with ex ->
+            Error (Other ex.Message)
+
 
 let initSharedTransportContext (gasDay: DateOnly) : Result<SharedTransportContext, DomainError> =
     try
@@ -54,6 +95,10 @@ let mkTryGetPool (ctx: SharedTransportContext) : TryGetCapacityPool =
         match Map.tryFind tfId ctx.Pools with
         | Some pool -> Ok pool
         | None -> Error (Other $"No existe pool para TF={tfId}")
+
+
+
+
 
 module FlowRunRepo =
     open Gnx.Persistence.SQL_Data
@@ -153,4 +198,32 @@ let runFlowsAndPersistDB
             resultsRev <- item :: resultsRev
 
         return List.rev resultsRev
+    }
+let runFlowsAndPersistDBByPlanta
+    (idPlanta: int)
+    (gasDay: DateOnly)
+    : Result<FlowBatchItemResult list, DomainError> =
+
+    result {
+        let! flowMasterIds =
+            getFlowMasterIdsByPlanta idPlanta gasDay
+
+        if List.isEmpty flowMasterIds then
+            return! Error (Other $"No se encontraron FlowMaster vigentes para IdPlanta={idPlanta} en GasDay={gasDay}")
+
+        let initialByFlow =
+            buildInitialByFlow flowMasterIds gasDay
+
+        return! runFlowsAndPersistDB flowMasterIds gasDay initialByFlow
+    }
+
+
+let runFlowBatchIdsByPlanta
+    (idPlanta: int)
+    (gasDay: DateOnly)
+    : Result<int list, DomainError> =
+
+    result {
+        let! results = runFlowsAndPersistDBByPlanta idPlanta gasDay
+        return results |> List.map (fun x -> x.RunId)
     }

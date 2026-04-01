@@ -14,33 +14,12 @@ open System
 let main argv =
 
 
-    let gasDay  = DateOnly(2026, 3, 26)
-    let entryPt = Location "AguaDulce"
-    let buyer   = "EAVIII"
+    
 
-    let st0 : State =
-        { energy        = 0.0m<MMBTU>
-          owner         = buyer
-          ownerId       = 1001
-          transactionId = 0
-          location      = entryPt
-          locationId    = 501
-          gasDay        = gasDay
-          meta          = Map.empty }
+    let gasDay = DateOnly(2026, 3, 26)
+    let idPlanta = 1
 
-
-
-    // Orden explícito de ejecución
-    let flowMasterIds = [ 12 ]
-
-    // Estado inicial por flow
-    let initialByFlow : Map<int, State> =
-        [
-            12, st0
-        ]
-        |> Map.ofList
-
-    match Escenario.runFlowsAndPersistDB flowMasterIds gasDay initialByFlow with
+    match  runFlowsAndPersistDBByPlanta idPlanta gasDay with
     | Ok results ->
         printfn ""
         printfn "Corrida batch OK"
