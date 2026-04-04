@@ -16,20 +16,19 @@ let main argv =
 
     
 
-    let gasDay = DateOnly(2026, 3, 26)
+    let gasDay = DateOnly(2026, 4, 2)
+    // CTM = 5
+    // LR = 1
     let idPlanta = 1
 
-    match  runFlowsAndPersistDBByPlanta idPlanta gasDay with
+    match  FlowRunRepo.runFlowsAndPersistDBByPlanta idPlanta gasDay with
     | Ok results ->
         printfn ""
         printfn "Corrida batch OK"
         printfn "================"
 
         for r in results do
-            printfn $"FlowMasterId : {r.FlowMasterId}"
             printfn $"RunId        : {r.RunId}"
-            printfn $"Transitions  : {r.Transitions.Length}"
-            printfn $"Final energy : {r.FinalState.energy}"
             printfn ""
 
         0

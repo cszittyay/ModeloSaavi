@@ -69,6 +69,7 @@ let getFlowMasterIdsByPlanta
                         && fm.VigenciaDesde <= dtGasDay
                         && dtGasDay <= fm.VigenciaHasta
                     )
+                    // primero los clientes externos (0)
                     sortBy k.Interno
                     select fm.IdFlowMaster
                 }

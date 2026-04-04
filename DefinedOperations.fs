@@ -3,6 +3,7 @@ open System
 open FsToolkit.ErrorHandling
 open Tipos
 open Unidades
+open Gnx.Persistence
 
 
 module DomainError =
@@ -348,7 +349,8 @@ module Transport =
             let remainingAfter = pool.Remaining
 
             if qtyTI > 0.0m<MMBTU> then
-              Error (Other $"Exceso sobre capacidad firme sin TI configurado. FlowDetail={flowDetailId}, excedente={qtyTI}, TF={tf}")
+              let codigo = (SQL_Data.transaccionesTransporteById().Value).[tf].contratRef
+              Error (Other $"Exceso sobre capacidad firme sin TI configurado. FlowDetail={flowDetailId}, excedente={qtyTI}, TF={codigo}")
             else
               Ok (qtyTF, 0.0m<MMBTU>, Some remainingBefore, Some remainingAfter)
 
