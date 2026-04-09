@@ -336,7 +336,7 @@ module FlowBuilderUtils =
         |> List.distinct
 
       let endsAtJoin (jk: string) (steps: FlowStep list) =
-        if steps.Length = 1 then false else steps |> List.tryLast |> Option.bind (fun s -> s.joinKey) = Some jk
+        steps |> List.tryLast |> Option.bind (fun s -> s.joinKey) = Some jk
 
       let startsAtJoin (jk: string) (steps: FlowStep list) =
         steps |> List.tryHead |> Option.bind (fun s -> s.joinKey) = Some jk
