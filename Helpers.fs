@@ -350,14 +350,21 @@ module FlowBuilderUtils =
           let flowPaths =
             paths
             |> Map.map (fun fid steps ->
+                let ends   = endsAtJoin   jk steps
+                let starts = startsAtJoin jk steps
                 let role =
-                  if endsAtJoin jk steps then Contributor
-                  elif startsAtJoin jk steps then Final
-                  else
-                    // path participa del flow pero no encaja en la topología esperada
-                    // (p.ej. tiene el joinKey en el medio, o nunca lo toca)
-                    // si querés permitir join en el medio, se puede extender para "split" del path.
-                    failwith $"Path {fid} no es Contributor (end) ni Final (start) para joinKey='{jk}'."
+                  match ends, starts with
+                  | true,  false -> Contributor
+                  | false, true  -> Final
+                  | true,  true  ->
+                      // path de un solo step marcado con el joinKey:
+                      // usar el tipo de bloque para resolver la ambigüedad
+                      match (List.head steps).block with
+                      | Supply _ | SupplyMany _ -> Contributor
+                      | Consume _               -> Final
+                      | b -> failwith $"Path {fid}: step único en joinKey='{jk}', rol ambiguo para bloque '{b}'."
+                  | false, false ->
+                      failwith $"Path {fid} no es Contributor (end) ni Final (start) para joinKey='{jk}'."
 
                 { id = fid; role = role; steps = steps }
             )
