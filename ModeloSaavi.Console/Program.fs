@@ -21,7 +21,7 @@ let main argv =
     // LR = 1
     // Bajio (EAVIII) = 2
     // ECHI = 4 
-    let idPlanta =1
+    let idPlanta =2
     match  FlowRunRepo.runFlowsAndPersistDBByPlanta idPlanta gasDay with
     | Ok results ->
         printfn ""
