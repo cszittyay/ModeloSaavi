@@ -36,3 +36,5 @@ type DbFactory() =
     
     static member SetGlobalContext(runtimeConnString: string) =
         ctx <- sqlGnx.GetDataContext(runtimeConnString)
+
+type FlowDetail = sqlGnx.dataContext.``fm.FlowDetailEntity``   

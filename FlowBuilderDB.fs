@@ -380,15 +380,14 @@ let buildSellsDB
 // FlowSteps (equivalente a buildFlowSteps / getFlowSteps de Excel)
 // =====================================================================================
 
-let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnly) : FlowStep list =
-   
+let buildFlowStepsDb (flowMasterId: FlowMasterId) (path: string) (diaGas: DateOnly) : Result<FlowStep list, DomainError> =
+
     let fm =
-        match tryFindFlowMaster flowMasterId  with
+        match tryFindFlowMaster flowMasterId with
         | Some fm -> fm
         | None -> failwithf "No se encontró FlowMaster para el Id='%d'" flowMasterId
 
-
-    let tryFindOr (defaultValue:'a) (fdId:int) (r: Result<Map<int,'a>, 'e>) : Result<'a,'e> =
+    let tryFindOr (defaultValue: 'a) (fdId: int) (r: Result<Map<int,'a>, 'e>) : Result<'a,'e> =
         r |> Result.map (fun m -> Map.tryFind fdId m |> Option.defaultValue defaultValue)
 
     let supplies   = buildSupplysDB diaGas fm.IdFlowMaster path
@@ -398,72 +397,65 @@ let buildFlowStepsDb (flowMasterId:FlowMasterId) (path: string) (diaGas: DateOnl
     let consumes   = buildConsumeDB diaGas fm.IdFlowMaster path
     let sells      = buildSellsDB diaGas fm.IdFlowMaster path
 
-    // Orden: preferimos fd.Orden si existe; si no, IdFlowDetail (estable).
     let flowDetails =
         getFlowDetails fm.IdFlowMaster path
         |> Seq.toList
         |> List.sortBy (fun fd -> fd.Orden)
 
+    let buildBlock (tipoDesc: string) (fd: FlowDetail) : Result<Block, DomainError> =
+        match tipoDesc with
+        | "Supply" ->
+            supplies |> Result.bind (fun m ->
+                match Map.tryFind fd.IdFlowDetail m with
+                | Some sp -> Ok (SupplyMany sp)
+                | None    -> Error (MissingSupplyFlowDetail (fm.Nombre.Value, diaGas, path)))
+
+        | "Trade" ->
+            trades |> Result.bind (fun m ->
+                match Map.tryFind fd.IdFlowDetail m with
+                | Some tp -> Ok (Trade tp)
+                | None    -> Error (MissingTradeForFlowDetail (fm.Nombre.Value, fd.IdFlowDetail, path)))
+
+        | "Transport" ->
+            transports |> Result.bind (fun m ->
+                match Map.tryFind fd.IdFlowDetail m with
+                | Some tp -> Ok (Transport tp)
+                | None    -> Error (MissingTransportFlowDetail (fm.Nombre.Value, fd.IdFlowDetail, path)))
+
+        | "Sleeve" ->
+            sleeves |> Result.bind (fun m ->
+                match Map.tryFind fd.IdFlowDetail m with
+                | Some sl -> Ok (Sleeve sl)
+                | None    -> Error (MissingSleeveFlowDetail (fm.Nombre.Value, fd.IdFlowDetail, path)))
+
+        | "Sell" ->
+            tryFindOr [] fd.IdFlowDetail sells
+            |> Result.map SellMany
+
+        | "Consume" ->
+            consumes |> Result.bind (fun m ->
+                match Map.tryFind fd.IdFlowDetail m with
+                | Some cp -> Ok (Consume cp)
+                | None    -> Error (MissingConsumoForFlowDetail (fm.Nombre.Value, diaGas, path)))
+
+        | other ->
+            Error (MissingFlowType other)
+
     flowDetails
     |> List.map (fun fd ->
-        let flowId = { flowMasterId = flowMasterId; path = path }
-
         let tipoDesc =
             tipoOperacionById.Value
             |> Map.tryFind fd.IdTipoOperacion
             |> Option.defaultValue "<unknown>"
-
-        let block : Block =
-            match tipoDesc with
-            | "Supply" ->
-                let sp = supplies |> Result.map(Map.find fd.IdFlowDetail)
-                match sp with
-                | Ok sp -> SupplyMany sp
-                | Error e -> failwithf "Error building Supply block: %A" e
-
-            | "Trade" ->
-                let tp = trades |> Result.map (Map.find fd.IdFlowDetail)
-                match tp with
-                | Ok tp -> Trade tp
-                | Error e -> failwithf "Error building Trade block: %A" e
-
-            | "Transport" ->
-                let tp = transports |> Result.map(Map.find fd.IdFlowDetail)
-                 
-                match tp with
-                | Ok tp -> Transport tp
-                | Error e -> failwithf "Error building Transport block: %A" e
-
-            | "Sleeve" ->
-                let sl = sleeves |> Result.map(Map.find fd.IdFlowDetail)
-                match sl with
-                | Ok sl -> Sleeve sl
-                | Error  e  -> failwithf "Errror Sleeve not defined %A" e
-
-           
-            | "Sell" ->
-                // let sp = sells |> Result.map(Map.find fd.IdFlowDetail)
-                let! sp = tryFindOr [] fd.IdFlowDetail sells
-                match sp with
-                | Ok sp -> SellMany sp
-                | Error e -> failwithf "Error Sell block: %A" e
-
-            | "Consume" ->
-                let cp = consumes |> Result.map( Map.find fd.IdFlowDetail)
-                match cp with
-                | Ok cp -> Consume cp
-                | Error e -> failwithf "Error Consume not defined %A" e
-
-            | other ->
-                failwithf "TipoOperacion '%s' no soportado para FlowSteps DB" other
-
-      
-        { flowId  = flowId
-          order   = fd.Orden
-          block   = block
-          joinKey = fd.JoinKey
-          ref     = fd.Path }
+        buildBlock tipoDesc fd
+        |> Result.map (fun block ->
+            { flowId  = { flowMasterId = flowMasterId; path = path }
+              order   = fd.Orden
+              block   = block
+              joinKey = fd.JoinKey
+              ref     = fd.Path })
     )
+    |> List.sequenceResultM
 
 let getFlowStepsDB
     (flowMasterId      : FlowMasterId)
@@ -473,28 +465,24 @@ let getFlowStepsDB
 
 
     match ctx.Fm.FlowMaster |> Seq.tryFind (fun fm -> fm.IdFlowMaster = flowMasterId) with
-        | None ->
-            Error (MissingFlowMaster flowMasterId)
-        | Some fm ->
-            let fm = ctx.Fm.FlowMaster |> Seq.find (fun fm -> fm.IdFlowMaster = flowMasterId)
-        
+    | None -> Error (MissingFlowMaster flowMasterId)
+    | Some fm ->
+        let paths =
+            ctx.Fm.FlowDetail
+            |> Seq.filter (fun fd -> fd.IdFlowMaster = fm.IdFlowMaster)
+            |> Seq.map (fun fd -> fd.Path)
+            |> Seq.distinct
+            |> Seq.toList
 
-            let paths =
-                ctx.Fm.FlowDetail
-                |> Seq.filter (fun fd -> fd.IdFlowMaster = fm.IdFlowMaster)
-                |> Seq.map (fun fd -> fd.Path)
-                |> Seq.distinct
-                |> Seq.toList
-
-            if paths.Length = 0 then Error (MissingFlowDetail (fm.Nombre.Value))
-            else
-            let result =
-                paths
-                |> List.map (fun path ->
-                    let fid = { flowMasterId = flowMasterId; path = path }
-                    fid, buildFlowStepsDb flowMasterId path diaGas)
-                |> Map.ofList
-            Ok result
+        if paths.Length = 0 then Error (MissingFlowDetail (fm.Nombre.Value))
+        else
+            paths
+            |> List.map (fun path ->
+                let fid = { flowMasterId = flowMasterId; path = path }
+                buildFlowStepsDb flowMasterId path diaGas
+                |> Result.map (fun steps -> fid, steps))
+            |> List.sequenceResultM
+            |> Result.map Map.ofList
 
 
 

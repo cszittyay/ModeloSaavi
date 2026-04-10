@@ -52,7 +52,8 @@ module DetailRepo =
       row.BuyBack  <- r.buyBack
       row.QtyMmBtu  <- energyToDecimal r.qty
       row.IndexPrice <- Some (priceToDecimal r.index)
-      row.Adder     <- Some (priceToDecimal r.adder)
+      row.Adder      <- Some (priceToDecimal r.adder)
+      row.Price      <- Some (priceToDecimal r.price)
     )
 
   // ============ TRADE ============
@@ -97,7 +98,7 @@ module DetailRepo =
       row.GasDay  <- do2dt r.gasDay
       row.IdFlowDetail <- r.flowDetailId
       row.IdProvider  <- r.providerId
-      row.IdTransaccionTransporte   <- r.transactionId.Value
+      row.IdTransaccionTransporte   <- r.transactionId |> Option.defaultWith (fun () -> failwithf "TransportResultRow sin transactionId para FlowDetail=%d" r.flowDetailId)
       row.Pipeline <- string r.pipeline
       row.IdRuta       <- r.routeId
       row.FuelQtyMmBtu <- energyToDecimal r.fuelQty
@@ -147,7 +148,7 @@ module DetailRepo =
       addSleeveRows runId rows.sleeves
       addConsumeRows runId rows.consumes
 
-      // SubmitUpdates usando la MISMA transacción
+      // SubmitUpdates usando la MISMA transacciï¿½n
       ctx.SubmitUpdates()
       Ok ()
     with ex ->

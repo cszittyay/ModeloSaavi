@@ -119,25 +119,6 @@ module FlowRunRepo =
         with ex ->
             Error (DomainError.Other ex.Message)
 
-    let persistAll
-        (conn : IDbConnection)
-        (tx   : IDbTransaction)
-        (runId: int)
-        (rows : ProjectedRows)
-        : Result<unit, DomainError> =
-      try
-        addSupplyRows    runId rows.supplies
-        addTradeRows     runId rows.trades
-        addSellRows      runId rows.sells
-        addTransportRows runId rows.transports
-        addSleeveRows    runId rows.sleeves
-        addConsumeRows   runId rows.consumes
-    
-        ctx.SubmitUpdates()
-        Ok ()
-      with ex ->
-        Error (DomainError.Other ex.Message)
-    
     let runFlowAndPersistDB
         (tryGetPool  : TryGetCapacityPool)
         (flowMasterId: int)
@@ -159,7 +140,7 @@ module FlowRunRepo =
             result {
               let! runId = insertAndGetRunId conn tx diaGas flowMasterId
               let! rows = projectRows runId transitions
-              do! persistAll conn tx runId rows
+              do! persistAll tx runId rows
               return (runId, finalState, transitions)
             })
     
@@ -184,13 +165,21 @@ module FlowRunRepo =
                     | Some st -> Ok st
                     | None -> Error (Other $"No existe initial state para FlowMasterId={flowMasterId}")
     
-                let! runId, finalState, transitions =
-                    runFlowAndPersistDB tryGetPool flowMasterId diaGas currentInitial
-    
-                let item =
-                    {RunId = runId}
-    
-                resultsRev <- item :: resultsRev
+                let! runResultOpt =
+                    match runFlowAndPersistDB tryGetPool flowMasterId diaGas currentInitial with
+                    | Error (MissingSupplyFlowDetail (fm, day, path)) ->
+                        printfn $"[SKIP] FlowMaster={flowMasterId} fm='{fm}' path='{path}' day={day} — Sin Supply"
+                        Ok None
+                    | Error (MissingConsumoForFlowDetail (fm, day, path)) ->
+                        printfn $"[SKIP] FlowMaster={flowMasterId} fm='{fm}' path='{path}' day={day} — sin datos de consumo"
+                        Ok None
+                    | Error e -> Error e
+                    | Ok r    -> Ok (Some r)
+
+                match runResultOpt with
+                | None -> ()
+                | Some (runId, _, _) ->
+                    resultsRev <- { RunId = runId } :: resultsRev
     
             return List.rev resultsRev
         }
