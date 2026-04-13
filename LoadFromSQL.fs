@@ -157,17 +157,6 @@ module SQL_Data =
 
   // Convierte para un día Gas  un idFlowDetail  devuelve el consumo en MMBtu y el punto de entrega
 
-  let loadConsumo (diaGas:DateOnly) idFlowDetail =
-     
-      let dia = diaGas.ToDateTime(TimeOnly.MinValue)
-  
-      let result = query {
-              for cg in ctx.Dbo.Consumo do
-              where (cg.DiaGas = dia && cg.IdFlowDetail.Value = idFlowDetail)
-              select
-                    (cg.IdPunto, cg.DemandaMmbtu)
-            }
-      result
 
 
   let private entidadLegalById =
@@ -179,6 +168,9 @@ module SQL_Data =
 
   let puntoCodigoById =
     lazy (ctx.Dbo.Punto |> Seq.map (fun p -> p.IdPunto, p.Codigo) |> Map.ofSeq)
+
+  let clienteById = 
+    lazy (ctx.Dbo.Cliente |> Seq.map (fun k -> k.IdCliente, k) |> Map.ofSeq)
 
   let  contratosById =
     lazy (loadContratos() |> List.map (fun c -> c.id, c) |> Map.ofList)
@@ -263,5 +255,18 @@ module SQL_Data =
   let dPto = puntoCodigoById.Value
   let dCont = contratosById.Value
   let dGasoducto = gasoductoById.Value
+  let dCliente = clienteById.Value
   
+  
+  let loadConsumo (diaGas:DateOnly) idCliente =
+     
+      let dia = diaGas.ToDateTime(TimeOnly.MinValue)
+      let idPunto = dCliente.[idCliente].IdPunto.Value
 
+      let result = query {
+              for cg in ctx.Dbo.Consumo do
+              where (cg.DiaGas = dia && cg.IdPunto = idPunto)
+              select
+                    (cg.IdPunto, cg.DemandaMmbtu)
+            }
+      result

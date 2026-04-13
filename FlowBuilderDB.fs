@@ -294,6 +294,8 @@ let buildConsumeDB
     | Some idTipoConsume ->
 
         let fmNombre = dFlowMaster.[idFlowMaster].Nombre.Value
+        let idCliente = dFlowMaster.[idFlowMaster].IdCliente
+
 
         match ctx.Fm.FlowDetail |> Seq.tryFind (fun fd -> fd.IdFlowMaster = idFlowMaster && fd.IdTipoOperacion = idTipoConsume) with
         | None -> Error (MissingConsumoForFlowDetail (fmNombre, diaGas, path))  // <- o el error que uses para "no existe Consume"
@@ -301,7 +303,7 @@ let buildConsumeDB
         | Some fdConsumo ->
 
             // 3) Cargar consumo (puede venir vacío)
-            match loadConsumo diaGas fdConsumo.IdFlowDetail |> Seq.tryHead with
+            match loadConsumo diaGas idCliente |> Seq.tryHead with
             | None -> Error (MissingConsumoForFlowDetail (fmNombre, diaGas, path))
             | Some (idPunto, consumo) ->
 
