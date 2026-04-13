@@ -31,12 +31,13 @@ let private tryFindFlowMaster flowMasterId =
     ctx.Fm.FlowMaster |> Seq.tryFind (fun fm -> fm.IdFlowMaster = flowMasterId)
 
 let private getFlowDetails (idFlowMaster: int) (path: string) =
-    match flowDetailsByMasterPath.Value.TryFind (idFlowMaster, path) with
+    let dFlowDetailByMasterPath =  flowDetailsByMasterPath().Value
+    match dFlowDetailByMasterPath.TryFind (idFlowMaster, path) with
     | None -> Seq.empty
     | Some s -> s
 
 let private getFlowDetailsByTipo (idFlowMaster: int) (path: string) (tipoOpDesc: string) =
-    match tipoOperacionByDesc.Value.TryFind tipoOpDesc with
+    match tipoOperacionByDesc().Value.TryFind tipoOpDesc with
     | None -> []
     | Some idTipo ->
         getFlowDetails idFlowMaster path
@@ -64,8 +65,9 @@ let buildSupplysDB
     : Result<Map<flowId, SupplyParams list>, DomainError> =
 
     let dTransGas = transaccionesGasById().Value
+    
 
-    match Map.tryFind idFlowMaster flowMasterById.Value with
+    match Map.tryFind idFlowMaster dFlowMaster with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
         let fmNombre = flowMaster.Nombre.Value
@@ -112,16 +114,18 @@ let buildSupplysDB
 
 
 let buildTradesDB idFlowMaster path : Result<Map<flowId, TradeParams>, DomainError> =
-    match Map.tryFind idFlowMaster flowMasterById.Value with
+    match Map.tryFind idFlowMaster dFlowMaster with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
         let tradeGas = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Trade"
         let dTransGas = transaccionesGasById().Value
+        let dTradeByFlowDetail = tradeByFlowDetailId().Value
         tradeGas
         |> List.fold (fun acc fd ->
             acc
+            
             |> Result.bind (fun m ->
-                match Map.tryFind fd.IdFlowDetail tradeByFlowDetailId.Value with
+                match Map.tryFind fd.IdFlowDetail dTradeByFlowDetail with
                 | None ->  Error (MissingTradeForFlowDetail (flowMaster.Nombre.Value, fd.IdFlowDetail,  path))
                 | Some trade ->
 
@@ -151,7 +155,7 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
     // Si idFlowMaster acá es el IdFlowMaster “real”, ok.
     // Si en otros módulos usás flowMasterById, mantené consistencia.
     let dTransGas = transaccionesGasById().Value
-    match Map.tryFind idFlowMaster flowMasterById.Value with
+    match Map.tryFind idFlowMaster dFlowMaster with
     | None ->  Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
 
@@ -198,7 +202,7 @@ let tryGetPoolFromCtx (ctx: SharedTransportContext) : TryGetCapacityPool =
 
 let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, DomainError> =
 
-  match Map.tryFind idFlowMaster flowMasterById.Value with
+  match Map.tryFind idFlowMaster dFlowMaster with
   | None -> Error (MissingFlowMaster idFlowMaster)
   | Some flowMaster ->
 
@@ -289,7 +293,7 @@ let buildConsumeDB
     : Result<Map<flowId, ConsumeParams>, DomainError> =
 
     // 1) Resolver IdTipoOperacion "Consume" sin indexador
-    match Map.tryFind "Consume" tipoOperacionByDesc.Value with
+    match Map.tryFind "Consume" dTipoOperacionByDesc with
     | None -> Error (MissingFlowType "Consume")   // <- agregá este caso o mapealo a uno existente
     | Some idTipoConsume ->
 
@@ -446,7 +450,7 @@ let buildFlowStepsDb (flowMasterId: FlowMasterId) (path: string) (diaGas: DateOn
     flowDetails
     |> List.map (fun fd ->
         let tipoDesc =
-            tipoOperacionById.Value
+            dTipoOperacionById
             |> Map.tryFind fd.IdTipoOperacion
             |> Option.defaultValue "<unknown>"
         buildBlock tipoDesc fd

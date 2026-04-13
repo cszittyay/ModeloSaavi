@@ -159,20 +159,20 @@ module SQL_Data =
 
 
 
-  let private entidadLegalById =
+  let private entidadLegalById() =
     lazy (ctx.Dbo.EntidadLegal |> Seq.map (fun e -> e.IdEntidadLegal, e) |> Map.ofSeq)
 
 
-  let gasoductoById =
+  let gasoductoById() =
     lazy (ctx.Dbo.Gasoducto |> Seq.map (fun g -> g.IdGasoducto, g) |> Map.ofSeq)    
 
-  let puntoCodigoById =
+  let puntoCodigoById() =
     lazy (ctx.Dbo.Punto |> Seq.map (fun p -> p.IdPunto, p.Codigo) |> Map.ofSeq)
 
-  let clienteById = 
+  let clienteById() = 
     lazy (ctx.Dbo.Cliente |> Seq.map (fun k -> k.IdCliente, k) |> Map.ofSeq)
 
-  let  contratosById =
+  let  contratosById() =
     lazy (loadContratos() |> List.map (fun c -> c.id, c) |> Map.ofList)
 
 
@@ -182,14 +182,14 @@ module SQL_Data =
   let transaccionesTransporteById()=
         lazy (loadTransaccionesTransporte() |> List.map (fun t -> t.id, t) |> Map.ofList)
 
-  let flowMasterByNombre =
+  let flowMasterByNombre() =
         lazy (ctx.Fm.FlowMaster |> Seq.map (fun fm -> fm.Nombre, fm) |> Map.ofSeq)
 
-  let flowMasterById =
+  let flowMasterById() =
             lazy (ctx.Fm.FlowMaster |> Seq.map (fun fm -> fm.IdFlowMaster, fm) |> Map.ofSeq)
 
 
-  let tipoOperacionByDesc =
+  let tipoOperacionByDesc() =
             lazy (
                 ctx.Fm.TipoOperacion
                 |> Seq.map (fun top -> top.Descripcion, top.IdTipoOperacion)
@@ -197,7 +197,7 @@ module SQL_Data =
                 |> Map.ofList
             )
 
-  let tipoOperacionById =
+  let tipoOperacionById() =
             lazy (
                 ctx.Fm.TipoOperacion
                 |> Seq.map (fun top -> top.IdTipoOperacion, top.Descripcion)
@@ -215,7 +215,7 @@ module SQL_Data =
 
 
   // (IdFlowMaster, Path) -> seq FlowDetail
-  let  flowDetailsByMasterPath =
+  let  flowDetailsByMasterPath() =
     lazy (
         ctx.Fm.FlowDetail
         |> Seq.groupBy (fun fd -> (fd.IdFlowMaster, fd.Path))
@@ -235,28 +235,29 @@ module SQL_Data =
     } |> Seq.toList
 
 // Operaciones “master data” por IdFlowDetail (las transaccionales suelen requerir diaGas)
-  let tradeByFlowDetailId =
+  let tradeByFlowDetailId() =
     lazy (ctx.Fm.Trade |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq)
 
 // NOTE: estas tablas pueden o no existir en tu schema `Fm`. Si existen, descomentá.
-  let sleeveByFlowDetailId =
+  let sleeveByFlowDetailId() =
     lazy (ctx.Fm.Sleeve |> Seq.map (fun s -> s.IdFlowDetail, s) |> Map.ofSeq)
 //
-  let transportByFlowDetailId =
+  let transportByFlowDetailId() =
     lazy (ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq)
 //
 
-  let tradingHubNemonicoById =
+  let tradingHubNemonicoById() =
     lazy (ctx.Platts.IndicePrecio |> Seq.map (fun th -> th.IdIndicePrecio, th.Nemonico) |> Map.ofSeq)
 
 
-  let dFlowMaster = flowMasterById.Value
-  let dEnt = entidadLegalById.Value
-  let dPto = puntoCodigoById.Value
-  let dCont = contratosById.Value
-  let dGasoducto = gasoductoById.Value
-  let dCliente = clienteById.Value
-  
+  let dFlowMaster = flowMasterById().Value
+  let dEnt = entidadLegalById().Value
+  let dPto = puntoCodigoById().Value
+  let dCont = contratosById().Value
+  let dGasoducto = gasoductoById().Value
+  let dCliente = clienteById().Value
+  let dTipoOperacionById = tipoOperacionById().Value
+  let dTipoOperacionByDesc = tipoOperacionByDesc().Value
   
   let loadConsumo (diaGas:DateOnly) idCliente =
      
