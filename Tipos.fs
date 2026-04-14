@@ -267,8 +267,9 @@ type Block =
   | SellMany          of SellParams list
 
 type PathRole =
-  | Contributor
-  | Final
+  | Contributor                        // termina en un JoinKey; arranca desde el estado inicial
+  | Bridge                             // arranca en un JoinKey y termina en otro JoinKey
+  | Final                              // arranca en un JoinKey; no tiene JoinKey de salida
 
 
 type FlowId = {
@@ -296,12 +297,20 @@ type FlowPath = {
   steps : FlowStep list
 }
 
-// son los dos tipo de operación: Lineal o 
+/// Un stage de un Join multi-etapa.
+/// Los Contributors arrancan desde el estado inicial del Flow.
+/// El Bridge (si existe) arranca desde el estado agregado del stage anterior.
+type JoinStage = {
+    joinKey      : string
+    contributors : FlowPath list    // paths que terminan en este JK
+    bridge       : FlowPath option  // path que viene del JK anterior y termina aca
+}
+
+// tipos de topologia: Lineal, Join simple, o MultiJoin (cadena de Joins)
 type FlowDef =
-  | Linear of flowId: FlowId * steps: FlowStep list
-  | Join of joinKey: string * paths: Map<FlowId, FlowPath>
-
-
+  | Linear    of flowId: FlowId * steps: FlowStep list
+  | Join      of joinKey: string * paths: Map<FlowId, FlowPath>
+  | MultiJoin of stages: JoinStage list * finalPath: FlowPath option
 
 type DailyBalance = {
   fecha   : DateOnly

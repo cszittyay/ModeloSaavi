@@ -378,13 +378,174 @@ module FlowBuilderUtils =
           else
             Ok (FlowDef.Join (jk, flowPaths))
 
-      | _ ->
-          err $"Flow inválido: hay múltiples JoinKey en el mismo Flow: {allJoinKeys}."
+      | multipleJks ->
+          // Clasifica cada path en uno de tres roles:
+          //   PureContributor jk  -> termina en jk, arranca desde estado inicial
+          //   PureFinal jk        -> arranca en jk, no tiene JK de salida
+          //   BridgePath jkF jkT  -> arranca en jkF y termina en jkT
+          let classifyPath (fid: FlowId) (steps: FlowStep list) =
+              let firstJk = steps |> List.tryHead |> Option.bind (fun s -> s.joinKey)
+              let lastJk  = steps |> List.tryLast |> Option.bind (fun s -> s.joinKey)
+              match firstJk, lastJk with
+              | None, Some jk      -> Ok ("contributor", jk, "")
+              | Some jk, None      -> Ok ("final", "", jk)
+              | Some jkFrom, Some jkTo when jkFrom <> jkTo ->
+                  Ok ("bridge", jkTo, jkFrom)
+              | Some jk, Some _ ->
+                  // mismo JK en primer y ultimo step: desambiguar por bloque
+                  match (List.head steps).block with
+                  | Supply _ | SupplyMany _ -> Ok ("contributor", jk, "")
+                  | Consume _               -> Ok ("final", "", jk)
+                  | b -> err $"Path {fid}: step unico en joinKey='{jk}', rol ambiguo para bloque '{b}'."
+              | None, None ->
+                  err $"Path {fid}: no tiene JoinKey en un Flow multi-JK."
+
+          // Secuencia los Results (equivalente a List.sequenceResultM)
+          let rec seqR acc = function
+              | []      -> Ok (List.rev acc)
+              | r :: rs -> match r with Error e -> Error e | Ok v -> seqR (v :: acc) rs
+
+          let classified =
+              paths
+              |> Map.toList
+              |> List.map (fun (fid, steps) ->
+                  classifyPath fid steps
+                  |> Result.map (fun (kind, toJk, fromJk) -> fid, steps, kind, toJk, fromJk))
+              |> seqR []
+
+          classified
+          |> Result.bind (fun cls ->
+              // Puentes: (fromJk, toJk)
+              let bridges =
+                  cls |> List.choose (fun (_, _, kind, toJk, fromJk) ->
+                      if kind = "bridge" then Some (fromJk, toJk) else None)
+
+              // Orden topologico de JKs (cadena lineal)
+              let hasIncoming jk = bridges |> List.exists (fun (_, t) -> t = jk)
+              let roots = multipleJks |> List.filter (not << hasIncoming)
+
+              let rec buildOrder acc visited queue =
+                  match queue with
+                  | [] -> List.rev acc
+                  | jk :: rest ->
+                      if List.contains jk visited then buildOrder acc visited rest
+                      else
+                          let next =
+                              bridges
+                              |> List.tryPick (fun (f, t) ->
+                                  if f = jk && not (List.contains t visited) then Some t else None)
+                          match next with
+                          | None      -> buildOrder (jk :: acc) (jk :: visited) rest
+                          | Some jkNext -> buildOrder (jk :: acc) (jk :: visited) (jkNext :: rest)
+
+              let jkOrder = buildOrder [] [] roots
+
+              if jkOrder.Length <> multipleJks.Length then
+                  err $"Flow invalido: no se pudo ordenar los JoinKeys: {multipleJks}"
+              else
+
+              let mkPath (fid: FlowId) (steps: FlowStep list) (role: PathRole) =
+                  { id = fid; role = role; steps = steps }
+
+              let stages =
+                  jkOrder |> List.map (fun jk ->
+                      let contributors =
+                          cls |> List.choose (fun (fid, steps, kind, toJk, _) ->
+                              if kind = "contributor" && toJk = jk
+                              then Some (mkPath fid steps Contributor)
+                              else None)
+                      let bridge =
+                          cls |> List.tryPick (fun (fid, steps, kind, toJk, _) ->
+                              if kind = "bridge" && toJk = jk
+                              then Some (mkPath fid steps Bridge)
+                              else None)
+                      { joinKey = jk; contributors = contributors; bridge = bridge })
+
+              let finalPathOpt =
+                  cls |> List.tryPick (fun (fid, steps, kind, _, _) ->
+                      if kind = "final" then Some (mkPath fid steps Final) else None)
+
+              // Validacion: cada stage debe tener al menos un contributor o bridge
+              let invalidStage =
+                  stages |> List.tryFind (fun s -> s.contributors.IsEmpty && s.bridge.IsNone)
+
+              match invalidStage with
+              | Some s -> err $"Stage JK='{s.joinKey}': no tiene Contributor ni Bridge."
+              | None   -> Ok (FlowDef.MultiJoin (stages, finalPathOpt))
+          )
 
 
 
 
 
+
+    /// Ejecuta un Flow de topologia MultiJoin (cadena de JoinStages).
+    /// Cada stage agrega las energias de sus Contributors (desde initial)
+    /// mas el Bridge (desde el estado agregado del stage anterior).
+    let runMultiJoin
+        (stages     : JoinStage list)
+        (finalPath  : FlowPath option)
+        (initial    : State)
+        (zeroEnergy : Energy)
+        (addEnergy  : Energy -> Energy -> Energy)
+        (runPath    : FlowStep list -> State -> Result<State * Transition list, DomainError>)
+        : Result<State * Transition list, DomainError> =
+
+        let err msg = Error (DomainError.Other msg)
+
+        let rec loop stages prevJoined accTs =
+            match stages with
+            | [] ->
+                match finalPath with
+                | None    -> Ok (prevJoined, accTs)
+                | Some fp ->
+                    runPath fp.steps prevJoined
+                    |> Result.map (fun (stFinal, tsFinal) -> stFinal, accTs @ tsFinal)
+
+            | stage :: rest ->
+                // Ejecuta contributors desde el estado inicial
+                let rec runAll acc = function
+                    | [] -> Ok (List.rev acc)
+                    | (p: FlowPath) :: ps ->
+                        runPath p.steps initial
+                        |> Result.bind (fun r -> runAll (r :: acc) ps)
+
+                runAll [] stage.contributors
+                |> Result.bind (fun contribResults ->
+
+                    // Ejecuta bridge desde el estado agregado previo (si existe)
+                    let bridgeResultR =
+                        match stage.bridge with
+                        | None    -> Ok None
+                        | Some bp -> runPath bp.steps prevJoined |> Result.map Some
+
+                    bridgeResultR
+                    |> Result.bind (fun bridgeOpt ->
+
+                        let allStates =
+                            (contribResults |> List.map fst)
+                            @ (bridgeOpt |> Option.map (fst >> List.singleton) |> Option.defaultValue [])
+
+                        match allStates with
+                        | [] -> err $"JoinStage '{stage.joinKey}': no hay paths para agregar"
+                        | baseState :: _ ->
+                            let totalEnergy =
+                                allStates
+                                |> List.fold (fun acc st -> addEnergy acc st.energy) zeroEnergy
+
+                            let joinedState = { baseState with energy = totalEnergy }
+
+                            let stageTrans =
+                                (contribResults |> List.collect snd)
+                                @ (bridgeOpt |> Option.map snd |> Option.defaultValue [])
+
+                            loop rest joinedState (accTs @ stageTrans)
+                    )
+                )
+
+        match stages with
+        | [] -> err "MultiJoin: lista de stages vacia"
+        | _  -> loop stages initial []
 
     /// Ejecuta un Flow previamente tipado (`FlowDef`) y devuelve el estado final
     /// junto con la secuencia completa de transiciones producidas.
@@ -445,6 +606,9 @@ module FlowBuilderUtils =
             zeroEnergy
             addEnergy
             runPath
+
+      | FlowDef.MultiJoin (stages, finalPath) ->
+          runMultiJoin stages finalPath initial zeroEnergy addEnergy runPath
 
 
 
