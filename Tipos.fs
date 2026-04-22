@@ -95,6 +95,7 @@ type ContratoId = int
 
 type SupplyParams =
   { transactionId: TransactionId
+    compraGasId: int
     buyerId    : EntidadLegalId
     sellerId   : EntidadLegalId
     flowDetailId : FlowDetailId

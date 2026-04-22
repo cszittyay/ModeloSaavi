@@ -46,6 +46,7 @@ type ConsumeResultRow = {
 
 type SupplyResultRow = {
   runId:int; 
+  compraGasId: int
   gasDay:DateOnly; 
   flowDetailId : FlowDetailId
   transactionId :TransactionId

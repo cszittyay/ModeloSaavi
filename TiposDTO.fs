@@ -10,8 +10,7 @@ open Tipos
 [<Struct>]
 type TransaccionId = TransaccionId of int
 
-[<Struct; NoEquality; NoComparison>]
-type CompraGasId = CompraGasId of int
+type CompraGasId = int
 
 
 

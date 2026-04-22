@@ -45,6 +45,7 @@ module DetailRepo =
     rows |> List.iter (fun r ->
       let row = ctx.Fm.FlowSupplyResult.Create()
       row.RunId   <- runId
+      row.IdCompraGas <- r.compraGasId
       row.GasDay  <- r.gasDay.ToDateTime(TimeOnly.MinValue)
       row.IdFlowDetail <- r.flowDetailId
       row.IdTransaccionGas <- r.transactionId 

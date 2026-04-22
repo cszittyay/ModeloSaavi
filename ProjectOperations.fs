@@ -32,6 +32,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
               |> List.mapi (fun i sp ->
                   { runId = runId
                     gasDay = t.state.gasDay
+                    compraGasId = sp.compraGasId
                     transactionId = sp.transactionId
                     flowDetailId = sp.flowDetailId
                     temporalidad = sp.temporalidad

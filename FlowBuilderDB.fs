@@ -89,6 +89,7 @@ let buildSupplysDB
                         { 
                         gasDay         = diaGas
                         transactionId  = transact.id
+                        compraGasId    = cg.id
                         buyerId        = transact.idBuyer
                         sellerId       = transact.idSeller
                         flowDetailId   = idFlowDetail
@@ -447,6 +448,7 @@ let buildFlowStepsDb (flowMasterId: FlowMasterId) (path: string) (diaGas: DateOn
         | other ->
             Error (MissingFlowType other)
 
+
     flowDetails
     |> List.map (fun fd ->
         let tipoDesc =
@@ -482,13 +484,34 @@ let getFlowStepsDB
 
         if paths.Length = 0 then Error (MissingFlowDetail (fm.Nombre.Value))
         else
-            paths
-            |> List.map (fun path ->
-                let fid = { flowMasterId = flowMasterId; path = path }
-                buildFlowStepsDb flowMasterId path diaGas
-                |> Result.map (fun steps -> fid, steps))
-            |> List.sequenceResultM
-            |> Result.map Map.ofList
+            let pathResults =
+                paths
+                |> List.map (fun path ->
+                    let fid = { flowMasterId = flowMasterId; path = path }
+                    buildFlowStepsDb flowMasterId path diaGas
+                    |> Result.map (fun steps -> fid, steps))
+
+            // Paths sin CompraGas se omiten si otros paths sí tienen.
+            // Si TODOS fallan por supply → devuelve el primer error para que el caller haga [SKIP].
+            // Cualquier otro error es fatal.
+            let rec collect acc supplyErrors remaining =
+                match remaining with
+                | [] ->
+                    match acc with
+                    | [] ->
+                        match supplyErrors with
+                        | e :: _ -> Error e
+                        | []     -> Error (MissingFlowDetail fm.Nombre.Value)
+                    | _  -> Ok (acc |> Map.ofList)
+                | Ok (fid, steps) :: rest ->
+                    collect ((fid, steps) :: acc) supplyErrors rest
+                | Error (MissingSupplyFlowDetail (_, day, path) as e) :: rest ->
+                    printfn $"[SKIP path] FlowMaster={flowMasterId} path='{path}' day={day} — Sin Supply"
+                    collect acc (e :: supplyErrors) rest
+                | Error e :: _ ->
+                    Error e
+
+            collect [] [] pathResults
 
 
 

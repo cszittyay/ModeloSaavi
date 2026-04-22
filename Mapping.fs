@@ -86,7 +86,7 @@ module Mappings =
 
 
   let compraGasToDomain (r:CompraGasRow) : CompraGas =
-    { id = CompraGasId r.Id_CompraGas
+    { id = r.Id_CompraGas
       diaGas = r.DiaGas
       idTransaccion =  r.Id_Transaccion
       idFlowDetail = r.Id_FlowDetail
