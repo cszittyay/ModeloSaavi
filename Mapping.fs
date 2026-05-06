@@ -68,6 +68,7 @@ module Mappings =
   let transaccionTransporteJoinToDomain (r: TransaccionTransporteJoinRow) : TransaccionTransporte =
       { id = r.Id_TransaccionTransporte
         contratRef = r.ContractRef
+        codigo = r.Codigo
         idContrato = r.Id_Contrato
         idBuyer = r.Id_Parte
         idSeller = r.Id_Contraparte

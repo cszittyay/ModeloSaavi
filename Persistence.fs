@@ -48,6 +48,7 @@ type TransaccionGasJoinRow =
  
 type TransaccionTransporteJoinRow =
   { Id_TransaccionTransporte: int
+    Codigo: string
     Id_Contrato: int
     ContractRef : string 
     Parte : string 

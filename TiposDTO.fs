@@ -112,6 +112,7 @@ type TransaccionGas =
 
 type TransaccionTransporte =
   { id: int
+    codigo: string
     idContrato: ContratoId
     contratRef : Contract
     idBuyer : EntidadLegalId

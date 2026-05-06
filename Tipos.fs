@@ -55,7 +55,7 @@ type DomainError =
   | MissingSleeveFlowDetail of flowMaster: string * flowDetailId:int * path:string
   | MissingFlowType of operationType: string
   | MissingFlowDetail of flowMaster:string
-  | MissingInterruptibleTransport of tfTransaccion:int * excess:decimal
+  | MissingInterruptibleTransport of string
   | MissingTransportTransaction of flowMaster: string * flowDetailId:int * path:string
   | Other of string
   

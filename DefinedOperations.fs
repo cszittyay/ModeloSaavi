@@ -349,8 +349,12 @@ module Transport =
             let remainingAfter = pool.Remaining
 
             if qtyTI > 0.0m<MMBTU> then
-              let codigo = (SQL_Data.transaccionesTransporteById().Value).[tf].contratRef
-              Error (Other $"Exceso sobre capacidad firme sin TI configurado. FlowDetail={flowDetailId}, excedente={qtyTI}, TF={codigo}")
+              let tteTransact = (SQL_Data.transaccionesTransporteById().Value).[tf]
+              let codigo = tteTransact.codigo
+              let contratRef = tteTransact.contratRef
+              let cmd = tteTransact.cmd
+              Error (MissingInterruptibleTransport $"Exceso sobre capacidad firme y sin TI configurado. Contrato={contratRef}, Transaccion:{codigo}, CMD (TF):{cmd}")
+
             else
               Ok (qtyTF, 0.0m<MMBTU>, Some remainingBefore, Some remainingAfter)
 

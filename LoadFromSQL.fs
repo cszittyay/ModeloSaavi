@@ -110,6 +110,7 @@ module SQL_Data =
         { 
             TransaccionTransporteJoinRow.Id_TransaccionTransporte = t.IdTransaccionTransporte
             Contraparte = elcp.Nombre
+            Codigo = t.Codigo
             Parte = el.Nombre
             ContractRef = c.Codigo
             Id_Parte = c.IdParte
