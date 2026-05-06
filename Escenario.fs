@@ -91,9 +91,10 @@ let initSharedTransportContext (gasDay: DateOnly) : Result<SharedTransportContex
 
 let mkTryGetPool (ctx: SharedTransportContext) : TryGetCapacityPool =
     fun tfId ->
+        let transTte = dTransaccionesTransporteById.[tfId]
         match Map.tryFind tfId ctx.Pools with
         | Some pool -> Ok pool
-        | None -> Error (Other $"No existe pool para TF={tfId}")
+        | None -> Error (Other $"No existe pool para el contrato={transTte.contratRef} y transaccion={transTte.codigo}")
 
 
 
@@ -159,12 +160,13 @@ module FlowRunRepo =
             let tryGetPool = mkTryGetPool sharedTransportCtx
     
             let mutable resultsRev : FlowBatchItemResult list = []
-    
             for flowMasterId in flowMasterIds do
+                let fm = dFlowMaster.[flowMasterId]
+               
                 let! currentInitial =
                     match Map.tryFind flowMasterId initialByFlow with
                     | Some st -> Ok st
-                    | None -> Error (Other $"No existe initial state para FlowMasterId={flowMasterId}")
+                    | None -> Error (Other $"No existe initial state para FlowMaster={fm.Nombre}")
     
                 let! runResultOpt =
                     match runFlowAndPersistDB tryGetPool flowMasterId diaGas currentInitial with
@@ -194,7 +196,8 @@ module FlowRunRepo =
                 getFlowMasterIdsByPlanta idPlanta gasDay
     
             if List.isEmpty flowMasterIds then
-                return! Error (Other $"No se encontraron FlowMaster vigentes para IdPlanta={idPlanta} en GasDay={gasDay}")
+                let planta = dPlanta.[idPlanta].Nombre
+                return! Error (Other $"No se encontraron FlowMaster vigentes para Planta={planta} en GasDay={gasDay}")
     
             let initialByFlow =
                 buildInitialByFlow flowMasterIds gasDay

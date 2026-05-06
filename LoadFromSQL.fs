@@ -158,7 +158,9 @@ module SQL_Data =
 
   // Convierte para un día Gas  un idFlowDetail  devuelve el consumo en MMBtu y el punto de entrega
 
-
+  let private plantaById() =
+    lazy (ctx.Dbo.Planta |> Seq.map (fun e -> e.IdPlanta, e) |> Map.ofSeq)
+ 
 
   let private entidadLegalById() =
     lazy (ctx.Dbo.EntidadLegal |> Seq.map (fun e -> e.IdEntidadLegal, e) |> Map.ofSeq)
@@ -257,8 +259,10 @@ module SQL_Data =
   let dCont = contratosById().Value
   let dGasoducto = gasoductoById().Value
   let dCliente = clienteById().Value
+  let dPlanta = plantaById().Value
   let dTipoOperacionById = tipoOperacionById().Value
   let dTipoOperacionByDesc = tipoOperacionByDesc().Value
+  let dTransaccionesTransporteById = transaccionesTransporteById().Value
   
   let loadConsumo (diaGas:DateOnly) idCliente =
      
