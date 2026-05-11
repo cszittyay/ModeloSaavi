@@ -116,6 +116,7 @@ module FlowRunRepo =
             fr.GasDay <- gasDay.ToDateTime(TimeOnly.MinValue)
             fr.Modo <- fm.Nombre.Value
             fr.Central <- fm.Codigo
+            fr.IdFlowMaster <- fm.IdFlowMaster
             ctx.SubmitUpdates()
             Ok fr.RunId
         with ex ->

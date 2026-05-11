@@ -121,13 +121,13 @@ let buildTradesDB idFlowMaster path : Result<Map<flowId, TradeParams>, DomainErr
         let tradeGas = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Trade"
         let dTransGas = transaccionesGasById().Value
         let dTradeByFlowDetail = tradeByFlowDetailId().Value
+        
         tradeGas
         |> List.fold (fun acc fd ->
             acc
-            
             |> Result.bind (fun m ->
                 match Map.tryFind fd.IdFlowDetail dTradeByFlowDetail with
-                | None ->  Error (MissingTradeForFlowDetail (flowMaster.Nombre.Value, fd.IdFlowDetail,  path))
+                | None ->  Error (MissingTradeForFlowDetail (flowMaster.Nombre.Value,  dFlowDetail.[fd.IdFlowDetail].Referencia,  path))
                 | Some trade ->
 
                     let transact = dTransGas.[trade.IdTransaccionGas]
@@ -166,13 +166,14 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
             |> Seq.map (fun s -> s.IdFlowDetail, s)
             |> Map.ofSeq
 
+        
         detalles
         |> List.fold (fun acc fd ->
             acc
             |> Result.bind (fun m ->
 
                 match Map.tryFind fd.IdFlowDetail dSleeve with
-                | None ->  Error (MissingSleeveFlowDetail (flowMaster.Nombre.Value, fd.IdFlowDetail,  path))
+                | None ->  Error (MissingSleeveFlowDetail (flowMaster.Nombre.Value, dFlowDetail.[fd.IdFlowDetail].Referencia,  path))
                 | Some sl ->
                     let transact = dTransGas.[sl.IdTransaccionGas]
 
@@ -219,7 +220,7 @@ let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, D
 
               match Map.tryFind fd.IdFlowDetail transpFlow with
               | None ->
-                  Error (MissingTransportFlowDetail (flowMaster.Nombre.Value, fd.IdFlowDetail, path))
+                  Error (MissingTransportFlowDetail (flowMaster.Nombre.Value, dFlowDetail.[fd.IdFlowDetail].Referencia, path))
 
               | Some tteFlow ->
 
@@ -421,19 +422,19 @@ let buildFlowStepsDb (flowMasterId: FlowMasterId) (path: string) (diaGas: DateOn
             trades |> Result.bind (fun m ->
                 match Map.tryFind fd.IdFlowDetail m with
                 | Some tp -> Ok (Trade tp)
-                | None    -> Error (MissingTradeForFlowDetail (fm.Nombre.Value, fd.IdFlowDetail, path)))
+                | None    -> Error (MissingTradeForFlowDetail (fm.Nombre.Value, dFlowDetail.[fd.IdFlowDetail].Referencia, path)))
 
         | "Transport" ->
             transports |> Result.bind (fun m ->
                 match Map.tryFind fd.IdFlowDetail m with
                 | Some tp -> Ok (Transport tp)
-                | None    -> Error (MissingTransportFlowDetail (fm.Nombre.Value, fd.IdFlowDetail, path)))
+                | None    -> Error (MissingTransportFlowDetail (fm.Nombre.Value, dFlowDetail.[fd.IdFlowDetail].Referencia, path)))
 
         | "Sleeve" ->
             sleeves |> Result.bind (fun m ->
                 match Map.tryFind fd.IdFlowDetail m with
                 | Some sl -> Ok (Sleeve sl)
-                | None    -> Error (MissingSleeveFlowDetail (fm.Nombre.Value, fd.IdFlowDetail, path)))
+                | None    -> Error (MissingSleeveFlowDetail (fm.Nombre.Value,dFlowDetail.[fd.IdFlowDetail].Referencia, path)))
 
         | "Sell" ->
             tryFindOr [] fd.IdFlowDetail sells

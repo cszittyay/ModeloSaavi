@@ -191,6 +191,9 @@ module SQL_Data =
   let flowMasterById() =
             lazy (ctx.Fm.FlowMaster |> Seq.map (fun fm -> fm.IdFlowMaster, fm) |> Map.ofSeq)
 
+  let flowDetailById() =
+            lazy (ctx.Fm.FlowDetail |> Seq.map (fun fm -> fm.IdFlowDetail, fm) |> Map.ofSeq)
+
 
   let tipoOperacionByDesc() =
             lazy (
@@ -254,6 +257,7 @@ module SQL_Data =
 
 
   let dFlowMaster = flowMasterById().Value
+  let dFlowDetail = flowDetailById().Value
   let dEnt = entidadLegalById().Value
   let dPto = puntoCodigoById().Value
   let dCont = contratosById().Value
