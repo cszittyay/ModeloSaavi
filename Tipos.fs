@@ -57,6 +57,7 @@ type DomainError =
   | MissingFlowDetail of flowMaster:string
   | MissingInterruptibleTransport of string
   | MissingTransportTransaction of flowMaster: string * flowDetailId:int * path:string
+  | OutOfVigencia of flowMaster:string * flowDetail:string * gasDay:DateOnly * vigDesde:DateOnly * vigHasta:DateOnly
   | Other of string
   
 
@@ -183,10 +184,12 @@ type TransportParams =
     routeId     : RutaId
     shipper     : Party
     shipperId   : EntidadLegalId
-    fuelMode    : FuelMode  
+    fuelMode    : FuelMode
     fuelPct     : decimal
     CDC         : Energy
     usageRate   : EnergyPrice
+    vigenciaDesde : DateOnly
+    vigenciaHasta : DateOnly
     meta        : Map<string,obj>
   }
 
@@ -204,9 +207,11 @@ type TradeParams =
     buyerId       : EntidadLegalId
     locationId    : LocationId
     location      : Location
-    adder       : EnergyPrice
-    price       : EnergyPrice
-    meta        : Map<string,obj> }
+    adder         : EnergyPrice
+    price         : EnergyPrice
+    vigenciaDesde : DateOnly
+    vigenciaHasta : DateOnly
+    meta          : Map<string,obj> }
 
 
 // es una operación de venta intercalada en el flujo
@@ -228,18 +233,20 @@ type SellParams =
     meta        : Map<string,obj> }
 
 type SleeveParams =
-  { provider    : Party
+  { provider      : Party
     transactionId : TransactionId
-    flowDetailId : FlowDetailId
-    seller      : Party
-    buyer       : Party
-    location    : Location
-    locationId  : LocationId
-    sleeveSide  : SleeveSide
-    index       : int
-    adder       : EnergyPrice
-    contractRef : Contract
-    meta        : Map<string,obj> }
+    flowDetailId  : FlowDetailId
+    seller        : Party
+    buyer         : Party
+    location      : Location
+    locationId    : LocationId
+    sleeveSide    : SleeveSide
+    index         : int
+    adder         : EnergyPrice
+    contractRef   : Contract
+    vigenciaDesde : DateOnly
+    vigenciaHasta : DateOnly
+    meta          : Map<string,obj> }
 
 // ========================================================
 // 4) CONSUMO (sale del sistema; calcula desbalance vs medido)

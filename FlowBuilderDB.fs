@@ -114,14 +114,14 @@ let buildSupplysDB
             |> Result.map (Map.map (fun _ lst -> List.rev lst))
 
 
-let buildTradesDB idFlowMaster path : Result<Map<flowId, TradeParams>, DomainError> =
+let buildTradesDB diaGas idFlowMaster path : Result<Map<flowId, TradeParams>, DomainError> =
     match Map.tryFind idFlowMaster dFlowMaster with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
         let tradeGas = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Trade"
         let dTransGas = transaccionesGasById().Value
         let dTradeByFlowDetail = tradeByFlowDetailId().Value
-        
+
         tradeGas
         |> List.fold (fun acc fd ->
             acc
@@ -130,31 +130,38 @@ let buildTradesDB idFlowMaster path : Result<Map<flowId, TradeParams>, DomainErr
                 | None ->  Error (MissingTradeForFlowDetail (flowMaster.Nombre.Value,  dFlowDetail.[fd.IdFlowDetail].Referencia,  path))
                 | Some trade ->
 
-                    let transact = dTransGas.[trade.IdTransaccionGas]
+                    let vigDesde = DateOnly.FromDateTime(trade.VigenciaDesde)
+                    let vigHasta = DateOnly.FromDateTime(trade.VigenciaHasta)
+                    let vigCheck =
+                        if diaGas >= vigDesde && diaGas <= vigHasta then Ok ()
+                        else Error (OutOfVigencia (flowMaster.Nombre.Value, dFlowDetail.[fd.IdFlowDetail].Referencia, diaGas, vigDesde, vigHasta))
 
-                    let tp : TradeParams =
-                        { side = if trade.Side = "Sell" then TradeSide.Sell else TradeSide.Buy
-                          transactionId = trade.IdTransaccionGas
-                          flowDetailId = fd.IdFlowDetail
-                          buyer = transact.buyer
-                          buyerId = transact.idBuyer
-                          sellerId = transact.idSeller
-                          seller = transact.seller
-                          adder = (transact.adder |> Option.defaultValue 0.0m) * 1.0m<USD/MMBTU>
-                          price = 0.0m<USD/MMBTU> // TODO
-                          locationId = transact.idPuntoEntrega
-                          location = transact.puntoEntrega
-                          meta = Map.empty }
-
-                    Ok (Map.add fd.IdFlowDetail tp m)
+                    vigCheck
+                    |> Result.bind (fun () ->
+                        let transact = dTransGas.[trade.IdTransaccionGas]
+                        let tp : TradeParams =
+                            { side = if trade.Side = "Sell" then TradeSide.Sell else TradeSide.Buy
+                              transactionId = trade.IdTransaccionGas
+                              flowDetailId = fd.IdFlowDetail
+                              buyer = transact.buyer
+                              buyerId = transact.idBuyer
+                              sellerId = transact.idSeller
+                              seller = transact.seller
+                              adder = (transact.adder |> Option.defaultValue 0.0m) * 1.0m<USD/MMBTU>
+                              price = 0.0m<USD/MMBTU> // TODO
+                              locationId = transact.idPuntoEntrega
+                              location = transact.puntoEntrega
+                              vigenciaDesde = vigDesde
+                              vigenciaHasta = vigHasta
+                              meta = Map.empty }
+                        Ok (Map.add fd.IdFlowDetail tp m)
+                    )
             )
         ) (Ok Map.empty)
 
 
-let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainError> =
+let buildSleevesDB diaGas idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainError> =
 
-    // Si idFlowMaster acá es el IdFlowMaster “real”, ok.
-    // Si en otros módulos usás flowMasterById, mantené consistencia.
     let dTransGas = transaccionesGasById().Value
     match Map.tryFind idFlowMaster dFlowMaster with
     | None ->  Error (MissingFlowMaster idFlowMaster)
@@ -166,7 +173,6 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
             |> Seq.map (fun s -> s.IdFlowDetail, s)
             |> Map.ofSeq
 
-        
         detalles
         |> List.fold (fun acc fd ->
             acc
@@ -175,9 +181,17 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
                 match Map.tryFind fd.IdFlowDetail dSleeve with
                 | None ->  Error (MissingSleeveFlowDetail (flowMaster.Nombre.Value, dFlowDetail.[fd.IdFlowDetail].Referencia,  path))
                 | Some sl ->
-                    let transact = dTransGas.[sl.IdTransaccionGas]
 
-                    let sp : SleeveParams =
+                    let vigDesde = DateOnly.FromDateTime(sl.VigenciaDesde)
+                    let vigHasta = DateOnly.FromDateTime(sl.VigenciaHasta)
+                    let vigCheck =
+                        if diaGas >= vigDesde && diaGas <= vigHasta then Ok ()
+                        else Error (OutOfVigencia (flowMaster.Nombre.Value, dFlowDetail.[fd.IdFlowDetail].Referencia, diaGas, vigDesde, vigHasta))
+
+                    vigCheck
+                    |> Result.bind (fun () ->
+                        let transact = dTransGas.[sl.IdTransaccionGas]
+                        let sp : SleeveParams =
                             { provider      = transact.buyer
                               transactionId = sl.IdTransaccionGas
                               flowDetailId  = fd.IdFlowDetail
@@ -189,9 +203,11 @@ let buildSleevesDB idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainE
                               index         = 0 // TODO
                               adder         = (transact.adder |> Option.defaultValue 0.0m) * 1.0m<USD/MMBTU>
                               contractRef   = transact.contratRef
+                              vigenciaDesde = vigDesde
+                              vigenciaHasta = vigHasta
                               meta          = Map.empty }
-
-                    Ok (Map.add fd.IdFlowDetail sp m)
+                        Ok (Map.add fd.IdFlowDetail sp m)
+                    )
             )
         ) (Ok Map.empty)
 
@@ -202,7 +218,7 @@ let tryGetPoolFromCtx (ctx: SharedTransportContext) : TryGetCapacityPool =
     | Some pool -> Ok pool
     | None -> Error (Other $"No existe pool para TF={tfId}")
 
-let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, DomainError> =
+let buildTransportsDB diaGas idFlowMaster path : Result<Map<flowId, TransportParams>, DomainError> =
 
   match Map.tryFind idFlowMaster dFlowMaster with
   | None -> Error (MissingFlowMaster idFlowMaster)
@@ -224,61 +240,60 @@ let buildTransportsDB idFlowMaster path : Result<Map<flowId, TransportParams>, D
 
               | Some tteFlow ->
 
-                  // trTF : TransaccionTransporte option
-                  let trTF =
-                    tteFlow.IdTransaccionTf
-                    |> Option.map (fun id -> dTransTte.[id])
+                  let vigDesde = DateOnly.FromDateTime(tteFlow.VigenciaDesde)
+                  let vigHasta = DateOnly.FromDateTime(tteFlow.VigenciaHasta)
+                  let vigCheck =
+                      if diaGas >= vigDesde && diaGas <= vigHasta then Ok ()
+                      else Error (OutOfVigencia (flowMaster.Nombre.Value, dFlowDetail.[fd.IdFlowDetail].Referencia, diaGas, vigDesde, vigHasta))
 
-                  // trTI : TransaccionTransporte option
-                  let trTI =
-                    tteFlow.IdTransaccionTi
-                    |> Option.map (fun id -> dTransTte.[id])
+                  vigCheck
+                  |> Result.bind (fun () ->
+                      let trTF =
+                        tteFlow.IdTransaccionTf
+                        |> Option.map (fun id -> dTransTte.[id])
 
+                      let trTI =
+                        tteFlow.IdTransaccionTi
+                        |> Option.map (fun id -> dTransTte.[id])
 
-                // helper (si querés local)
-                  let pickTransaccion trTF trTI =
-                    match trTF, trTI with
-                    | Some tf, _     -> Ok tf
-                    | None, Some ti  -> Ok ti
-                    | None, None     -> Error (MissingTransportTransaction (flowMaster.Nombre.Value, fd.IdFlowDetail, path)) // <-- OJO: fd no existe acá
+                      let pickTransaccion trTF trTI =
+                        match trTF, trTI with
+                        | Some tf, _     -> Ok tf
+                        | None, Some ti  -> Ok ti
+                        | None, None     -> Error (MissingTransportTransaction (flowMaster.Nombre.Value, fd.IdFlowDetail, path))
 
-      
-                  // Elegir una transacción “base” para ruta/contrato, o error si faltan ambas
-                  let pickTransaccion trTF trTI =
-                    match trTF, trTI with
-                    | Some tf, _     -> Ok tf
-                    | None, Some ti  -> Ok ti
-                    | None, None     -> Error (MissingTransportTransaction (flowMaster.Nombre.Value, fd.IdFlowDetail, path))
+                      pickTransaccion trTF trTI
+                      |> Result.bind (fun trTte ->
 
-                  pickTransaccion trTF trTI
-                  |> Result.bind (fun trTte ->
+                          let ruta  = dRuta.[trTte.idRuta]
+                          let cto   = dCont.[trTte.idContrato]
 
-                      let ruta  = dRuta.[trTte.idRuta]
-                      let cto   = dCont.[trTte.idContrato]
+                          let contraparte = dEnt.[cto.idContraparte]
+                          let entryPto    = dPto.[ruta.IdPuntoRecepcion]
+                          let exitPto     = dPto.[ruta.IdPuntoEntrega]
 
-                      let contraparte = dEnt.[cto.idContraparte]
-                      let entryPto    = dPto.[ruta.IdPuntoRecepcion]
-                      let exitPto     = dPto.[ruta.IdPuntoEntrega]
+                          let tp : TransportParams =
+                            { provider      = contraparte.Nombre
+                              transactionTF = trTF |> Option.map (fun x -> x.id)
+                              transactionTI = trTI |> Option.map (fun x -> x.id)
+                              flowDetailId  = fd.IdFlowDetail
+                              providerId    = cto.idParte
+                              pipeline      = if ruta.IdGasoducto.IsSome then dGasoducto.[ruta.IdGasoducto.Value].Nombre else "S/D"
+                              shipperId     = cto.idContraparte
+                              routeId       = ruta.IdRuta
+                              entry         = entryPto
+                              exit          = exitPto
+                              shipper       = contraparte.Nombre
+                              fuelMode      = if trTte.fuelMode = "RxBase" then FuelMode.RxBase else FuelMode.ExBase
+                              fuelPct       = ruta.Fuel
+                              CDC           = trTte.cmd
+                              usageRate     = trTte.usageRate
+                              vigenciaDesde = vigDesde
+                              vigenciaHasta = vigHasta
+                              meta          = Map.empty }
 
-                      let tp : TransportParams =
-                        { provider      = contraparte.Nombre
-                          transactionTF = trTF |> Option.map (fun x -> x.id)
-                          transactionTI = trTI |> Option.map (fun x -> x.id)
-                          flowDetailId  = fd.IdFlowDetail
-                          providerId    = cto.idParte
-                          pipeline      = if ruta.IdGasoducto.IsSome then dGasoducto.[ruta.IdGasoducto.Value].Nombre else "S/D"
-                          shipperId     = cto.idContraparte
-                          routeId       = ruta.IdRuta
-                          entry         = entryPto
-                          exit          = exitPto
-                          shipper       = contraparte.Nombre
-                          fuelMode      = if trTte.fuelMode = "RxBase" then FuelMode.RxBase else FuelMode.ExBase
-                          fuelPct       = ruta.Fuel
-                          CDC           = trTte.cmd
-                          usageRate     = trTte.usageRate
-                          meta          = Map.empty }
-
-                      Ok (Map.add fd.IdFlowDetail tp m)
+                          Ok (Map.add fd.IdFlowDetail tp m)
+                      )
                   )
           )
       ) (Ok Map.empty)
@@ -399,9 +414,9 @@ let buildFlowStepsDb (flowMasterId: FlowMasterId) (path: string) (diaGas: DateOn
         r |> Result.map (fun m -> Map.tryFind fdId m |> Option.defaultValue defaultValue)
 
     let supplies   = buildSupplysDB diaGas fm.IdFlowMaster path
-    let trades     = buildTradesDB fm.IdFlowMaster path
-    let sleeves    = buildSleevesDB fm.IdFlowMaster path
-    let transports = buildTransportsDB fm.IdFlowMaster path
+    let trades     = buildTradesDB diaGas fm.IdFlowMaster path
+    let sleeves    = buildSleevesDB diaGas fm.IdFlowMaster path
+    let transports = buildTransportsDB diaGas fm.IdFlowMaster path
     let consumes   = buildConsumeDB diaGas fm.IdFlowMaster path
     let sells      = buildSellsDB diaGas fm.IdFlowMaster path
 
