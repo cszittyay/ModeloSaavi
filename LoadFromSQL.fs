@@ -240,17 +240,38 @@ module SQL_Data =
       select  v
     } |> Seq.toList
 
-// Operaciones “master data” por IdFlowDetail (las transaccionales suelen requerir diaGas)
-  let tradeByFlowDetailId() =
-    lazy (ctx.Fm.Trade |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq)
+  let tradeByFlowDetailId (gasDay: DateOnly) =
+    let dia = gasDay.ToDateTime(TimeOnly.MinValue)
+    lazy (
+      query {
+        for t in ctx.Fm.Trade do
+        where (t.VigenciaDesde <= dia && t.VigenciaHasta >= dia)
+        select (t.IdFlowDetail, t)
+      }
+      |> Map.ofSeq
+    )
 
-// NOTE: estas tablas pueden o no existir en tu schema `Fm`. Si existen, descomentá.
-  let sleeveByFlowDetailId() =
-    lazy (ctx.Fm.Sleeve |> Seq.map (fun s -> s.IdFlowDetail, s) |> Map.ofSeq)
-//
-  let transportByFlowDetailId() =
-    lazy (ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq)
-//
+  let sleeveByFlowDetailId (gasDay: DateOnly) =
+    let dia = gasDay.ToDateTime(TimeOnly.MinValue)
+    lazy (
+      query {
+        for s in ctx.Fm.Sleeve do
+        where (s.VigenciaDesde <= dia && s.VigenciaHasta >= dia)
+        select (s.IdFlowDetail, s)
+      }
+      |> Map.ofSeq
+    )
+
+  let transportByFlowDetailId (gasDay: DateOnly) =
+    let dia = gasDay.ToDateTime(TimeOnly.MinValue)
+    lazy (
+      query {
+        for t in ctx.Fm.Transport do
+        where (t.VigenciaDesde <= dia && t.VigenciaHasta >= dia)
+        select (t.IdFlowDetail, t)
+      }
+      |> Map.ofSeq
+    )
 
   let tradingHubNemonicoById() =
     lazy (ctx.Platts.IndicePrecio |> Seq.map (fun th -> th.IdIndicePrecio, th.Nemonico) |> Map.ofSeq)
