@@ -120,7 +120,7 @@ let buildTradesDB diaGas idFlowMaster path : Result<Map<flowId, TradeParams>, Do
     | Some flowMaster ->
         let tradeGas = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Trade"
         let dTransGas = transaccionesGasById().Value
-        let dTradeByFlowDetail = tradeByFlowDetailId().Value
+        let dTradeByFlowDetail = (tradeVigenteByFlowDetailId diaGas).Value
 
         tradeGas
         |> List.fold (fun acc fd ->
@@ -128,7 +128,8 @@ let buildTradesDB diaGas idFlowMaster path : Result<Map<flowId, TradeParams>, Do
             |> Result.bind (fun m ->
                 match Map.tryFind fd.IdFlowDetail dTradeByFlowDetail with
                 | None ->  Error (MissingTradeForFlowDetail (flowMaster.Nombre.Value,  dFlowDetail.[fd.IdFlowDetail].Referencia,  path))
-                | Some trade ->
+                | Some None -> Ok m
+                | Some (Some trade) ->
 
                     let vigDesde = DateOnly.FromDateTime(trade.VigenciaDesde)
                     let vigHasta = DateOnly.FromDateTime(trade.VigenciaHasta)
@@ -164,10 +165,7 @@ let buildSleevesDB diaGas idFlowMaster path : Result<Map<flowId, SleeveParams>, 
     | Some flowMaster ->
 
         let detalles = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Sleeve"
-        let dSleeve =
-            ctx.Fm.Sleeve
-            |> Seq.map (fun s -> s.IdFlowDetail, s)
-            |> Map.ofSeq
+        let dSleeve = (sleeveVigenteByFlowDetailId diaGas).Value
 
         detalles
         |> List.fold (fun acc fd ->
@@ -176,7 +174,8 @@ let buildSleevesDB diaGas idFlowMaster path : Result<Map<flowId, SleeveParams>, 
 
                 match Map.tryFind fd.IdFlowDetail dSleeve with
                 | None ->  Error (MissingSleeveFlowDetail (flowMaster.Nombre.Value, dFlowDetail.[fd.IdFlowDetail].Referencia,  path))
-                | Some sl ->
+                | Some None -> Ok m
+                | Some (Some sl) ->
 
                     let vigDesde = DateOnly.FromDateTime(sl.VigenciaDesde)
                     let vigHasta = DateOnly.FromDateTime(sl.VigenciaHasta)
@@ -217,7 +216,7 @@ let buildTransportsDB diaGas idFlowMaster path : Result<Map<flowId, TransportPar
   | Some flowMaster ->
 
       let detalles   = getFlowDetailsByTipo flowMaster.IdFlowMaster path "Transport"
-      let transpFlow = ctx.Fm.Transport |> Seq.map (fun t -> t.IdFlowDetail, t) |> Map.ofSeq
+      let transpFlow = (transportVigenteByFlowDetailId diaGas).Value
       let dRuta      = rutaById()
       let dTransTte  = transaccionesTransporteById().Value
 
@@ -230,7 +229,8 @@ let buildTransportsDB diaGas idFlowMaster path : Result<Map<flowId, TransportPar
               | None ->
                   Error (MissingTransportFlowDetail (flowMaster.Nombre.Value, dFlowDetail.[fd.IdFlowDetail].Referencia, path))
 
-              | Some tteFlow ->
+              | Some None -> Ok m
+              | Some (Some tteFlow) ->
 
                   let vigDesde = DateOnly.FromDateTime(tteFlow.VigenciaDesde)
                   let vigHasta = DateOnly.FromDateTime(tteFlow.VigenciaHasta)
