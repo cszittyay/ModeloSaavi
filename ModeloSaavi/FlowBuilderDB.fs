@@ -502,7 +502,7 @@ let getFlowStepsDB
                 | Ok (fid, steps) :: rest ->
                     collect ((fid, steps) :: acc) supplyErrors rest
                 | Error (MissingSupplyFlowDetail (_, day, path) as e) :: rest ->
-                    printfn $"[SKIP path] FlowMaster={dFlowMaster.[flowMasterId].Nombre} path='{path}' day={day} — Sin Supply"
+                    printfn $"[SKIP path] FlowMaster={flowMasterId} path='{path}' day={day} — Sin Supply"
                     collect acc (e :: supplyErrors) rest
                 | Error e :: _ ->
                     Error e

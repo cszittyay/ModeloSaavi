@@ -16,25 +16,32 @@ let main argv =
 
     
 
-    let gasDay = DateOnly(2026, 4, 10)
+    let gasDay = DateOnly(2026, 3, 1)
     // CTM = 5
     // LR = 1
     // Bajio (EAVIII) = 2
     // ECHI = 4 
-    let idPlanta =2
-    match  FlowRunRepo.runFlowsAndPersistDBByPlanta idPlanta gasDay with
-    | Ok results ->
-        printfn ""
-        printfn "Corrida batch OK"
-        printfn "================"
+    // ESLP = 3
 
-        for r in results do
-            printfn $"RunId        : {r.RunId}"
-            printfn ""
 
-        0
+    let idPlanta = 5
+    [11..11] |> List.iter (fun i ->
 
-    | Error e ->
-        printfn ""
-        printfn $"Error en corrida batch: {e}"
-        1
+                match  FlowRunRepo.runFlowsAndPersistDBByPlanta idPlanta (gasDay.AddDays(i)) with
+                | Ok results ->
+                    printfn ""
+                    printfn "Corrida batch OK"
+                    printfn "================"
+
+                    for r in results do
+                        //printfn $"RunId        : {r.RunId}"
+                        printfn ""
+
+                    
+
+                | Error e ->
+                    printfn ""
+                    printfn $"Error en corrida batch: {e}"
+                    
+            )
+    0
