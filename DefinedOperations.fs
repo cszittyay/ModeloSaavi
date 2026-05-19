@@ -163,7 +163,7 @@ module Supply =
         | Error e -> Error (Other (Validate.toString e))
         | Ok (buyer, gasDay, deliveryPt) ->
           let totalQty = sps |> List.sumBy (fun sp -> sp.qEnergia)
-          if totalQty <= 0.0m<MMBTU> then Error (QuantityNonPositive "SupplyMany: qty total <= 0")
+          if totalQty < 0.0m<MMBTU> then Error (QuantityNonPositive "SupplyMany: qty total < 0")
           else
             // nuevo estado consolidando la compra multi-supplier
             let sp0 = sps[0]
@@ -210,7 +210,7 @@ module Sleeve =
 
     let sleeve (p: SleeveParams) : Operation =
       fun stIn ->
-        if stIn.energy <= 0.0m<MMBTU> then Error (Other "Trade: qEnergia <= 0")
+        if stIn.energy < 0.0m<MMBTU> then Error (Other "Sleeve: qEnergia < 0")
         else
           let stOut = { stIn with owner = p.buyer }
           let amount = stIn.energy * p.adder
@@ -244,7 +244,7 @@ module Sell =
 
   let sell (s: SellParams) : Operation =
       fun stIn ->
-        if stIn.energy <= s.qty then Error (Other $"Sell: La cantidad a vender {s.qty} es mayor a la disponible: {stIn.energy}")
+        if stIn.energy < s.qty then Error (Other $"Sell: La cantidad a vender {s.qty} es mayor a la disponible: {stIn.energy}")
         else
           let stOut =
               { stIn with energy   = stIn.energy - s.qty }
@@ -292,9 +292,9 @@ module Trade =
 
   let trade (p: TradeParams) : Operation =
       fun stIn ->
-        if stIn.energy <= 0.0m<MMBTU> then Error (Other "Trade: qEnergia <= 0")
+        if stIn.energy < 0.0m<MMBTU> then Error (Other "Trade: qEnergia < 0")
         else
-          
+
           let stOut = { stIn with owner = p.buyer; ownerId = p.sellerId }
           // TODO: calcular price desde indice + adder si price = 0
           let amount = 0.m<USD> // tIn.energy * p.adder
@@ -377,8 +377,8 @@ module Transport =
       if String.IsNullOrWhiteSpace p.shipper then
         Error (MissingContract "TransportParams: shipper")
 
-      elif stIn.energy <= 0.0m<MMBTU> then
-        Error (QuantityNonPositive "TransportParams: transport.qEnergia")
+      elif stIn.energy < 0.0m<MMBTU> then
+        Error (QuantityNonPositive "TransportParams: transport.qEnergia < 0")
 
       elif p.fuelPct < 0m || p.fuelPct >= 100m then
         Error (InvalidUnits "TransportParams: transport.fuelPct debe estar en [0,100)")
