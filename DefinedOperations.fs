@@ -39,10 +39,25 @@ module EnergySegments =
   let private total (segments: EnergySegmentQty list) =
     segments |> List.sumBy (fun s -> s.qty)
 
+  let private tolerance = 0.000001m<MMBTU>
+
+  let private normalizeTo (expectedQty: Energy) (segments: EnergySegmentQty list) =
+    let actualQty = total segments
+
+    if List.isEmpty segments || actualQty = expectedQty then
+      segments
+    elif actualQty = 0.0m<MMBTU> then
+      segments |> List.map (fun s -> { s with qty = 0.0m<MMBTU> })
+    else
+      let factor = expectedQty / actualQty
+
+      segments
+      |> List.map (fun s -> { s with qty = s.qty * factor })
+
   let validate where expectedQty (segments: EnergySegmentQty list) =
     let actualQty = total segments
 
-    if actualQty <> expectedQty then
+    if abs (actualQty - expectedQty) > tolerance then
       Error (Other $"{where}: la suma de segments ({actualQty}) no coincide con State.energy ({expectedQty})")
     else
       Ok segments
@@ -58,7 +73,7 @@ module EnergySegments =
           adder = p.adder
         }
       ]
-    | segments -> segments
+    | segments -> normalizeTo qty segments
 
   let sleeveSegments qty (p: SleeveParams) : Result<EnergySegmentQty list, DomainError> =
     match p.segmentPolicy, p.segments with
@@ -77,7 +92,7 @@ module EnergySegments =
       |> Ok
 
     | _, segments ->
-      Ok segments
+      normalizeTo qty segments |> Ok
 
 module Validate =
   type Err =
@@ -204,6 +219,13 @@ module Supply =
     let supplyMany (sps: SupplyParams list) : Operation =
       fun stIn ->
         match Validate.legsConsolidados sps with
+        | Error Validate.EmptyLegs ->
+          Ok { state = stIn
+               costs = []
+               notes = [ "op"        , box "supplyMany"
+                         "supplyParamsMany", box sps
+                         "legsCount", box 0
+                         "emptySupply", box true ] |> Map.ofList }
         | Error e -> Error (Other (Validate.toString e))
         | Ok (buyer, gasDay, deliveryPt) ->
           let totalQty = sps |> List.sumBy (fun sp -> sp.qEnergia)

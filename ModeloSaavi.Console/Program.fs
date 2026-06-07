@@ -16,7 +16,7 @@ let main argv =
 
     
 
-    let gasDay = DateOnly(2026, 3, 1)
+    let gasDay = DateOnly(2026, 6, 7)
     // CTM = 5
     // LR = 1
     // Bajio (EAVIII) = 2
@@ -24,7 +24,7 @@ let main argv =
     // ESLP = 3
 
 
-    let idPlanta = 2
+    let idPlanta = 3
     [0..0] |> List.iter (fun i ->
 
                 match  FlowRunRepo.runFlowsAndPersistDBByPlanta idPlanta (gasDay.AddDays(i)) with

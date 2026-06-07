@@ -114,7 +114,7 @@ let buildSupplysDB
         | Some fdSupply ->
             let idFlowDetail = fdSupply.IdFlowDetail
             let compraGas = loadCompraGas diaGas idFlowDetail
-            if compraGas.Length = 0 then Error (MissingSupplyFlowDetail (fmNombre, diaGas, path))
+            if compraGas.Length = 0 then Ok Map.empty
             else
             compraGas
             |> List.fold (fun acc cg ->
@@ -468,7 +468,7 @@ let buildFlowStepsDb (flowMasterId: FlowMasterId) (path: string) (diaGas: DateOn
             supplies |> Result.bind (fun m ->
                 match Map.tryFind fd.IdFlowDetail m with
                 | Some sp -> Ok (Some (SupplyMany sp))
-                | None    -> Error (MissingSupplyFlowDetail (fm.Nombre.Value, diaGas, path)))
+                | None    -> Ok (Some (SupplyMany [])))
 
         | "Trade" ->
             trades |> Result.bind (fun m ->
