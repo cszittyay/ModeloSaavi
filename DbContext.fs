@@ -12,10 +12,10 @@ open FSharp.Data.Sql
 *)
 
 [<Literal>]
-let connectionString = "Server=(localdb)\MSSQLLocalDB;Database=UAT_GNX_Saavi;Trusted_Connection=True;TrustServerCertificate=True;"
+let connectionString = "Server=(localdb)\MSSQLLocalDB;Database=UAT_GNX_Saavi2;Trusted_Connection=True;TrustServerCertificate=True;"
 
-[<Literal>]
-let rdsConnectionString = "Server=sql-test.clxowb3nocuv.us-east-1.rds.amazonaws.com;User Id=gnx-uat;Database=UAT_GNX_Saavi;Password=B0C6-!$2s*qAgaM2o(£];TrustServerCertificate=True;"
+//[<Literal>]
+//let rdsConnectionString = "Server=sql-test.clxowb3nocuv.us-east-1.rds.amazonaws.com;User Id=gnx-uat;Database=UAT_GNX_Saavi;Password=B0C6-!$2s*qAgaM2o(£];TrustServerCertificate=True;"
 
 [<Literal>]
 let useOptionTypes = FSharp.Data.Sql.Common.NullableColumnType.OPTION

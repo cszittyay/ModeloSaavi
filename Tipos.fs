@@ -73,6 +73,22 @@ type TradeSide = | Buy | Sell
 
 type SleeveSide = |Export | Import
 
+type EnergySegment =
+  | DayAhead
+  | Intraday
+  | BuyBack
+
+type EnergySegmentQty = {
+  segment : EnergySegment
+  qty     : Energy
+  price   : EnergyPrice
+  adder   : EnergyPrice
+}
+
+type SegmentPolicy =
+  | NoSegmentRequired
+  | SegmentRequired
+
 type RateGas = EnergyPrice
 
 type GasDay = DateOnly
@@ -104,6 +120,7 @@ type SupplyParams =
     seller        : Party
     gasDay       : GasDay
     temporalidad : Temporalidad
+    buyBack      : bool
     deliveryPt  : Location
     deliveryPtId : LocationId
     qEnergia     : decimal<MMBTU>
@@ -188,6 +205,7 @@ type TransportParams =
     fuelPct     : decimal
     CDC         : Energy
     usageRate   : EnergyPrice
+    segments    : EnergySegmentQty list
     vigenciaDesde : DateOnly
     vigenciaHasta : DateOnly
     meta        : Map<string,obj>
@@ -209,6 +227,7 @@ type TradeParams =
     location      : Location
     adder         : EnergyPrice
     price         : EnergyPrice
+    segments      : EnergySegmentQty list
     vigenciaDesde : DateOnly
     vigenciaHasta : DateOnly
     meta          : Map<string,obj> }
@@ -229,6 +248,7 @@ type SellParams =
     qty         : Energy
     price       : EnergyPrice
     adder       : EnergyPrice        // $/MMBtu (fee/adder)
+    segments    : EnergySegmentQty list
     contractRef : Contract
     meta        : Map<string,obj> }
 
@@ -243,6 +263,8 @@ type SleeveParams =
     sleeveSide    : SleeveSide
     index         : int
     adder         : EnergyPrice
+    segmentPolicy : SegmentPolicy
+    segments      : EnergySegmentQty list
     contractRef   : Contract
     vigenciaDesde : DateOnly
     vigenciaHasta : DateOnly

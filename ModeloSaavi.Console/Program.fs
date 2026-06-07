@@ -24,8 +24,8 @@ let main argv =
     // ESLP = 3
 
 
-    let idPlanta = 5
-    [11..11] |> List.iter (fun i ->
+    let idPlanta = 2
+    [0..0] |> List.iter (fun i ->
 
                 match  FlowRunRepo.runFlowsAndPersistDBByPlanta idPlanta (gasDay.AddDays(i)) with
                 | Ok results ->

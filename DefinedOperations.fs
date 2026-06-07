@@ -35,6 +35,50 @@ module Domain =
       let amt = sps |> List.sumBy (fun sp -> amount sp.qEnergia sp.price)
       (amt / qty)
 
+module EnergySegments =
+  let private total (segments: EnergySegmentQty list) =
+    segments |> List.sumBy (fun s -> s.qty)
+
+  let validate where expectedQty (segments: EnergySegmentQty list) =
+    let actualQty = total segments
+
+    if actualQty <> expectedQty then
+      Error (Other $"{where}: la suma de segments ({actualQty}) no coincide con State.energy ({expectedQty})")
+    else
+      Ok segments
+
+  let tradeSegments qty (p: TradeParams) : EnergySegmentQty list =
+    match p.segments with
+    | [] ->
+      [
+        {
+          segment = EnergySegment.DayAhead
+          qty = qty
+          price = p.price
+          adder = p.adder
+        }
+      ]
+    | segments -> segments
+
+  let sleeveSegments qty (p: SleeveParams) : Result<EnergySegmentQty list, DomainError> =
+    match p.segmentPolicy, p.segments with
+    | SegmentPolicy.SegmentRequired, [] ->
+      Error (Other "Sleeve: requiere apertura por DayAhead/Intraday/BuyBack")
+
+    | SegmentPolicy.NoSegmentRequired, [] ->
+      [
+        {
+          segment = EnergySegment.DayAhead
+          qty = qty
+          price = 1.0m<USD/MMBTU>
+          adder = p.adder
+        }
+      ]
+      |> Ok
+
+    | _, segments ->
+      Ok segments
+
 module Validate =
   type Err =
     | EmptyLegs
@@ -212,31 +256,35 @@ module Sleeve =
       fun stIn ->
         if stIn.energy < 0.0m<MMBTU> then Error (Other "Sleeve: qEnergia < 0")
         else
-          let stOut = { stIn with owner = p.buyer }
-          let amount = stIn.energy * p.adder
-          let fee =
-            { kind = CostKind.Sleeve
-              provider = p.provider
-              qEnergia = stIn.energy
-              rate= p.adder
-              // si es export, el costo es negativo
-              amount = if p.sleeveSide = SleeveSide.Export then -amount else amount
-              meta= [ "op"    , box "Sleeve"
-                      "seller", box p.seller 
-                      "adder", box (decimal p.adder)
-                      "index" , box (decimal p.index)
-                      "amount", box (decimal amount)
-                      ] |> Map.ofList }
-          Ok { state=stOut; costs=[fee]; notes= [ "op", box "Sleeve"
-                                                  "sleeveParams", box p
-                                                  "location", box p.location
-                                                  "qty", box (decimal stIn.energy)
-                                                  "provider", box p.provider        
-                                                  "seller", box p.seller
-                                                  "Seeve Side", box p.sleeveSide
-                                                  "buyer", box p.buyer
-                                                  "adder", box p.adder
-                                                  "contractRef", box p.contractRef   ] |> Map.ofList }
+          EnergySegments.sleeveSegments stIn.energy p
+          |> Result.bind (EnergySegments.validate "Sleeve" stIn.energy)
+          |> Result.map (fun segments ->
+              let stOut = { stIn with owner = p.buyer }
+              let amount = stIn.energy * p.adder
+              let fee =
+                { kind = CostKind.Sleeve
+                  provider = p.provider
+                  qEnergia = stIn.energy
+                  rate= p.adder
+                  // si es export, el costo es negativo
+                  amount = if p.sleeveSide = SleeveSide.Export then -amount else amount
+                  meta= [ "op"    , box "Sleeve"
+                          "seller", box p.seller
+                          "adder", box (decimal p.adder)
+                          "index" , box (decimal p.index)
+                          "amount", box (decimal amount)
+                          ] |> Map.ofList }
+              { state=stOut; costs=[fee]; notes= [ "op", box "Sleeve"
+                                                   "sleeveParams", box p
+                                                   "segments", box segments
+                                                   "location", box p.location
+                                                   "qty", box stIn.energy
+                                                   "provider", box p.provider
+                                                   "seller", box p.seller
+                                                   "Seeve Side", box p.sleeveSide
+                                                   "buyer", box p.buyer
+                                                   "adder", box p.adder
+                                                   "contractRef", box p.contractRef   ] |> Map.ofList })
 
 
 /// En la venta no cambia el Owner del State, solo se reduce la qty disponible
@@ -265,6 +313,7 @@ module Sell =
                       |> Map.ofList }
           Ok { state=stOut; costs=[fee]; notes= [ "op", box "Sell"
                                                   "sellParams", box s
+                                                  "segments", box s.segments
                                                   "location", box s.location        
                                                   "seller", box s.seller
                                                   "buyer", box s.buyer
@@ -284,6 +333,7 @@ module Sell =
               costs = [] // si querés acumularlos, ver variante 2b abajo
               notes = [ "op", box "SellMany"
                         "sellParamsMany", box xs
+                        "segments", box (xs |> List.collect (fun s -> s.segments))
                         "count", box xs.Length ] |> Map.ofList })
 
 
@@ -294,24 +344,28 @@ module Trade =
       fun stIn ->
         if stIn.energy < 0.0m<MMBTU> then Error (Other "Trade: qEnergia < 0")
         else
+          let segments = EnergySegments.tradeSegments stIn.energy p
 
-          let stOut = { stIn with owner = p.buyer; ownerId = p.sellerId }
-          // TODO: calcular price desde indice + adder si price = 0
-          let amount = 0.m<USD> // tIn.energy * p.adder
-          let fee =
-            { kind= Fee
-              provider = Party "S/D"
-              qEnergia = stIn.energy
-              amount = amount
-              // TODO: Precio de trade
-              rate = 0.0m<USD/MMBTU>
-              meta= [ "seller", box p.seller ] |> Map.ofList }
-          Ok { state=stOut; costs=[fee]; notes= [ "op", box "Trade"
-                                                  "tradeParams", box p
-                                                  "location", box p.location        
-                                                  "seller", box p.seller
-                                                  "buyer", box p.buyer
-                                                    ] |> Map.ofList }
+          EnergySegments.validate "Trade" stIn.energy segments
+          |> Result.map (fun segments ->
+              let stOut = { stIn with owner = p.buyer; ownerId = p.sellerId }
+              // TODO: calcular price desde indice + adder si price = 0
+              let amount = 0.m<USD> // tIn.energy * p.adder
+              let fee =
+                { kind= Fee
+                  provider = Party "S/D"
+                  qEnergia = stIn.energy
+                  amount = amount
+                  // TODO: Precio de trade
+                  rate = 0.0m<USD/MMBTU>
+                  meta= [ "seller", box p.seller ] |> Map.ofList }
+              { state=stOut; costs=[fee]; notes= [ "op", box "Trade"
+                                                   "tradeParams", box p
+                                                   "segments", box segments
+                                                   "location", box p.location
+                                                   "seller", box p.seller
+                                                   "buyer", box p.buyer
+                                                     ] |> Map.ofList })
 
 
 module Transport =
@@ -450,6 +504,7 @@ module Transport =
                 let notesBase =
                   [ "op",                              box "transport"
                     "transportParams",                 box p
+                    "segments",                        box p.segments
                     "transport.transactionTF",         box p.transactionTF
                     "transport.transactionTI",         box (p.transactionTI |> Option.map box |> Option.defaultValue (box null))
                     "transport.qtyTFin",               box (decimal qtyTF)

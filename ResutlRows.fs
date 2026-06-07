@@ -29,6 +29,9 @@ type SleeveResultRow = {
   sleeveSide  : SleeveSide
 
   qty         : Energy
+  dayAheadQty : Energy
+  intradayQty : Energy
+  buyBackQty  : Energy
   price       : EnergyPrice
   indexPrice  : EnergyPrice
   adder       : EnergyPrice
@@ -69,6 +72,9 @@ type TradeResultRow = {
   buyerId      : EntidadLegalId
   locationId   : LocationId
   qty         : Energy
+  dayAheadQty : Energy
+  intradayQty : Energy
+  buyBackQty  : Energy
   adder       : EnergyPrice
   price       : EnergyPrice
 }

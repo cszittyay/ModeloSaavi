@@ -63,7 +63,7 @@ let getFlowMasterIdsByPlanta
                 query {
                     for fm in ctx.Fm.FlowMaster do
                     join k in ctx.Dbo.Cliente on (fm.IdCliente = k.IdCliente)
-                    join p in ctx.Dbo.Punto on (k.IdPunto.Value = p.IdPunto)
+                    join p in ctx.Dbo.Punto on (k.IdPunto = p.IdPunto)
                     where (
                         p.IdPlanta .Value= idPlanta
                         && fm.VigenciaDesde <= dtGasDay

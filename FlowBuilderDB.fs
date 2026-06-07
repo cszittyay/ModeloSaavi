@@ -12,6 +12,44 @@ open Gnx.Persistence.SQL_Data
 open Gnx.Domain
 open Gnx.Persistence
 
+module private CompraGasSegments =
+    let private segmentOfSupply (sp: SupplyParams) =
+        if sp.buyBack then EnergySegment.BuyBack
+        else
+            match sp.temporalidad with
+            | Temporalidad.DayAhead -> EnergySegment.DayAhead
+            | Temporalidad.Intraday -> EnergySegment.Intraday
+            | Temporalidad.Monthly -> EnergySegment.DayAhead
+
+    let private weightedRate (selector: SupplyParams -> EnergyPrice) (legs: SupplyParams list) (qty: Energy) =
+        if qty = 0.0m<MMBTU> then 0.0m<USD/MMBTU>
+        else
+            let amount = legs |> List.sumBy (fun sp -> sp.qEnergia * selector sp)
+            amount / qty
+
+    let fromSupplies (sps: SupplyParams list) : EnergySegmentQty list =
+        sps
+        |> List.groupBy segmentOfSupply
+        |> List.map (fun (segment, legs) ->
+            let qty = legs |> List.sumBy (fun sp -> sp.qEnergia)
+            {
+              segment = segment
+              qty = qty
+              price = weightedRate (fun sp -> sp.price) legs qty
+              adder = weightedRate (fun sp -> sp.adder) legs qty
+            })
+        |> List.sortBy (fun s ->
+            match s.segment with
+            | EnergySegment.DayAhead -> 0
+            | EnergySegment.Intraday -> 1
+            | EnergySegment.BuyBack -> 2)
+
+    let fromSupplyMap (supplyMap: Map<int, SupplyParams list>) : EnergySegmentQty list =
+        supplyMap
+        |> Map.toList
+        |> List.collect snd
+        |> fromSupplies
+
 
 // =====================================================================================
 // Caches (lazy) - evitamos pegarle a la DB al cargar el módulo y permitimos reuso.
@@ -84,7 +122,11 @@ let buildSupplysDB
                 |> Result.bind (fun m ->
                     let transact = dTransGas.[cg.idTransaccion]
                     let contrato = dCont.[transact.idContrato]
-
+                    let adder =
+                                transact.adder
+                                |> Option.orElse cg.adder
+                                |> Option.defaultValue 0.0m
+                                |> fun x -> x * 1.0m<USD/MMBTU>
                     let sp : SupplyParams =
                         { 
                         gasDay         = diaGas
@@ -96,11 +138,12 @@ let buildSupplysDB
                         buyer          = transact.buyer
                         seller         = transact.seller
                         temporalidad   = parseTemporalidad cg.temporalidad
+                        buyBack        = cg.buyBack |> Option.defaultValue false
                         deliveryPt     = transact.puntoEntrega
                         deliveryPtId   = cg.idPuntoEntrega
                         qEnergia       = cg.nominado * 1.0m<MMBTU>
                         index          = cg.idIndicePrecio |> Option.defaultValue 0
-                        adder          = (cg.adder  |> Option.defaultValue 0.0m) * 1.0m<USD/MMBTU>
+                        adder          = adder
                         price          = (cg.precio |> Option.defaultValue 0.0m) * 1.0m<USD/MMBTU>
                         contractRef    = contrato.codigo
                         meta           = Map.empty }
@@ -114,7 +157,7 @@ let buildSupplysDB
             |> Result.map (Map.map (fun _ lst -> List.rev lst))
 
 
-let buildTradesDB diaGas idFlowMaster path : Result<Map<flowId, TradeParams>, DomainError> =
+let buildTradesDB diaGas idFlowMaster path segmentosCompra : Result<Map<flowId, TradeParams>, DomainError> =
     match Map.tryFind idFlowMaster dFlowMaster with
     | None -> Error (MissingFlowMaster idFlowMaster)
     | Some flowMaster ->
@@ -144,6 +187,7 @@ let buildTradesDB diaGas idFlowMaster path : Result<Map<flowId, TradeParams>, Do
                               seller = transact.seller
                               adder = (transact.adder |> Option.defaultValue 0.0m) * 1.0m<USD/MMBTU>
                               price = 0.0m<USD/MMBTU> // TODO
+                              segments = segmentosCompra
                               locationId = transact.idPuntoEntrega
                               location = transact.puntoEntrega
                               vigenciaDesde = vigDesde
@@ -154,7 +198,7 @@ let buildTradesDB diaGas idFlowMaster path : Result<Map<flowId, TradeParams>, Do
         ) (Ok Map.empty)
 
 
-let buildSleevesDB diaGas idFlowMaster path : Result<Map<flowId, SleeveParams>, DomainError> =
+let buildSleevesDB diaGas idFlowMaster path segmentosCompra : Result<Map<flowId, SleeveParams>, DomainError> =
 
     let dTransGas = transaccionesGasById().Value
     match Map.tryFind idFlowMaster dFlowMaster with
@@ -188,6 +232,8 @@ let buildSleevesDB diaGas idFlowMaster path : Result<Map<flowId, SleeveParams>, 
                           sleeveSide    = if sl.Side = "Export" then SleeveSide.Export else SleeveSide.Import
                           index         = 0 // TODO
                           adder         = (transact.adder |> Option.defaultValue 0.0m) * 1.0m<USD/MMBTU>
+                          segmentPolicy = SegmentPolicy.NoSegmentRequired
+                          segments      = segmentosCompra
                           contractRef   = transact.contratRef
                           vigenciaDesde = vigDesde
                           vigenciaHasta = vigHasta
@@ -203,7 +249,7 @@ let tryGetPoolFromCtx (ctx: SharedTransportContext) : TryGetCapacityPool =
     | Some pool -> Ok pool
     | None -> Error (Other $"No existe pool para TF={tfId}")
 
-let buildTransportsDB diaGas idFlowMaster path : Result<Map<flowId, TransportParams>, DomainError> =
+let buildTransportsDB diaGas idFlowMaster path segmentosCompra : Result<Map<flowId, TransportParams>, DomainError> =
 
   match Map.tryFind idFlowMaster dFlowMaster with
   | None -> Error (MissingFlowMaster idFlowMaster)
@@ -268,6 +314,7 @@ let buildTransportsDB diaGas idFlowMaster path : Result<Map<flowId, TransportPar
                           fuelPct       = ruta.Fuel
                           CDC           = trTte.cmd
                           usageRate     = trTte.usageRate
+                          segments      = segmentosCompra
                           vigenciaDesde = vigDesde
                           vigenciaHasta = vigHasta
                           meta          = Map.empty }
@@ -322,6 +369,7 @@ let buildSellsDB
     (diaGas: DateOnly)
     (idFlowMaster: int)
     (path: string)
+    (segmentosCompra: EnergySegmentQty list)
     : Result<Map<flowId, SellParams list>, DomainError> =
 
     let flowDetails = getFlowDetailsByTipo idFlowMaster path "Sell"
@@ -366,6 +414,7 @@ let buildSellsDB
                               qty          = vr.CantidadMmBtu * 1.0m<MMBTU>
                               price        = vr.PrecioUsd * 1.0m<USD/MMBTU>
                               adder        = 0.0m<USD/MMBTU>
+                              segments     = segmentosCompra
                               contractRef  = contractRef
                               meta         = Map.empty }
 
@@ -392,17 +441,26 @@ let buildFlowStepsDb (flowMasterId: FlowMasterId) (path: string) (diaGas: DateOn
     let tryFindOr (defaultValue: 'a) (fdId: int) (r: Result<Map<int,'a>, 'e>) : Result<'a,'e> =
         r |> Result.map (fun m -> Map.tryFind fdId m |> Option.defaultValue defaultValue)
 
-    let supplies   = buildSupplysDB diaGas fm.IdFlowMaster path
-    let trades     = buildTradesDB diaGas fm.IdFlowMaster path
-    let sleeves    = buildSleevesDB diaGas fm.IdFlowMaster path
-    let transports = buildTransportsDB diaGas fm.IdFlowMaster path
-    let consumes   = buildConsumeDB diaGas fm.IdFlowMaster path
-    let sells      = buildSellsDB diaGas fm.IdFlowMaster path
-
     let flowDetails =
         getFlowDetails fm.IdFlowMaster path
         |> Seq.toList
         |> List.sortBy (fun fd -> fd.Orden)
+
+    let hasTipo tipoDesc =
+        match tipoOperacionByDesc().Value.TryFind tipoDesc with
+        | None -> false
+        | Some idTipo -> flowDetails |> List.exists (fun fd -> fd.IdTipoOperacion = idTipo)
+
+    let supplies =
+        if hasTipo "Supply" then buildSupplysDB diaGas fm.IdFlowMaster path
+        else Ok Map.empty
+
+    let segmentosCompra = supplies |> Result.map CompraGasSegments.fromSupplyMap
+    let trades     = segmentosCompra |> Result.bind (buildTradesDB diaGas fm.IdFlowMaster path)
+    let sleeves    = segmentosCompra |> Result.bind (buildSleevesDB diaGas fm.IdFlowMaster path)
+    let transports = segmentosCompra |> Result.bind (buildTransportsDB diaGas fm.IdFlowMaster path)
+    let consumes   = buildConsumeDB diaGas fm.IdFlowMaster path
+    let sells      = segmentosCompra |> Result.bind (buildSellsDB diaGas fm.IdFlowMaster path)
 
     let buildBlock (tipoDesc: string) (fd: FlowDetail) : Result<Block option, DomainError> =
         match tipoDesc with

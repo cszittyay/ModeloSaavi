@@ -4,6 +4,36 @@ open Tipos
 open ResultRows
 open Helpers
 
+module private SegmentProjection =
+  type SegmentQtyBreakdown = {
+    DayAheadQty : Energy
+    IntradayQty : Energy
+    BuyBackQty : Energy
+  }
+
+  let empty =
+    {
+      DayAheadQty = 0.0m<MMBTU>
+      IntradayQty = 0.0m<MMBTU>
+      BuyBackQty = 0.0m<MMBTU>
+    }
+
+  let qtyTotal breakdown =
+    breakdown.DayAheadQty + breakdown.IntradayQty + breakdown.BuyBackQty
+
+  let breakdown segments =
+    segments
+    |> List.fold
+      (fun state segment ->
+        match segment.segment with
+        | EnergySegment.DayAhead ->
+            { state with DayAheadQty = state.DayAheadQty + segment.qty }
+        | EnergySegment.Intraday ->
+            { state with IntradayQty = state.IntradayQty + segment.qty }
+        | EnergySegment.BuyBack ->
+            { state with BuyBackQty = state.BuyBackQty + segment.qty })
+      empty
+
 
 let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, DomainError> =
   let inline (>>=) r f = Result.bind f r
@@ -36,7 +66,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
                     transactionId = sp.transactionId
                     flowDetailId = sp.flowDetailId
                     temporalidad = sp.temporalidad
-                    buyBack = sp.qEnergia < 0.0m<MMBTU>    
+                    buyBack = sp.buyBack
                     seller = sp.seller
                     qty = (sp.qEnergia : Energy)
                     adder = sp.adder
@@ -51,6 +81,8 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
   let projectTrade (t: Transition) : Result<TradeResultRow, DomainError> =
         getCommon t >>= fun (refOpt) ->
         Meta.require<TradeParams> "tradeParams" t.notes >>= fun p ->
+        Meta.require<EnergySegmentQty list> "segments" t.notes >>= fun segments ->
+        let breakdown = SegmentProjection.breakdown segments
         Ok {
           runId = runId
           gasDay = t.state.gasDay
@@ -59,8 +91,11 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
           sellerId = p.sellerId
           buyerId = p.buyerId
           locationId = p.locationId
-          qty = t.state.energy
-          adder =  p.adder
+          qty = SegmentProjection.qtyTotal breakdown
+          dayAheadQty = breakdown.DayAheadQty
+          intradayQty = breakdown.IntradayQty
+          buyBackQty = breakdown.BuyBackQty
+          adder = p.adder
           price = p.price
         }
 
@@ -160,7 +195,8 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
   let projectSleeve (t: Transition) : Result<SleeveResultRow, DomainError> =
     getCommon t >>= fun (refOpt) ->
     Meta.require<SleeveParams> "sleeveParams" t.notes >>= fun p ->
-    Meta.require<Energy> "qty" t.notes >>= fun qty ->
+    Meta.require<EnergySegmentQty list> "segments" t.notes >>= fun segments ->
+    let breakdown = SegmentProjection.breakdown segments
     Ok {
       runId = runId
       gasDay = t.state.gasDay
@@ -171,8 +207,11 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
       indexPrice = 0.0m<USD/MMBTU>  // placeholder
       sleeveSide = p.sleeveSide
 
-      qty = qty
-      price = 1.m<USD/MMBTU>  // las ventas sleeve no tienen pric e fijo
+      qty = SegmentProjection.qtyTotal breakdown
+      dayAheadQty = breakdown.DayAheadQty
+      intradayQty = breakdown.IntradayQty
+      buyBackQty = breakdown.BuyBackQty
+      price = 1.0m<USD/MMBTU>
       adder = p.adder
     }
 
@@ -202,7 +241,8 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
          projectSupplyRows runId t
              |> Result.map (fun rows -> { acc with supplies = rows @ acc.supplies })
 
-      | Some "trade" ->
+      | Some "trade"
+      | Some "Trade" ->
           projectTrade t <!> fun row -> { acc with trades = row :: acc.trades }
 
       | Some "sell" ->
@@ -219,7 +259,8 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
 
           // projectTransport t <!> fun row -> { acc with transports = row :: acc.transports }
 
-      | Some "sleeve" ->
+      | Some "sleeve"
+      | Some "Sleeve" ->
           projectSleeve t <!> fun row -> { acc with sleeves = row :: acc.sleeves }
 
       | Some "consume" ->

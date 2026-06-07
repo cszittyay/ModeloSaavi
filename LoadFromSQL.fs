@@ -292,7 +292,7 @@ module SQL_Data =
   let loadConsumo (diaGas:DateOnly) idCliente =
      
       let dia = diaGas.ToDateTime(TimeOnly.MinValue)
-      let idPunto = dCliente.[idCliente].IdPunto.Value
+      let idPunto = dCliente.[idCliente].IdPunto
 
       let result = query {
               for cg in ctx.Dbo.Consumo do
