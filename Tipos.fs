@@ -85,6 +85,10 @@ type EnergySegmentQty = {
   adder   : EnergyPrice
 }
 
+type CompraGasCantidadFuente =
+  | Nominado
+  | Confirmado
+
 type SegmentPolicy =
   | NoSegmentRequired
   | SegmentRequired
