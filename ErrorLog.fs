@@ -86,7 +86,8 @@ module FlowApiModule =
     [<CLIMutable>]
     type RunFlowRequest =
       { GasDay       : DateOnly
-        FlowMasterId : int }
+        FlowMasterId : int
+        CompraGasCantidadFuente : string option }
 
     type FlowRunException(message: string, ?inner: exn) =
       inherit Exception(message, defaultArg inner null)
@@ -96,6 +97,12 @@ module FlowApiModule =
         task {
           let initialState = Logging.st0
 
+          let parseCantidadFuente value =
+            match value |> Option.defaultValue "Nominado" |> fun s -> s.Trim().ToLowerInvariant() with
+            | "nominado" | "nominated" -> Ok CompraGasCantidadFuente.Nominado
+            | "confirmado" | "confirmed" -> Ok CompraGasCantidadFuente.Confirmado
+            | other -> Error (DomainError.Other $"CompraGasCantidadFuente invalida: {other}. Use Nominado o Confirmado.")
+
           let mkErr code msg details =
             { Ok = false
               RunId = None
@@ -103,22 +110,25 @@ module FlowApiModule =
 
           try
             let r =
-              match Escenario.initSharedTransportContext req.GasDay with
+              match parseCantidadFuente req.CompraGasCantidadFuente with
               | Error e -> Error e
-              | Ok sharedTransportCtx ->
-                  let tryGetPool = Escenario.mkTryGetPool sharedTransportCtx
+              | Ok cantidadFuente ->
+                  match Escenario.initSharedTransportContext req.GasDay with
+                  | Error e -> Error e
+                  | Ok sharedTransportCtx ->
+                      let tryGetPool = Escenario.mkTryGetPool sharedTransportCtx
 
-                  Logging.withRunContext req.FlowMasterId req.GasDay (fun () ->
-                    Logging.logRunStarted()
+                      Logging.withRunContext req.FlowMasterId req.GasDay (fun () ->
+                        Logging.logRunStarted()
 
-                    match FlowRunRepo.runFlowAndPersistDB tryGetPool req.FlowMasterId req.GasDay initialState with
-                    | Ok (runId, _finalState, transitions) ->
-                        Logging.logRunOk (Some runId) transitions.Length
-                        Ok runId
-                    | Error e ->
-                        Logging.logRunFailed e
-                        Error e
-                  )
+                        match FlowRunRepo.runFlowAndPersistDBWithCantidadFuente cantidadFuente tryGetPool req.FlowMasterId req.GasDay initialState with
+                        | Ok (runId, _finalState, transitions) ->
+                            Logging.logRunOk (Some runId) transitions.Length
+                            Ok runId
+                        | Error e ->
+                            Logging.logRunFailed e
+                            Error e
+                      )
 
             match r with
             | Ok runId ->

@@ -106,6 +106,7 @@ module FlowRunRepo =
     let insertAndGetRunId
         (conn   : IDbConnection)
         (tx     : IDbTransaction)
+        (cantidadFuente: CompraGasCantidadFuente)
         (gasDay : DateOnly)
         (flowMasterId : int)
         : Result<int, DomainError> =
@@ -117,12 +118,14 @@ module FlowRunRepo =
             fr.Modo <- fm.Nombre.Value
             fr.Central <- fm.Codigo
             fr.IdFlowMaster <- fm.IdFlowMaster
+            fr.CompraGasCantidadFuente <- string cantidadFuente
             ctx.SubmitUpdates()
             Ok fr.RunId
         with ex ->
             Error (DomainError.Other ex.Message)
 
-    let runFlowAndPersistDB
+    let runFlowAndPersistDBWithCantidadFuente
+        (cantidadFuente: CompraGasCantidadFuente)
         (tryGetPool  : TryGetCapacityPool)
         (flowMasterId: int)
         (diaGas      : DateOnly)
@@ -130,7 +133,7 @@ module FlowRunRepo =
         : Result<int * State * Transition list, DomainError> =
     
       result {
-        let! paths = getFlowStepsDB flowMasterId diaGas
+        let! paths = getFlowStepsDB cantidadFuente flowMasterId diaGas
         let! flowDef = buildFlowDef paths
     
         let stepRunner = runSteps tryGetPool
@@ -141,7 +144,7 @@ module FlowRunRepo =
         let! runId, finalState, transitions =
           withTransaction (fun conn tx ->
             result {
-              let! runId = insertAndGetRunId conn tx diaGas flowMasterId
+              let! runId = insertAndGetRunId conn tx cantidadFuente diaGas flowMasterId
               let! rows = projectRows runId transitions
               do! persistAll tx runId rows
               return (runId, finalState, transitions)
@@ -149,8 +152,18 @@ module FlowRunRepo =
     
         return (runId, finalState, transitions)
       }
+
+    let runFlowAndPersistDB
+        (tryGetPool  : TryGetCapacityPool)
+        (flowMasterId: int)
+        (diaGas      : DateOnly)
+        (initial     : State)
+        : Result<int * State * Transition list, DomainError> =
+
+        runFlowAndPersistDBWithCantidadFuente CompraGasCantidadFuente.Nominado tryGetPool flowMasterId diaGas initial
     
-    let runFlowsAndPersistDB
+    let runFlowsAndPersistDBWithCantidadFuente
+        (cantidadFuente: CompraGasCantidadFuente)
         (flowMasterIds : int list)
         (diaGas        : DateOnly)
         (initialByFlow : Map<int, State>)
@@ -161,7 +174,6 @@ module FlowRunRepo =
             let tryGetPool = mkTryGetPool sharedTransportCtx
     
             let mutable resultsRev : FlowBatchItemResult list = []
-            let mutable missingCompraGasErrors : DomainError list = []
             for flowMasterId in flowMasterIds do
                 let fm = dFlowMaster.[flowMasterId]
                
@@ -171,13 +183,9 @@ module FlowRunRepo =
                     | None -> Error (Other $"No existe initial state para FlowMaster={fm.Nombre}")
     
                 let! runResultOpt =
-                    match runFlowAndPersistDB tryGetPool flowMasterId diaGas currentInitial with
+                    match runFlowAndPersistDBWithCantidadFuente cantidadFuente tryGetPool flowMasterId diaGas currentInitial with
                     | Error (MissingSupplyFlowDetail (fm, day, path)) ->
                         printfn $"[SKIP] FlowMaster={flowMasterId} fm='{fm}' path='{path}' day={day} — Sin Supply"
-                        Ok None
-                    | Error (MissingCompraGasForSupply (fm, day, path)) ->
-                        printfn $"[ERROR] FlowMaster={flowMasterId} fm='{fm}' path='{path}' day={day} - el flujo no tiene ninguna compra de gas"
-                        missingCompraGasErrors <- MissingCompraGasForSupply (fm, day, path) :: missingCompraGasErrors
                         Ok None
                     | Error (MissingConsumoForFlowDetail (fm, day, path)) ->
                         printfn $"[SKIP] FlowMaster={flowMasterId} fm='{fm}' path='{path}' day={day} — sin datos de consumo"
@@ -190,11 +198,19 @@ module FlowRunRepo =
                 | Some (runId, _, _) ->
                     resultsRev <- { RunId = runId } :: resultsRev
     
-            match resultsRev, missingCompraGasErrors with
-            | [], err :: _ -> return! Error err
-            | _ -> return List.rev resultsRev
+            return List.rev resultsRev
         }
-    let runFlowsAndPersistDBByPlanta
+
+    let runFlowsAndPersistDB
+        (flowMasterIds : int list)
+        (diaGas        : DateOnly)
+        (initialByFlow : Map<int, State>)
+        : Result<FlowBatchItemResult list, DomainError> =
+
+        runFlowsAndPersistDBWithCantidadFuente CompraGasCantidadFuente.Nominado flowMasterIds diaGas initialByFlow
+
+    let runFlowsAndPersistDBByPlantaWithCantidadFuente
+        (cantidadFuente: CompraGasCantidadFuente)
         (idPlanta: int)
         (gasDay: DateOnly)
         : Result<FlowBatchItemResult list, DomainError> =
@@ -210,8 +226,15 @@ module FlowRunRepo =
             let initialByFlow =
                 buildInitialByFlow flowMasterIds gasDay
     
-            return! runFlowsAndPersistDB flowMasterIds gasDay initialByFlow
+            return! runFlowsAndPersistDBWithCantidadFuente cantidadFuente flowMasterIds gasDay initialByFlow
         }
+
+    let runFlowsAndPersistDBByPlanta
+        (idPlanta: int)
+        (gasDay: DateOnly)
+        : Result<FlowBatchItemResult list, DomainError> =
+    
+        runFlowsAndPersistDBByPlantaWithCantidadFuente CompraGasCantidadFuente.Nominado idPlanta gasDay
     
     
     let runFlowBatchIdsByPlanta
@@ -221,5 +244,16 @@ module FlowRunRepo =
     
         result {
             let! results = runFlowsAndPersistDBByPlanta idPlanta gasDay
+            return results |> List.map (fun x -> x.RunId)
+        }
+
+    let runFlowBatchIdsByPlantaWithCantidadFuente
+        (cantidadFuente: CompraGasCantidadFuente)
+        (idPlanta: int)
+        (gasDay: DateOnly)
+        : Result<int list, DomainError> =
+    
+        result {
+            let! results = runFlowsAndPersistDBByPlantaWithCantidadFuente cantidadFuente idPlanta gasDay
             return results |> List.map (fun x -> x.RunId)
         }

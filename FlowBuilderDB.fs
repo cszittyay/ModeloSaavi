@@ -105,6 +105,7 @@ let toErrorDto (e: DomainError) : FlowRunErrorDto =
 // =====================================================================================
 // Para un FlowMaster y un path: sólo un idFlowDetail de tipo "Supply" (asumido)
 let buildSupplysDB
+    (cantidadFuente: CompraGasCantidadFuente)
     (diaGas: DateOnly)
     (idFlowMaster: int)
     (path: string)
@@ -135,6 +136,11 @@ let buildSupplysDB
                                 |> Option.orElse cg.adder
                                 |> Option.defaultValue 0.0m
                                 |> fun x -> x * 1.0m<USD/MMBTU>
+                    let qCompraGas =
+                        match cantidadFuente with
+                        | CompraGasCantidadFuente.Nominado -> cg.nominado
+                        | CompraGasCantidadFuente.Confirmado -> cg.confirmado |> Option.defaultValue cg.nominado
+
                     let sp : SupplyParams =
                         { 
                         gasDay         = diaGas
@@ -149,7 +155,7 @@ let buildSupplysDB
                         buyBack        = cg.buyBack |> Option.defaultValue false
                         deliveryPt     = transact.puntoEntrega
                         deliveryPtId   = cg.idPuntoEntrega
-                        qEnergia       = cg.nominado * 1.0m<MMBTU>
+                        qEnergia       = qCompraGas * 1.0m<MMBTU>
                         index          = cg.idIndicePrecio |> Option.defaultValue 0
                         adder          = adder
                         price          = (cg.precio |> Option.defaultValue 0.0m) * 1.0m<USD/MMBTU>
@@ -439,7 +445,12 @@ let buildSellsDB
 // FlowSteps (equivalente a buildFlowSteps / getFlowSteps de Excel)
 // =====================================================================================
 
-let buildFlowStepsDb (flowMasterId: FlowMasterId) (path: string) (diaGas: DateOnly) : Result<FlowStep list, DomainError> =
+let buildFlowStepsDb
+    (cantidadFuente: CompraGasCantidadFuente)
+    (flowMasterId: FlowMasterId)
+    (path: string)
+    (diaGas: DateOnly)
+    : Result<FlowStep list, DomainError> =
 
     let fm =
         match tryFindFlowMaster flowMasterId with
@@ -460,7 +471,7 @@ let buildFlowStepsDb (flowMasterId: FlowMasterId) (path: string) (diaGas: DateOn
         | Some idTipo -> flowDetails |> List.exists (fun fd -> fd.IdTipoOperacion = idTipo)
 
     let supplies =
-        if hasTipo "Supply" then buildSupplysDB diaGas fm.IdFlowMaster path
+        if hasTipo "Supply" then buildSupplysDB cantidadFuente diaGas fm.IdFlowMaster path
         else Ok Map.empty
 
     let segmentosCompra = supplies |> Result.map CompraGasSegments.fromSupplyMap
@@ -528,6 +539,7 @@ let buildFlowStepsDb (flowMasterId: FlowMasterId) (path: string) (diaGas: DateOn
     |> Result.map (List.choose id)
 
 let getFlowStepsDB
+    (cantidadFuente: CompraGasCantidadFuente)
     (flowMasterId      : FlowMasterId)
     (diaGas    : DateOnly)
     : Result<Map<FlowId, FlowStep list>, DomainError> =
@@ -550,7 +562,7 @@ let getFlowStepsDB
                 paths
                 |> List.map (fun path ->
                     let fid = { flowMasterId = flowMasterId; path = path }
-                    buildFlowStepsDb flowMasterId path diaGas
+                    buildFlowStepsDb cantidadFuente flowMasterId path diaGas
                     |> Result.map (fun steps -> fid, steps))
 
             // Paths sin CompraGas se omiten si otros paths sí tienen.
