@@ -161,6 +161,7 @@ module FlowRunRepo =
             let tryGetPool = mkTryGetPool sharedTransportCtx
     
             let mutable resultsRev : FlowBatchItemResult list = []
+            let mutable missingCompraGasErrors : DomainError list = []
             for flowMasterId in flowMasterIds do
                 let fm = dFlowMaster.[flowMasterId]
                
@@ -174,6 +175,10 @@ module FlowRunRepo =
                     | Error (MissingSupplyFlowDetail (fm, day, path)) ->
                         printfn $"[SKIP] FlowMaster={flowMasterId} fm='{fm}' path='{path}' day={day} — Sin Supply"
                         Ok None
+                    | Error (MissingCompraGasForSupply (fm, day, path)) ->
+                        printfn $"[ERROR] FlowMaster={flowMasterId} fm='{fm}' path='{path}' day={day} - el flujo no tiene ninguna compra de gas"
+                        missingCompraGasErrors <- MissingCompraGasForSupply (fm, day, path) :: missingCompraGasErrors
+                        Ok None
                     | Error (MissingConsumoForFlowDetail (fm, day, path)) ->
                         printfn $"[SKIP] FlowMaster={flowMasterId} fm='{fm}' path='{path}' day={day} — sin datos de consumo"
                         Ok None
@@ -185,7 +190,9 @@ module FlowRunRepo =
                 | Some (runId, _, _) ->
                     resultsRev <- { RunId = runId } :: resultsRev
     
-            return List.rev resultsRev
+            match resultsRev, missingCompraGasErrors with
+            | [], err :: _ -> return! Error err
+            | _ -> return List.rev resultsRev
         }
     let runFlowsAndPersistDBByPlanta
         (idPlanta: int)

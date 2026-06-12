@@ -12,6 +12,7 @@ module DomainError =
     | MissingContract id    -> $"Falta contrato {id}"
     | CapacityExceeded w    -> $"Capacidad excedida: {w}"
     | InvalidUnits d        -> $"Unidades inválidas: {d}"
+    | MissingCompraGasForSupply (fm, day, path) -> $"El flujo '{fm}' no tiene ninguna compra de gas para GasDay={day} path='{path}'."
     | Other s               -> s
 
 module DomainErrorHelpers =
@@ -22,6 +23,7 @@ module DomainErrorHelpers =
     | MissingContract id -> sprintf "[MissingContract] Faltante: %s" id
     | CapacityExceeded what -> sprintf "[CapacityExceeded] Capacidad excedida en %s" what
     | InvalidUnits detail -> sprintf "[InvalidUnits] %s" detail
+    | MissingCompraGasForSupply (fm, day, path) -> sprintf "[MissingCompraGasForSupply] FlowMaster=%s GasDay=%O path=%s sin compra de gas" fm day path
     | Other msg -> sprintf "[Other] %s" msg
 
 

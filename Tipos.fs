@@ -50,6 +50,7 @@ type DomainError =
   | MissingTransportFlowDetail of flowMaster: string * flowDetail:string * path:string
   | MissingFlowMaster of idFlowMaster:int
   | MissingConsumoForFlowDetail of flowMaster: string * gasDay:DateOnly * path:string
+  | MissingCompraGasForSupply of flowMaster: string * gasDay:DateOnly * path:string
   | MissingSellFlowDetail of flowDetailId:int * gasDay:DateOnly * path:string
   | MissingSupplyFlowDetail of flowMaster: string * gasDay:DateOnly * path:string
   | MissingSleeveFlowDetail of flowMaster: string * flowDetail:string * path:string

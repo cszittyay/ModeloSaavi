@@ -93,6 +93,14 @@ let toErrorDto (e: DomainError) : FlowRunErrorDto =
       { Code = "TRADE_NOT_FOUND_FOR_FLOW_DETAIL"
         Message = $"Falta Trade para FlowDetail id={fdId} (FlowMaster={fmId}, path={path})."
         Details = Some "S/D" }
+  | MissingCompraGasForSupply (fm, day, path) ->
+      { Code = "MISSING_COMPRA_GAS_FOR_SUPPLY"
+        Message = $"El flujo '{fm}' no tiene ninguna compra de gas para GasDay={day} path='{path}'."
+        Details = Some "No se genero FlowRun." }
+  | e ->
+      { Code = "FLOW_ERROR"
+        Message = $"{e}"
+        Details = None }
  
 // =====================================================================================
 // Para un FlowMaster y un path: sólo un idFlowDetail de tipo "Supply" (asumido)
@@ -114,7 +122,7 @@ let buildSupplysDB
         | Some fdSupply ->
             let idFlowDetail = fdSupply.IdFlowDetail
             let compraGas = loadCompraGas diaGas idFlowDetail
-            if compraGas.Length = 0 then Ok Map.empty
+            if compraGas.Length = 0 then Error (MissingCompraGasForSupply (fmNombre, diaGas, path))
             else
             compraGas
             |> List.fold (fun acc cg ->
@@ -561,6 +569,9 @@ let getFlowStepsDB
                     collect ((fid, steps) :: acc) supplyErrors rest
                 | Error (MissingSupplyFlowDetail (_, day, path) as e) :: rest ->
                     printfn $"[SKIP path] FlowMaster={dFlowMaster.[flowMasterId].Nombre} path='{path}' day={day} — Sin Supply"
+                    collect acc (e :: supplyErrors) rest
+                | Error (MissingCompraGasForSupply (_, day, path) as e) :: rest ->
+                    printfn $"[SKIP path] FlowMaster={dFlowMaster.[flowMasterId].Nombre} path='{path}' day={day} - sin compra de gas"
                     collect acc (e :: supplyErrors) rest
                 | Error e :: _ ->
                     Error e

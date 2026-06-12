@@ -11,11 +11,28 @@ open FSharp.Data.Sql
     TrustServerCertificate=True;
 *)
 
+
+// Desarrollo
 [<Literal>]
 let connectionString = "Server=(localdb)\MSSQLLocalDB;Database=UAT_GNX_Saavi2;Trusted_Connection=True;TrustServerCertificate=True;"
 
+
+// TEST
 //[<Literal>]
-//let rdsConnectionString = "Server=sql-test.clxowb3nocuv.us-east-1.rds.amazonaws.com;User Id=gnx-uat;Database=UAT_GNX_Saavi;Password=B0C6-!$2s*qAgaM2o(£];TrustServerCertificate=True;"
+//let connectionString = "Server=sql-test.clxowb3nocuv.us-east-1.rds.amazonaws.com;User Id=gnx-uat;Database=Testing_GNX_Saavi;Password=B0C6-!$2s*qAgaM2o(£];TrustServerCertificate=True;"
+
+// PROD
+(*
+usuaurio: gnx-prd
+password: Gx7#KpR9!mTz4@Wn2$Lq
+DataBase: PRD_GNX_Saavi
+Server: mexico-db.clxowb3nocuv.us-east-1.rds.amazonaws.com
+
+*)
+
+//[<Literal>]
+//let connectionString = "Server=mexico-db.clxowb3nocuv.us-east-1.rds.amazonaws.com;User Id=gnx-prd;Database=PRD_GNX_Saavi;Password=Gx7#KpR9!mTz4@Wn2$Lq;TrustServerCertificate=True;"
+
 
 [<Literal>]
 let useOptionTypes = FSharp.Data.Sql.Common.NullableColumnType.OPTION
