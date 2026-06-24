@@ -126,6 +126,7 @@ type TransaccionTransporte =
     idPuntoRecepcion: int
     cmd : decimal<MMBTU>
     usageRate  : decimal<USD/MMBTU>
+    overrun: bool
     fuelMode : string
     fuel: decimal
   }

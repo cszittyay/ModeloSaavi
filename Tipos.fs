@@ -209,6 +209,7 @@ type TransportParams =
     fuelMode    : FuelMode
     fuelPct     : decimal
     CDC         : Energy
+    overrun     : bool
     usageRate   : EnergyPrice
     segments    : EnergySegmentQty list
     vigenciaDesde : DateOnly

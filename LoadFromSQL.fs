@@ -125,6 +125,7 @@ module SQL_Data =
             Fuel = r.Fuel
             CMD = t.Cmd
             UsageRate = t.CargoUso
+            Overrun = t.Overrun
        }
 
     }

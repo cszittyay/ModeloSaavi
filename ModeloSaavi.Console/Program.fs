@@ -2,7 +2,7 @@ open System
 open System.Globalization
 open Escenario
 
-let private defaultPlants = [ 2..2 ]
+let private defaultPlants = [ 1..1 ]
 let private defaultDayOffsets = [ 0..0 ]
 
 let private tryParseDateOnly (value: string) =

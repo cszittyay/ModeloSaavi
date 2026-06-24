@@ -125,6 +125,8 @@ module FlowApiModule =
                         | Ok (runId, _finalState, transitions) ->
                             Logging.logRunOk (Some runId) transitions.Length
                             Ok runId
+                        | Error (MissingCompraGasForSupply _ as e) ->
+                            Error e
                         | Error e ->
                             Logging.logRunFailed e
                             Error e
@@ -137,9 +139,11 @@ module FlowApiModule =
                     RunId = Some runId
                     Error = None }
 
-            | Error (MissingCompraGasForSupply (fm, day, path)) ->
-                let dayText = day.ToString("yyyy-MM-dd")
-                return mkErr "MissingCompraGas" $"El flujo '{fm}' no tiene ninguna compra de gas para GasDay={dayText} path='{path}'." None
+            | Error (MissingCompraGasForSupply _) ->
+                return
+                  { Ok = true
+                    RunId = None
+                    Error = None }
 
             | Error e ->
                 return mkErr "FlowFailed" $"Flow failed: {e}" None

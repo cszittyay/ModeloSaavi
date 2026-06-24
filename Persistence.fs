@@ -62,6 +62,7 @@ type TransaccionTransporteJoinRow =
     Id_Ruta: int 
     CMD: decimal 
     UsageRate: decimal
+    Overrun: bool
     FuelMode: string
     Fuel: decimal
  }

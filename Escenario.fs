@@ -187,6 +187,8 @@ module FlowRunRepo =
                     | Error (MissingSupplyFlowDetail (fm, day, path)) ->
                         printfn $"[SKIP] FlowMaster={flowMasterId} fm='{fm}' path='{path}' day={day} — Sin Supply"
                         Ok None
+                    | Error (MissingCompraGasForSupply _) ->
+                        Ok None
                     | Error (MissingConsumoForFlowDetail (fm, day, path)) ->
                         printfn $"[SKIP] FlowMaster={flowMasterId} fm='{fm}' path='{path}' day={day} — sin datos de consumo"
                         Ok None

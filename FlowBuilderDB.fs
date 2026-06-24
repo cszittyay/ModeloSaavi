@@ -327,6 +327,7 @@ let buildTransportsDB diaGas idFlowMaster path segmentosCompra : Result<Map<flow
                           fuelMode      = if trTte.fuelMode = "RxBase" then FuelMode.RxBase else FuelMode.ExBase
                           fuelPct       = ruta.Fuel
                           CDC           = trTte.cmd
+                          overrun       = trTF |> Option.exists (fun x -> x.overrun)
                           usageRate     = trTte.usageRate
                           segments      = segmentosCompra
                           vigenciaDesde = vigDesde

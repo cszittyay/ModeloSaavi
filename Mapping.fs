@@ -82,6 +82,7 @@ module Mappings =
         idRuta = r.Id_Ruta
         cmd = r.CMD* 1.0m<MMBTU>
         usageRate = r.UsageRate * 1.0m<USD/MMBTU>
+        overrun = r.Overrun
         fuel = r.Fuel
         }
 

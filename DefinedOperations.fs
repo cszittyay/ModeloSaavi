@@ -407,6 +407,7 @@ module Transport =
       (mode: TransportTxnMode)
       (qtyIn: Energy)
       (flowDetailId: int)
+      (overrun: bool)
       : Result<Energy * Energy * Energy option * Energy option, DomainError> =
       // qtyTF, qtyTI, remainingBeforeOpt, remainingAfterOpt
 
@@ -419,35 +420,49 @@ module Transport =
         | Error e -> Error e
         | Ok pool ->
             let remainingBefore = pool.Remaining
-            let qtyTF = min qtyIn pool.Remaining
-            let qtyTI = qtyIn - qtyTF
 
-            pool.Remaining <- pool.Remaining - qtyTF
-
-            let remainingAfter = pool.Remaining
-
-            if qtyTI > 0.0m<MMBTU> then
-              let tteTransact = (SQL_Data.transaccionesTransporteById().Value).[tf]
-              let codigo = tteTransact.codigo
-              let contratRef = tteTransact.contratRef
-              let cmd = tteTransact.cmd
-              Error (MissingInterruptibleTransport $"Exceso sobre capacidad firme y sin TI configurado. Contrato={contratRef}, Transaccion:{codigo}, CMD (TF):{cmd}")
-
-            else
+            if overrun then
+              let qtyTF = qtyIn
+              pool.Remaining <- pool.Remaining - qtyTF
+              let remainingAfter = pool.Remaining
               Ok (qtyTF, 0.0m<MMBTU>, Some remainingBefore, Some remainingAfter)
+            else
+              let qtyTF = min qtyIn pool.Remaining
+              let qtyTI = qtyIn - qtyTF
+
+              pool.Remaining <- pool.Remaining - qtyTF
+
+              let remainingAfter = pool.Remaining
+
+              if qtyTI > 0.0m<MMBTU> then
+                let tteTransact = (SQL_Data.transaccionesTransporteById().Value).[tf]
+                let codigo = tteTransact.codigo
+                let contratRef = tteTransact.contratRef
+                let cmd = tteTransact.cmd
+                Error (MissingInterruptibleTransport $"Exceso sobre capacidad firme y sin TI configurado. Contrato={contratRef}, Transaccion:{codigo}, CMD (TF):{cmd}")
+
+              else
+                Ok (qtyTF, 0.0m<MMBTU>, Some remainingBefore, Some remainingAfter)
 
     | TFandTI (tf, _ti) ->
         match tryGetPool tf with
         | Error e -> Error e
         | Ok pool ->
             let remainingBefore = pool.Remaining
-            let qtyTF = min qtyIn pool.Remaining
-            let qtyTI = qtyIn - qtyTF
 
-            pool.Remaining <- pool.Remaining - qtyTF
+            if overrun then
+              let qtyTF = qtyIn
+              pool.Remaining <- pool.Remaining - qtyTF
+              let remainingAfter = pool.Remaining
+              Ok (qtyTF, 0.0m<MMBTU>, Some remainingBefore, Some remainingAfter)
+            else
+              let qtyTF = min qtyIn pool.Remaining
+              let qtyTI = qtyIn - qtyTF
 
-            let remainingAfter = pool.Remaining
-            Ok (qtyTF, qtyTI, Some remainingBefore, Some remainingAfter)
+              pool.Remaining <- pool.Remaining - qtyTF
+
+              let remainingAfter = pool.Remaining
+              Ok (qtyTF, qtyTI, Some remainingBefore, Some remainingAfter)
 
   let transport (tryGetPool: TryGetCapacityPool) (p: TransportParams) : Operation =
     fun stIn ->
@@ -470,7 +485,7 @@ module Transport =
 
         | Ok mode ->
 
-            match allocateTransportQty tryGetPool mode qtyIn p.flowDetailId with
+            match allocateTransportQty tryGetPool mode qtyIn p.flowDetailId p.overrun with
             | Error e ->
                 Error e
 
