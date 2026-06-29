@@ -159,7 +159,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
             { runId = runId
               gasDay = t.state.gasDay
               flowDetailId = p.flowDetailId
-              providerId = p.providerId
+              providerId = p.Id_Transco
               transactionId = p.transactionTF
               routeId = p.routeId
               pipeline = p.pipeline
@@ -177,7 +177,7 @@ let projectRows (runId: int) (ts: Transition list) : Result<ProjectedRows, Domai
             { runId = runId
               gasDay = t.state.gasDay
               flowDetailId = p.flowDetailId
-              providerId = p.providerId
+              providerId = p.Id_Transco
               transactionId = p.transactionTI
               routeId = p.routeId
               pipeline = p.pipeline

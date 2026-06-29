@@ -200,6 +200,8 @@ type TransportParams =
     flowDetailId : FlowDetailId
     provider    : Party
     providerId  : EntidadLegalId
+    Id_Transco  : EntidadLegalId
+    Transco     : Party
     pipeline    : Pipeline                  // Gasoducto
     entry       : Location
     exit        : Location

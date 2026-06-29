@@ -309,21 +309,24 @@ let buildTransportsDB diaGas idFlowMaster path segmentosCompra : Result<Map<flow
                       let cto   = dCont.[trTte.idContrato]
 
                       let contraparte = dEnt.[cto.idContraparte]
+                      let parte       = dEnt.[cto.idParte]
                       let entryPto    = dPto.[ruta.IdPuntoRecepcion]
                       let exitPto     = dPto.[ruta.IdPuntoEntrega]
 
                       let tp : TransportParams =
                         { provider      = contraparte.Nombre
+                          providerId    = cto.idContraparte
+                          Id_Transco    = cto.idContraparte
+                          Transco       = contraparte.Nombre
                           transactionTF = trTF |> Option.map (fun x -> x.id)
                           transactionTI = trTI |> Option.map (fun x -> x.id)
                           flowDetailId  = fd.IdFlowDetail
-                          providerId    = cto.idParte
                           pipeline      = if ruta.IdGasoducto.IsSome then dGasoducto.[ruta.IdGasoducto.Value].Nombre else "S/D"
-                          shipperId     = cto.idContraparte
+                          shipperId     = cto.idParte
                           routeId       = ruta.IdRuta
                           entry         = entryPto
                           exit          = exitPto
-                          shipper       = contraparte.Nombre
+                          shipper       = parte.Nombre
                           fuelMode      = if trTte.fuelMode = "RxBase" then FuelMode.RxBase else FuelMode.ExBase
                           fuelPct       = ruta.Fuel
                           CDC           = trTte.cmd
